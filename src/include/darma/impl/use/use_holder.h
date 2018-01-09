@@ -74,7 +74,8 @@ class UseHolder : public UseHolderBase {
 
     // For use in emulating private constructors that have to go through
     // a shared_ptr interface.
-    static constexpr struct private_ctor_tag_t { } private_ctor_tag { };
+    struct private_ctor_tag_t { };
+    static const private_ctor_tag_t private_ctor_tag;
 
   protected:
 

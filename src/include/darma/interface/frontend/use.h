@@ -57,7 +57,6 @@
 #include "flow_relationship.h"
 
 #include <darma/impl/util/safe_static_cast.h>
-#include <util_dist.h>
 
 namespace darma_runtime {
 namespace frontend {
@@ -263,22 +262,7 @@ namespace frontend {
 class Use {
   public:
 
-    // Symbols referring to the old Permissions enum that used to be in
-    // this class (for backwards compatibility); use symbols in
-    // darma_runtime::frontend::Permissions directly when writing new code
-    //static constexpr auto None = darma_runtime::frontend::Permissions::None;
-    //static constexpr auto Read = darma_runtime::frontend::Permissions::Read;
-    //static constexpr auto Write = darma_runtime::frontend::Permissions::Write;
-    //static constexpr auto Modify = darma_runtime::frontend::Permissions::Modify;
-    //static constexpr auto Sequential = darma_runtime::frontend::CoherenceMode::Sequential;
-    //static constexpr auto Commutative = darma_runtime::frontend::CoherenceMode::Commutative;
-    //static constexpr auto Relaxed = darma_runtime::frontend::CoherenceMode::Relaxed;
-    //static constexpr auto Reduce = darma_runtime::frontend::CoherenceMode::Reduce;
-
     using permissions_t = darma_runtime::frontend::permissions_t;
-
-
-
 
     /** @brief Return a pointer to the handle that this object encapsulates a
      *  use of.

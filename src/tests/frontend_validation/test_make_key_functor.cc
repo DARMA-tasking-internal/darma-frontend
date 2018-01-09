@@ -96,12 +96,13 @@ TEST_F(TestMakeKeyFunctor, test_make_key_functor_int) {
 
   EXPECT_MOD_CAPTURE_MN_OR_MR(f_initial, f_task_out, task_use, f_null, use_cont);
 
+  int value;
+
   {
     InSequence rel_before_reg;
 
     EXPECT_RELEASE_USE(use_initial);
 
-    std::string value;
     EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(UseInGetDependencies(ByRef(task_use))))
     .WillOnce(Invoke([&](auto* task) {
       for(auto&& dep : task->get_dependencies()) {
@@ -157,12 +158,13 @@ TEST_F(TestMakeKeyFunctor, test_make_key_functor_string) {
 
   EXPECT_MOD_CAPTURE_MN_OR_MR(f_initial, f_task_out, task_use, f_null, use_cont);
 
+  std::string value;
+
   {
     InSequence rel_before_reg;
 
     EXPECT_RELEASE_USE(use_initial);
 
-    std::string value;
     EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(UseInGetDependencies(ByRef(task_use))))
     .WillOnce(Invoke([&](auto* task) {
       for(auto&& dep : task->get_dependencies()) {
@@ -219,12 +221,13 @@ TEST_F(TestMakeKeyFunctor, test_key_functor_death) {
 
   EXPECT_MOD_CAPTURE_MN_OR_MR(f_initial, f_task_out, task_use, f_null, use_cont);
 
+  std::string value;
+
   {
     InSequence rel_before_reg;
 
     EXPECT_RELEASE_USE(use_initial);
 
-    std::string value;
     EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(UseInGetDependencies(ByRef(task_use))))
     .WillOnce(Invoke([&](auto* task) {
       for(auto&& dep : task->get_dependencies()) {

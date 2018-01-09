@@ -254,7 +254,7 @@ class PointerReferenceUnpackingArchive {
       // Use a unique_ptr to delete the temporary storage after returning
       auto destroy_but_not_delete = [this](auto* ptr) {
         using allocator_t = typename std::allocator_traits<allocator_type>::template rebind_alloc<T>;
-        allocator_t alloc{get_allocator()};
+        allocator_t alloc{this->get_allocator()};
         // Destroy but don't deallocate, since the data is allocated on the stack
         std::allocator_traits<allocator_t>::destroy(alloc, ptr);
       };

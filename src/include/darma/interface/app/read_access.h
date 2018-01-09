@@ -47,6 +47,7 @@
 
 #include <darma/impl/feature_testing_macros.h>
 
+#if OLD_CODE
 #if _darma_has_feature(arbitrary_publish_fetch)
 
 #include <darma/interface/app/access_handle.h>
@@ -150,5 +151,6 @@ read_access(
 } // end namespace darma_runtime
 
 #endif // _darma_has_feature(arbitrary_publish_fetch)
+#endif // OLD CODE
 
 #endif /* SRC_INCLUDE_DARMA_INTERFACE_APP_READ_ACCESS_H_ */

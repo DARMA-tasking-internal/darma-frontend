@@ -84,7 +84,7 @@ class HandleUse
     // TODO put an unpack_ctor_tag or something here?!?
     HandleUse(
       HandleUseBase&& arg
-    ) : HandleUse(safe_static_cast<HandleUse&&>(std::move(arg)))
+    ) : HandleUse(std::move(*safe_static_cast<HandleUse*>(&arg)))
     { }
 
     /**
@@ -182,140 +182,6 @@ class HandleUse
       this->HandleUseBase::do_serialize(ar);
     }
 };
-
-
-#ifdef OLD_CODE
-template <typename UnderlyingUse>
-struct GenericUseHolder : UseHolderBase {
-  using held_use_t = managing_ptr<
-    std::unique_ptr<UnderlyingUse>, HandleUseBase*
-  >;
-
-  held_use_t use;
-
-  GenericUseHolder(GenericUseHolder&&) = delete;
-  GenericUseHolder(GenericUseHolder const &) = delete;
-
-  explicit
-  GenericUseHolder(UnderlyingUse&& in_use,
-    bool do_register_in_ctor=true,
-    bool will_be_dep=false
-  ) : use(use_base, std::make_unique<UnderlyingUse>(std::move(in_use)))
-  {
-    use->is_dependency_ = will_be_dep and use_base->immediate_permissions_ != frontend::Permissions::None;
-#if _darma_has_feature(anti_flows)
-    use->is_anti_dependency_ = use->is_dependency_ and use_base->immediate_permissions_ != frontend::Permissions::Read;
-
-#endif // _darma_has_feature(anti_flows)
-    if(do_register_in_ctor) do_register();
-  }
-
-  void do_register() {
-    if(not is_registered) { // for now
-      // TODO remove this hack if statement once I remove the superfluous do_register() calls elsewhere
-      assert(!is_registered);
-      abstract::backend::get_backend_runtime()->register_use(use_base);
-      is_registered = true;
-      // Delete the FlowRelationship descriptions so that they don't accidentally get used
-      use->in_flow_rel_ = FlowRelationshipImpl();
-      use->out_flow_rel_ = FlowRelationshipImpl();
-    }
-  }
-
-  void replace_use(UnderlyingUse&& new_use, bool should_do_register) {
-    HandleUseBase* swapped_use_base = nullptr;
-    held_use_t new_use_wrapper(
-      swapped_use_base,
-      std::make_unique<UnderlyingUse>(std::move(new_use))
-    );
-    swap(use, new_use_wrapper);
-    bool old_is_registered = is_registered;
-    is_registered = false;
-    if(should_do_register) do_register();
-    if(old_is_registered) {
-      abstract::backend::get_backend_runtime()->release_use(swapped_use_base);
-    }
-  }
-
-  void do_release() {
-    assert(is_registered);
-    assert(use);
-    use_base->establishes_alias_ = could_be_alias;
-    abstract::backend::get_backend_runtime()->release_use(use.release_smart_ptr());
-    is_registered = false;
-  }
-
-#if _darma_has_feature(task_migration)
-  GenericUseHolder(migrated_use_arg_t, UnderlyingUse&& in_use)
-    : use(use_base, std::make_unique<UnderlyingUse>(std::move(in_use)))
-  {
-    abstract::backend::get_backend_runtime()->reregister_migrated_use(use_base);
-    is_registered = true;
-  }
-#endif
-
-  ~GenericUseHolder() {
-    using namespace darma_runtime::detail::flow_relationships;
-
-    if(use && use_base->suspended_out_flow_.get() != nullptr) {
-
-      // We ended our lives in commutative mode.  While this doesn't make much
-      // sense in most cases, it should work (potentially with a warning message).
-      // We'll need to register the use that depends on the output of the
-      // commutative region to preserve some desirable invariants
-
-      auto* rt = abstract::backend::get_backend_runtime();
-
-#if _darma_has_feature(anti_flows)
-      DARMA_ASSERT_NOT_IMPLEMENTED("new anti-flow semantics with commutative");
-#endif
-
-      // TODO @commutative the "collection" version of this needs to work also
-      DARMA_ASSERT_MESSAGE(
-        not use_base->manages_collection(),
-        "Commutative collections released in this way are not yet implemented"
-      );
-
-      auto last_use_ptr = std::make_unique<HandleUse>(
-        use->handle_,
-        frontend::Permissions::None, // This could cause problems for some backends...
-        frontend::Permissions::None,
-        use->manages_collection() ?
-          same_flow(&use->out_flow_).as_collection_relationship()
-            : same_flow(&use->out_flow_),
-        //FlowRelationship::Same, &(use->out_flow_),
-        use->manages_collection() ?
-          same_flow(use->suspended_out_flow_.get()).as_collection_relationship()
-            : same_flow(use->suspended_out_flow_.get())
-        //FlowRelationship::Same, use->suspended_out_flow_.get(), false
-#if _darma_has_feature(anti_flows)
-        // anti-in
-        , insignificant_flow(),
-        // anti-out
-        use->manages_collection() ?
-          anti_next_of_in_flow().as_collection_relationship()
-            : anti_next_of_in_flow()
-#endif // _darma_has_feature(anti_flows)
-      );
-      rt->register_use(last_use_ptr.get());
-
-      assert(is_registered);
-
-      do_release();
-
-      last_use_ptr->establishes_alias_ = true;
-
-      rt->release_use(std::move(last_use_ptr));
-    }
-    else {
-      // Normal case...
-      if(is_registered) do_release();
-    }
-  }
-};
-#endif // OLD_CODE
-
-//using UseHolder = GenericUseHolder<HandleUse>;
 
 } // end namespace detail
 

@@ -596,48 +596,54 @@ TEST_F_WITH_PARAMS(TestCreateWorkWhile, one_handle_four_iterations,
 
     Mock::VerifyAndClearExpectations(mock_runtime.get());
 
-    // Do block uses
-    EXPECT_NEW_REGISTER_USE_AND_SET_BUFFER(do_use[i],
-      (i == 0 ? f_init : f_do_out[i-1]),
-      Same,
-      (i == 0 ? &f_init : &(f_do_out[i-1])),
-      f_do_out[i], Next, nullptr, true,
-      Modify, Modify, true,
-      value
-    );
-    EXPECT_NEW_REGISTER_USE(do_cont_use[i],
-      f_do_out[i], Same, &f_do_out[i],
-      (i == 0 ? f_while_out : f_inner_while_out[i-1]),
-      Same,
-      (i == 0 ? &f_while_out : &f_inner_while_out[i-1]),
-      false,
-      Modify, None, false
-    );
-    EXPECT_NEW_RELEASE_USE(
-      (i == 0 ? while_use : inner_while_use[i-1]),
-      false
-    );
+    {
+      InSequence seq;
+      // Do block uses
+      EXPECT_NEW_REGISTER_USE_AND_SET_BUFFER(do_use[i],
+        (i == 0 ? f_init : f_do_out[i-1]),
+        Same,
+        (i == 0 ? &f_init : &(f_do_out[i-1])),
+        f_do_out[i], Next, nullptr, true,
+        Modify, Modify, true,
+        value
+      );
+      EXPECT_NEW_REGISTER_USE(do_cont_use[i],
+        f_do_out[i], Same, &f_do_out[i],
+        (i == 0 ? f_while_out : f_inner_while_out[i-1]),
+        Same,
+        (i == 0 ? &f_while_out : &f_inner_while_out[i-1]),
+        false,
+        Modify, None, false
+      );
+      EXPECT_NEW_RELEASE_USE(
+        (i == 0 ? while_use : inner_while_use[i-1]),
+        false
+      );
 
-    EXPECT_REGISTER_TASK(do_use[i]);
+      EXPECT_REGISTER_TASK(do_use[i]);
+    }
 
-    // Inner while block uses
-    EXPECT_NEW_REGISTER_USE_AND_SET_BUFFER(inner_while_use[i],
-      f_do_out[i], Same, &f_do_out[i],
-      f_inner_while_out[i], Next, nullptr, true,
-      Modify, Read, true,
-      value
-    );
-    EXPECT_NEW_REGISTER_USE(inner_while_cont_use[i],
-      f_inner_while_out[i], Same, &f_inner_while_out[i],
-      (i == 0 ? f_while_out : f_inner_while_out[i-1]),
-      Same,
-      (i == 0 ? &f_while_out : &f_inner_while_out[i-1]),
-      false,
-      Modify, None, false
-    );
-    EXPECT_NEW_RELEASE_USE(do_cont_use[i], false);
+    {
+      InSequence seq;
+      // Inner while block uses
+      EXPECT_NEW_REGISTER_USE_AND_SET_BUFFER(inner_while_use[i],
+        f_do_out[i], Same, &f_do_out[i],
+        f_inner_while_out[i], Next, nullptr, true,
+        Modify, Read, true,
+        value
+      );
+      EXPECT_NEW_REGISTER_USE(inner_while_cont_use[i],
+        f_inner_while_out[i], Same, &f_inner_while_out[i],
+        (i == 0 ? f_while_out : f_inner_while_out[i-1]),
+        Same,
+        (i == 0 ? &f_while_out : &f_inner_while_out[i-1]),
+        false,
+        Modify, None, false
+      );
+      EXPECT_NEW_RELEASE_USE(do_cont_use[i], false);
 
-    EXPECT_REGISTER_TASK(inner_while_use[i]);
+      EXPECT_REGISTER_TASK(inner_while_use[i]);
+    }
 
     EXPECT_NEW_RELEASE_USE(inner_while_cont_use[i], true);
 

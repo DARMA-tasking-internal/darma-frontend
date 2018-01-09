@@ -205,36 +205,7 @@ struct TaskCollectionImpl
         int
       >
       operator()(TaskCollectionT& tc, MappedHandleCollectionT&& mcoll) const {
-
-        using tc_index_range_traits = typename TaskCollectionT::index_range_traits;
-        using handle_index_range_t = typename std::decay_t<MappedHandleCollectionT>
-          ::access_handle_collection_t::index_range_type;
-        using full_mapping_t = CompositeMapping<
-          typename std::decay_t<MappedHandleCollectionT>::mapping_t,
-          typename tc_index_range_traits::mapping_to_dense_type
-        >;
-
-//        mcoll.collection.get_current_use()->use(),
-//
-//        mcoll.collection.set_current_use(UseHolder<
-//          BasicCollectionManagingUse<handle_index_range_t>
-//        >::recreate_migrated(
-//          make_mapped_use_collection(
-//            *mcoll.collection.get_current_use()->use(),
-//            full_mapping_t(
-//              mcoll.mapping,
-//              tc_index_range_traits::mapping_to_dense(tc.collection_range_)
-//            )
-//          ),
-//
-//          migrated_use_arg,
-//          CollectionManagingUse<handle_index_range_t>(
-//            std::move(*incomplete_use.get()),
-//          )
-//        );
-//
         tc.add_dependency(mcoll.collection.current_use_base_->use_base);
-
         return 0;
       }
 
