@@ -59,20 +59,33 @@
 #include <darma/impl/index_range/index_range_traits.h>
 #include <darma/impl/util/managing_ptr.h>
 #include <darma/impl/handle_use_base.h>
+#include "polymorphic_serialization.h"
 
 namespace darma_runtime {
 
 namespace detail {
 
 class HandleUse
-  : public HandleUseBase
+  : public PolymorphicSerializationAdapter<HandleUse, HandleUseBase>
 {
+  private:
+
+    using base_t = PolymorphicSerializationAdapter<HandleUse, HandleUseBase>;
+
   public:
 
     //--------------------------------------------------------------------------
     // <editor-fold desc="Ctors and destructor"> {{{2
 
+    HandleUse() = default;
     HandleUse(HandleUse&&) = default;
+
+    // This is for the purposes of reconstruction during migration
+    // TODO put an unpack_ctor_tag or something here?!?
+    HandleUse(
+      HandleUseBase&& arg
+    ) : HandleUse(safe_static_cast<HandleUse&&>(std::move(arg)))
+    { }
 
     /**
      * @internal
@@ -86,7 +99,7 @@ class HandleUse
     HandleUse(
       std::shared_ptr<VariableHandleBase> const& handle,
       PassthroughArgs&&... passthrough_args
-    ) : HandleUseBase(
+    ) : base_t(
           handle,
           std::forward<PassthroughArgs>(passthrough_args)...
         )
@@ -106,7 +119,7 @@ class HandleUse
     HandleUse(
       HandleUse const& clone_from,
       PassthroughArgs&&... passthrough_args
-    ) : HandleUseBase(
+    ) : base_t(
           clone_from,
           std::forward<PassthroughArgs>(passthrough_args)...
         )
@@ -164,6 +177,10 @@ class HandleUse
     // </editor-fold> end abstract::frontend::Use method implementations }}}2
     //--------------------------------------------------------------------------
 
+    template <typename Archive>
+    void serialize(Archive& ar) {
+      this->HandleUseBase::do_serialize(ar);
+    }
 };
 
 

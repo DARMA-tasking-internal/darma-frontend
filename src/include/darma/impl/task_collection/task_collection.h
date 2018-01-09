@@ -174,7 +174,6 @@ struct TaskCollectionImpl
 
       // TODO deal with range default constructibility?
 
-      // No default constructibility requirement on index range, so unpack it here...
       ar >> rv_ptr->collection_range_;
 
       // Some arguments might not be default constructible either...
@@ -215,8 +214,6 @@ struct TaskCollectionImpl
           typename tc_index_range_traits::mapping_to_dense_type
         >;
 
-        // TODO unpack the index range here instead so that the unmapped use doesn't get registered
-        DARMA_ASSERT_NOT_IMPLEMENTED("new task collection unpack"); // TODO implement this!!!
 //        mcoll.collection.get_current_use()->use(),
 //
 //        mcoll.collection.set_current_use(UseHolder<
@@ -236,7 +233,7 @@ struct TaskCollectionImpl
 //          )
 //        );
 //
-//        tc.add_dependency(mcoll.collection.current_use_->use.get());
+        tc.add_dependency(mcoll.collection.current_use_base_->use_base);
 
         return 0;
       }

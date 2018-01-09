@@ -139,24 +139,11 @@ struct Serializer<AccessHandle<Args...>>
       return true;
     }
 
-
   public:
     template <typename ArchiveT>
-    static void compute_size(AccessHandleT const& val, ArchiveT& ar)
-    {
-
-      assert(handle_is_serializable_assertions(val));
-
-      ar % val.var_handle_base_->get_key();
-      ar % val.get_current_use()->use()->scheduling_permissions_;
-      ar % val.get_current_use()->use()->immediate_permissions_;
-      ar % val.get_current_use()->use()->coherence_mode_;
-
-      ar % val.get_current_use()->use()->in_flow_
-         % val.get_current_use()->use()->out_flow_
-         % val.get_current_use()->use()->anti_in_flow_
-         % val.get_current_use()->use()->anti_out_flow_;
-
+    static void compute_size(AccessHandleT const& val, ArchiveT& ar) {
+      ar | val.var_handle_base_->get_key();
+      ar.add_to_size_raw(val.current_use_base_->use_base->get_packed_size());
     }
 
     template <typename ArchiveT>
@@ -168,20 +155,10 @@ struct Serializer<AccessHandle<Args...>>
         and is_packable_with_archive<types::anti_flow_t, ArchiveT>::value,
         darma_runtime::detail::_not_a_type
       > = { }
-    )
-    {
-      assert(handle_is_serializable_assertions(val));
-
-      ar << val.var_handle_base_->get_key();
-      ar << val.get_current_use()->use()->scheduling_permissions_;
-      ar << val.get_current_use()->use()->immediate_permissions_;
-      ar << val.get_current_use()->use()->coherence_mode_;
-
-      auto* backend_runtime = abstract::backend::get_backend_runtime();
-      ar << val.get_current_use()->use()->in_flow_
-         << val.get_current_use()->use()->out_flow_
-         << val.get_current_use()->use()->anti_in_flow_
-         << val.get_current_use()->use()->anti_out_flow_;
+    ) {
+      ar | val.var_handle_base_->get_key();
+      auto ptr_ar = PointerReferenceSerializationHandler<>::make_packing_archive_referencing(ar);
+      val.current_use_base_->use_base->pack(*reinterpret_cast<char**>(&ptr_ar.data_pointer_reference()));
     }
 
     template <typename ConvertiblePackingArchive>
@@ -200,7 +177,7 @@ struct Serializer<AccessHandle<Args...>>
     {
       // Packing flows uses pointer references, so we need to convert to an archive
       // that exposes the pointer (unless the archive type can serialize flows directly
-      auto ptr_ar = PointerReferenceSerializationHandler<>::make_packing_archive_referencing(ar);
+      auto ptr_ar = PointerReferenceSerializationHandler<>::make_unpacking_archive_referencing(ar);
       // need to assert this to avoid infinite recursion
       static_assert(serialization::is_packable_with_archive<
         types::flow_t, std::decay_t<decltype(ptr_ar)>
@@ -262,31 +239,21 @@ template <typename Archive>
 void
 AccessHandle<T, Traits>::unpack_from_archive(Archive& ar) {
 
-  using serialization_handler_t = darma_runtime::serialization::SimpleSerializationHandler<std::allocator<char>>;
+  using serialization_handler_t =
+    darma_runtime::serialization::PointerReferenceSerializationHandler<
+      darma_runtime::serialization::SimpleSerializationHandler<std::allocator<char>>
+    >;
 
   key_t k = ar.template unpack_next_item_as<key_t>();
 
   var_handle_base_ = detail::make_shared<detail::VariableHandle<T>>(k);
 
-  // TODO decide if unpacking here breaks encapsulation (it should probably be done in Use ctor)
-
-  frontend::permissions_t sched = ar.template unpack_next_item_as<frontend::permissions_t>();
-  frontend::permissions_t immed = ar.template unpack_next_item_as<frontend::permissions_t>();
-  frontend::coherence_mode_t coherence_mode = ar.template unpack_next_item_as<frontend::coherence_mode_t>();
-
-  auto* backend_runtime = abstract::backend::get_backend_runtime();
-
-  auto in_flow = ar.template unpack_next_item_as<types::flow_t>();
-  auto out_flow = ar.template unpack_next_item_as<types::flow_t>();
-  auto anti_in_flow = ar.template unpack_next_item_as<types::anti_flow_t>();
-  auto anti_out_flow = ar.template unpack_next_item_as<types::anti_flow_t>();
+  auto use_base = abstract::frontend::PolymorphicSerializableObject<detail::HandleUseBase>
+    ::unpack(*reinterpret_cast<char const**>(&ar.data_pointer_reference()));
+  use_base->set_handle(var_handle_base_);
 
   set_current_use(base_t::use_holder_t::recreate_migrated(
-    var_handle_base_,
-    sched, immed,
-    std::move(in_flow), std::move(out_flow),
-    std::move(anti_in_flow), std::move(anti_out_flow),
-    coherence_mode
+    std::move(*use_base.get())
   ));
 
 }

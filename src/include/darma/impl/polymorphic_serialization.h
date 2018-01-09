@@ -72,7 +72,7 @@ namespace detail {
 template <typename AbstractBase>
 using abstract_base_unpack_registry =
   std::vector<
-    std::function<std::unique_ptr<AbstractBase>(char const* buffer)>
+    std::function<std::unique_ptr<AbstractBase>(char const*& buffer)>
   >;
 
 template <typename=void>
@@ -116,7 +116,7 @@ struct PolymorphicUnpackRegistrar;
 // Use longer names in the adapters to avoid collisions with user-defined functions named "unpack"
 template <typename T, typename AbstractBase>
 using _has_static_long_name_unpack_as_archetype = decltype(
-  T::template _darma_static_polymorphic_serializable_adapter_unpack_as<AbstractBase>((char const*)nullptr)
+  T::template _darma_static_polymorphic_serializable_adapter_unpack_as<AbstractBase>(std::declval<char const*&>())
 );
 
 template <typename T, typename AbstractBase>
@@ -126,7 +126,7 @@ using _has_static_long_name_unpack_as = meta::is_detected_convertible<
 
 template <typename T>
 using _has_static_long_name_unpack_archetype = decltype(
-  T::_darma_static_polymorphic_serializable_adapter_unpack((char const*)nullptr)
+  T::_darma_static_polymorphic_serializable_adapter_unpack(std::declval<char const*&>())
 );
 
 template <typename T, typename AbstractBase>
@@ -135,7 +135,7 @@ using _has_static_long_name_unpack = meta::is_detected_convertible<
 >;
 
 template <typename T, typename AbstractBase>
-using _has_static_unpack_as_archetype = decltype( T::template unpack_as<AbstractBase>((char const*)nullptr) );
+using _has_static_unpack_as_archetype = decltype( T::template unpack_as<AbstractBase>(std::declval<char const*&>()) );
 
 template <typename T, typename AbstractBase>
 using _has_static_unpack_as = meta::is_detected_convertible<
@@ -143,7 +143,7 @@ using _has_static_unpack_as = meta::is_detected_convertible<
 >;
 
 template <typename T>
-using _has_static_unpack_archetype = decltype( T::unpack((char const*)nullptr) );
+using _has_static_unpack_archetype = decltype( T::unpack(std::declval<char const*&>()) );
 
 template <typename T, typename AbstractBase>
 using _has_static_unpack = meta::is_detected_convertible<
@@ -188,7 +188,7 @@ struct PolymorphicUnpackRegistrar<AbstractBase, ConcreteType,
   PolymorphicUnpackRegistrar() {
     auto& reg = get_polymorphic_unpack_registry<AbstractBase>();
     index = reg.size();
-    reg.emplace_back([](char const* buffer) {
+    reg.emplace_back([](char const*& buffer) {
       return ConcreteType::template unpack_as<AbstractBase>(buffer);
     });
   }
@@ -205,7 +205,7 @@ struct PolymorphicUnpackRegistrar<AbstractBase, ConcreteType,
   PolymorphicUnpackRegistrar() {
     auto& reg = get_polymorphic_unpack_registry<AbstractBase>();
     index = reg.size();
-    reg.emplace_back([](char const* buffer) {
+    reg.emplace_back([](char const*& buffer) {
       return ConcreteType::unpack(buffer);
     });
   }
@@ -222,7 +222,7 @@ struct PolymorphicUnpackRegistrar<AbstractBase, ConcreteType,
   PolymorphicUnpackRegistrar() {
     auto& reg = get_polymorphic_unpack_registry<AbstractBase>();
     index = reg.size();
-    reg.emplace_back([](char const* buffer) {
+    reg.emplace_back([](char const*& buffer) {
       return ConcreteType::template _darma_static_polymorphic_serializable_adapter_unpack_as<AbstractBase>(buffer);
     });
   }
@@ -239,7 +239,7 @@ struct PolymorphicUnpackRegistrar<AbstractBase, ConcreteType,
   PolymorphicUnpackRegistrar() {
     auto& reg = get_polymorphic_unpack_registry<AbstractBase>();
     index = reg.size();
-    reg.emplace_back([](char const* buffer) {
+    reg.emplace_back([](char const*& buffer) {
       return ConcreteType::_darma_static_polymorphic_serializable_adapter_unpack(buffer);
     });
   }
@@ -343,14 +343,11 @@ struct _polymorphic_serialization_adapter_impl : BaseT {
       return serialization_handler_t::get_size(ar) + polymorphic_details_t::registry_frontmatter_size;
     }
 
-    void pack(char* buffer) const override {
+    void pack(char*& buffer) const override {
       polymorphic_details_t::add_registry_frontmatter_in_place(buffer);
       buffer += polymorphic_details_t::registry_frontmatter_size;
       auto ar = serialization_handler_t::make_packing_archive(
-        // Capacity unknown, but it doesn't matter
-        darma_runtime::serialization::NonOwningSerializationBuffer(
-          buffer, std::numeric_limits<size_t>::max()
-        )
+        buffer
       );
       // call the customization point, allow ADL
       darma_pack(*static_cast<concrete_t const*>(this), ar);
@@ -364,7 +361,9 @@ struct _polymorphic_serialization_adapter_impl : BaseT {
 // Adapter for single abstract base
 template <typename ConcreteT, typename AbstractT, typename BaseT = AbstractT,
   typename SerializationHandler =
-    darma_runtime::serialization::SimpleSerializationHandler<std::allocator<ConcreteT>>
+    darma_runtime::serialization::PointerReferenceSerializationHandler<
+      darma_runtime::serialization::SimpleSerializationHandler<std::allocator<ConcreteT>>
+    >
 >
 struct PolymorphicSerializationAdapter
   : _polymorphic_serialization_adapter_impl<
@@ -393,7 +392,7 @@ struct PolymorphicSerializationAdapter
 
     static
     std::unique_ptr<AbstractT>
-    _darma_static_polymorphic_serializable_adapter_unpack(char const* buffer) {
+    _darma_static_polymorphic_serializable_adapter_unpack(char const*& buffer) {
 
       // TODO ask the abstract object for an allocator?
       // There's no way to use make_unique here; we just have to allocate and then
@@ -401,12 +400,7 @@ struct PolymorphicSerializationAdapter
       void* allocated_spot = darma_runtime::abstract::backend::get_backend_memory_manager()
         ->allocate(sizeof(ConcreteT));
 
-      auto ar = serialization_handler_t::make_unpacking_archive(
-        // Capacity unknown, but it doesn't matter
-        darma_runtime::serialization::ConstNonOwningSerializationBuffer(
-          buffer, std::numeric_limits<size_t>::max()
-        )
-      );
+      auto ar = serialization_handler_t::make_unpacking_archive(buffer);
 
       // call the customization point, allow ADL
       darma_unpack(
@@ -422,21 +416,27 @@ struct PolymorphicSerializationAdapter
 // Adapter for multiple abstract bases
 template <typename ConcreteT, typename BaseT, typename... AbstractTypes>
 struct PolymorphicSerializationAdapter<ConcreteT, tinympl::vector<AbstractTypes...>, BaseT,
-  darma_runtime::serialization::SimpleSerializationHandler<std::allocator<ConcreteT>>
+  darma_runtime::serialization::PointerReferenceSerializationHandler<
+    darma_runtime::serialization::SimpleSerializationHandler<std::allocator<ConcreteT>>
+  >
 > : _polymorphic_serialization_adapter_impl<
       typename polymorphic_serialization_details<ConcreteT>::template with_abstract_bases<AbstractTypes...>,
-      BaseT, darma_runtime::serialization::SimpleSerializationHandler<std::allocator<ConcreteT>>
+      BaseT,
+      darma_runtime::serialization::PointerReferenceSerializationHandler<
+        darma_runtime::serialization::SimpleSerializationHandler<std::allocator<ConcreteT>>
+      >
     >
 {
   private:
+    using serialization_handler_t = darma_runtime::serialization::PointerReferenceSerializationHandler<
+      darma_runtime::serialization::SimpleSerializationHandler<std::allocator<ConcreteT>>
+    >;
     using impl_t = _polymorphic_serialization_adapter_impl<
       typename polymorphic_serialization_details<ConcreteT>::template with_abstract_bases<
         AbstractTypes...
       >,
-      BaseT,
-      darma_runtime::serialization::SimpleSerializationHandler<std::allocator<ConcreteT>>
+      BaseT, serialization_handler_t
     >;
-    using serialization_handler_t = darma_runtime::serialization::SimpleSerializationHandler<std::allocator<ConcreteT>>;
 
   protected:
 
@@ -456,7 +456,7 @@ struct PolymorphicSerializationAdapter<ConcreteT, tinympl::vector<AbstractTypes.
     >
     static
     std::unique_ptr<AbstractT>
-    _darma_static_polymorphic_serializable_adapter_unpack_as(char const* buffer) {
+    _darma_static_polymorphic_serializable_adapter_unpack_as(char const*& buffer) {
 
       // TODO ask the abstract object for an allocator?
       // There's no way to use make_unique here; we just have to allocate and then
@@ -464,12 +464,7 @@ struct PolymorphicSerializationAdapter<ConcreteT, tinympl::vector<AbstractTypes.
       void* allocated_spot = darma_runtime::abstract::backend::get_backend_memory_manager()
         ->allocate(sizeof(ConcreteT));
 
-      auto ar = serialization_handler_t::make_unpacking_archive(
-        // Capacity unknown, but it doesn't matter
-        darma_runtime::serialization::ConstNonOwningSerializationBuffer(
-          buffer, std::numeric_limits<size_t>::max()
-        )
-      );
+      auto ar = serialization_handler_t::make_unpacking_archive(buffer);
 
       darma_unpack(
         darma_runtime::serialization::allocated_buffer_for<ConcreteT>(allocated_spot), ar
@@ -491,7 +486,7 @@ namespace frontend {
 
 template <typename AbstractType>
 std::unique_ptr<AbstractType>
-PolymorphicSerializableObject<AbstractType>::unpack(char const* buffer) {
+PolymorphicSerializableObject<AbstractType>::unpack(char const*& buffer) {
   // Get the abstract type index that we're looking for
   static const size_t abstract_type_index =
     darma_runtime::detail::get_abstract_type_index<AbstractType>();

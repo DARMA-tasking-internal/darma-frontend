@@ -518,33 +518,12 @@ class AccessHandleCollection
         ::darma_runtime::detail::VariableHandle<value_type>
       >(key);
 
-      // Unpack index range of the handle itself
-      auto handle_range = ar.template unpack_next_item_as<typename base_t::index_range_type>();
+      auto use_base = abstract::frontend::PolymorphicSerializableObject<detail::HandleUseBase>
+        ::unpack(*reinterpret_cast<char const**>(&ar.data_pointer_reference()));
 
-      // unpack permissions
-      auto sched_perm = ar.template unpack_next_item_as<darma_runtime::frontend::permissions_t>();
-      auto immed_perm = ar.template unpack_next_item_as<darma_runtime::frontend::permissions_t>();
-      auto coherence_mode = ar.template unpack_next_item_as<darma_runtime::frontend::coherence_mode_t>();
-
-      // unpack the flows
-      auto inflow = ar.template unpack_next_item_as<types::flow_t>();
-      auto outflow = ar.template unpack_next_item_as<types::flow_t>();
-      auto anti_inflow = ar.template unpack_next_item_as<types::anti_flow_t>();
-      auto anti_outflow = ar.template unpack_next_item_as<types::anti_flow_t>();
-
-      // remake the use:
-      // TODO make this not register (?) or something for the mapped case
-      // TODO mapped case!!!
       this->set_current_use(
         base_t::use_holder_t::recreate_migrated(
-          darma_runtime::detail::make_unmapped_use_collection(
-            std::move(handle_range)
-          ),
-          this->var_handle_base_,
-          sched_perm, immed_perm,
-          std::move(inflow), std::move(outflow),
-          std::move(anti_inflow), std::move(anti_outflow),
-          coherence_mode
+          std::move(*use_base.get())
         )
       );
 
@@ -792,41 +771,25 @@ struct Serializer<darma_runtime::AccessHandleCollection<T, IndexRangeT, Traits>>
     );
   }
 
-  // This is the sizing and packing method in one...
   template <typename ArchiveT>
-  static void compute_size(access_handle_collection_t const& ahc, ArchiveT& ar) {
-
+  static void _do_compute_size_or_pack(access_handle_collection_t const& ahc, ArchiveT& ar) {
     _do_migratability_assertions(ahc);
 
-    ar % ahc.var_handle_base_->get_key();
-    ar % ahc.get_index_range();
-    ar % ahc.get_current_use()->use()->scheduling_permissions_;
-    ar % ahc.get_current_use()->use()->immediate_permissions_;
-    ar % ahc.get_current_use()->use()->coherence_mode_;
+    ar | ahc.var_handle_base_->get_key();
+    ar | ahc.get_index_range();
+    ar | ahc.get_current_use()->use()->scheduling_permissions_;
+    ar | ahc.get_current_use()->use()->immediate_permissions_;
+    ar | ahc.get_current_use()->use()->coherence_mode_;
+    ar | ahc.get_current_use()->use()->in_flow_;
+    ar | ahc.get_current_use()->use()->out_flow_;
+    ar | ahc.get_current_use()->use()->anti_in_flow_;
+    ar | ahc.get_current_use()->use()->anti_out_flow_;
+  }
 
-    auto* backend_runtime = abstract::backend::get_backend_runtime();
-
-    ar.add_to_size_raw(
-      backend_runtime->get_packed_flow_size(
-        ahc.get_current_use()->use()->in_flow_
-      )
-    );
-    ar.add_to_size_raw(
-      backend_runtime->get_packed_flow_size(
-        ahc.get_current_use()->use()->out_flow_
-      )
-    );
-    ar.add_to_size_raw(
-      backend_runtime->get_packed_anti_flow_size(
-        ahc.get_current_use()->use()->anti_in_flow_
-      )
-    );
-    ar.add_to_size_raw(
-      backend_runtime->get_packed_anti_flow_size(
-        ahc.get_current_use()->use()->anti_out_flow_
-      )
-    );
-
+  template <typename ArchiveT>
+  static void compute_size(access_handle_collection_t const& ahc, ArchiveT& ar) {
+    ar | ahc.var_handle_base_->get_key();
+    ar.add_to_size_raw(ahc.current_use_base_->use_base->get_packed_size());
   }
 
   template <typename ConvertiblePackingArchive>
@@ -857,21 +820,8 @@ struct Serializer<darma_runtime::AccessHandleCollection<T, IndexRangeT, Traits>>
       darma_runtime::detail::_not_a_type
     > = { }
   ) {
-    _do_migratability_assertions(ahc);
-
-    ar << ahc.var_handle_base_->get_key();
-    ar << ahc.get_index_range();
-    ar << ahc.get_current_use()->use()->scheduling_permissions_;
-    ar << ahc.get_current_use()->use()->immediate_permissions_;
-    ar << ahc.get_current_use()->use()->coherence_mode_;
-
-    auto* backend_runtime = abstract::backend::get_backend_runtime();
-
-    ar << ahc.get_current_use()->use()->in_flow_;
-    ar << ahc.get_current_use()->use()->out_flow_;
-    ar << ahc.get_current_use()->use()->anti_in_flow_;
-    ar << ahc.get_current_use()->use()->anti_out_flow_;
-
+    ar | ahc.var_handle_base_->get_key();
+    ahc.current_use_base_->use_base->pack(*reinterpret_cast<char**>(&ar.data_pointer_reference()));
   }
 
   template <

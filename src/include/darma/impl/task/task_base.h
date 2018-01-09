@@ -567,7 +567,7 @@ class EmptyTask : public TaskBase {
       return 0;
     }
 
-    void pack(char*) const override {
+    void pack(char*&) const override {
       assert(false); // not migratable
     }
 

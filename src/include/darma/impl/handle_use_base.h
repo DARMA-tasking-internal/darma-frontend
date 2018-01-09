@@ -67,7 +67,8 @@ class HandleUseBase
   : public abstract::frontend::DestructibleUse,
     public abstract::frontend::CollectionManagingUse,
     public abstract::frontend::UsePendingRegistration,
-    public abstract::frontend::UsePendingRelease
+    public abstract::frontend::UsePendingRelease,
+    public abstract::frontend::PolymorphicSerializableObject<HandleUseBase>
 {
   public:
 
@@ -322,6 +323,16 @@ class HandleUseBase
 
     // </editor-fold> end  }}}1
     //==========================================================================
+
+    template <typename Archive>
+    void do_serialize(Archive& ar) {
+      ar | scheduling_permissions_ | immediate_permissions_ | coherence_mode_
+         | in_flow_ | out_flow_ | anti_in_flow_ | anti_out_flow_;
+    }
+
+    void set_handle(std::shared_ptr<VariableHandleBase> const& handle) {
+      handle_ = handle;
+    }
 
 };
 

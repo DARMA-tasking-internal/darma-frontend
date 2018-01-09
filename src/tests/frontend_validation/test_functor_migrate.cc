@@ -206,7 +206,8 @@ TEST_F_WITH_PARAMS(
 
   #endif // _darma_has_feature(anti_flows)
 
-  task_to_migrate->pack(buffer);
+  char* spot = buffer;
+  task_to_migrate->pack(spot);
 
   EXPECT_CALL(*mock_runtime, make_unpacked_flow(Truly([&](void const* buff){
     return *reinterpret_cast<mock_backend::MockFlow const*>(buff) == f_set_42_out
@@ -244,9 +245,10 @@ TEST_F_WITH_PARAMS(
       migrated_use = rereg_use;
     }));
 
+  char const* unpack_spot = buffer;
   auto migrated_task = darma_runtime::abstract::frontend
     ::PolymorphicSerializableObject<darma_runtime::abstract::frontend::Task>
-    ::unpack(buffer);
+    ::unpack(unpack_spot);
 
   ASSERT_THAT(migrated_task->get_dependencies().size(), Eq(1));
   ASSERT_THAT(*migrated_task->get_dependencies().begin(),

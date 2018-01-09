@@ -547,7 +547,6 @@ TEST_F(TestCreateConcurrentWork, fetch) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifdef NOT_YET_REIMPLEMENTED
 TEST_F(TestCreateConcurrentWork, migrate_simple) {
 
   using namespace ::testing;
@@ -642,7 +641,8 @@ TEST_F(TestCreateConcurrentWork, migrate_simple) {
     }));
 
   char buffer[tcsize];
-  created_collection->pack(buffer);
+  char* buffer_spot = buffer;
+  created_collection->pack(buffer_spot);
 
   EXPECT_CALL(*mock_runtime, make_unpacked_flow(_))
     .Times(2)
@@ -665,9 +665,10 @@ TEST_F(TestCreateConcurrentWork, migrate_simple) {
   )).WillOnce(SaveArg<0>(&use_migrated));
 
 
+  char const* unpack_buffer_spot = buffer;
   auto copied_collection = abstract::frontend::PolymorphicSerializableObject<
     abstract::frontend::TaskCollection
-  >::unpack(buffer);
+  >::unpack(unpack_buffer_spot);
 
   EXPECT_THAT(copied_collection->get_dependencies().size(), Eq(1));
 
@@ -713,7 +714,6 @@ TEST_F(TestCreateConcurrentWork, migrate_simple) {
   mock_runtime->task_collections.front().reset(nullptr);
 
 }
-#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 

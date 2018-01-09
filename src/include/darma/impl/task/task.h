@@ -99,10 +99,10 @@ namespace frontend {
 #if _darma_has_feature(task_migration)
 inline
 abstract::backend::runtime_t::task_unique_ptr
-unpack_task(void* packed_data) {
+unpack_task(void const* packed_data) {
   return darma_runtime::abstract::frontend::PolymorphicSerializableObject<
     abstract::frontend::Task
-  >::unpack(static_cast<char const*>(packed_data));
+  >::unpack(*reinterpret_cast<char const**>(&packed_data));
 }
 #endif // _darma_has_feature(task_migration)
 

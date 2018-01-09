@@ -56,11 +56,11 @@ struct PolymorphicSerializableObject {
 
   virtual size_t get_packed_size() const =0;
 
-  virtual void pack(char* buffer) const =0;
+  virtual void pack(char*& buffer) const =0;
 
   static
   std::unique_ptr<AbstractType>
-  unpack(char const* buffer);
+  unpack(char const*& buffer);
 
 };
 

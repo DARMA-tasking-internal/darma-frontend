@@ -86,6 +86,8 @@ class PointerReferencePackingArchive {
 
     template <typename>
     friend struct PointerReferenceSerializationHandler;
+    template <typename>
+    friend struct SimpleSerializationHandler;
 
   public:
 
@@ -162,6 +164,8 @@ class PointerReferenceUnpackingArchive {
 
     template <typename>
     friend struct PointerReferenceSerializationHandler;
+    template <typename>
+    friend struct SimpleSerializationHandler;
 
     template <typename T>
     inline auto& _ask_serializer_to_unpack(
@@ -274,7 +278,7 @@ class PointerReferenceUnpackingArchive {
     }
 
     template <typename NeededAllocatorT>
-    NeededAllocatorT const& get_allocator_as() const {
+    NeededAllocatorT get_allocator_as() const {
       // Let's hope this is a compatible type
       return data_spot_.second();
     }

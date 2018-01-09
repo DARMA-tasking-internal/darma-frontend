@@ -56,7 +56,7 @@ namespace frontend {
  *  @return A clone of the task object that was serialized into packed_data
  */
 types::unique_ptr_template<abstract::frontend::Task>
-unpack_task(void* packed_data);
+unpack_task(void const* packed_data);
 
 } // end namespace frontend
 } // end namespace darma_runtime

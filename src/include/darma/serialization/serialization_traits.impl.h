@@ -230,7 +230,6 @@ template <typename T, typename SizingArchive>
 std::enable_if_t<
   darma_runtime::serialization::is_sizable_with_archive<T, SizingArchive>::value
     and impl::get_serializer_style<T, SizingArchive>::uses_intrusive_serialize
-    and not impl::get_serializer_style<T, SizingArchive>::uses_multiple_styles
 >
 compute_size_impl(T const& obj, SizingArchive& ar) {
   // need to const cast for serialization, since not all modes are const
@@ -241,7 +240,6 @@ template <typename T, typename SizingArchive>
 std::enable_if_t<
   darma_runtime::serialization::is_sizable_with_archive<T, SizingArchive>::value
     and impl::get_serializer_style<T, SizingArchive>::uses_intrusive_pack_unpack
-    and not impl::get_serializer_style<T, SizingArchive>::uses_multiple_styles
 >
 compute_size_impl(T const& obj, SizingArchive& ar) {
   obj.compute_size(ar);
@@ -251,7 +249,6 @@ template <typename T, typename SizingArchive>
 std::enable_if_t<
   darma_runtime::serialization::is_sizable_with_archive<T, SizingArchive>::value
     and impl::get_serializer_style<T, SizingArchive>::uses_nonintrusive
-    and not impl::get_serializer_style<T, SizingArchive>::uses_multiple_styles
 >
 compute_size_impl(T const& obj, SizingArchive& ar) {
   darma_runtime::serialization::Serializer<T>::compute_size(obj, ar);
@@ -453,6 +450,7 @@ template <typename T, typename SizingArchive>
 struct is_sizable_with_archive_enabled_if<
   T, SizingArchive, std::enable_if_t<
     SizingArchive::is_sizing()
+      and not impl::get_serializer_style<T, SizingArchive>::uses_multiple_styles
       and not impl::get_serializer_style<T, SizingArchive>::unserializable
   >
 > : std::true_type
@@ -462,6 +460,7 @@ template <typename T, typename PackingArchive>
 struct is_packable_with_archive_enabled_if<
   T, PackingArchive, std::enable_if_t<
     PackingArchive::is_packing()
+      and not impl::get_serializer_style<T, PackingArchive>::uses_multiple_styles
       and not impl::get_serializer_style<T, PackingArchive>::unserializable
   >
 > : std::true_type
@@ -471,6 +470,7 @@ template <typename T, typename UnpackingArchive>
 struct is_unpackable_with_archive_enabled_if<
   T, UnpackingArchive, std::enable_if_t<
     UnpackingArchive::is_unpacking()
+      and not impl::get_serializer_style<T, UnpackingArchive>::uses_multiple_styles
       and not impl::get_serializer_style<T, UnpackingArchive>::unserializable
   >
 > : std::true_type

@@ -62,7 +62,8 @@ static constexpr struct cloning_ctor_tag_t { } cloning_ctor_tag { };
 
 template <typename IndexRange>
 class BasicUseCollection
-  : public abstract::frontend::UseCollection
+  : public abstract::frontend::UseCollection,
+    public abstract::frontend::PolymorphicSerializableObject<BasicUseCollection<IndexRange>>
 {
   public:  // All public for now, rather than dealing with making friend declarations for AccessHandleCollection and friends
 
@@ -97,6 +98,8 @@ class BasicUseCollection
 
     //--------------------------------------------------------------------------
     // <editor-fold desc="ctors and destructor"> {{{2
+
+    BasicUseCollection() = default;
 
     template <typename... IndexRangeArgs>
     explicit
@@ -142,17 +145,30 @@ class BasicUseCollection
     // </editor-fold> end abstract::frontend::UseCollection implementation }}}2
     //--------------------------------------------------------------------------
 
+    template <typename Archive>
+    void serialize(Archive& ar) {
+      ar | index_range_ | mapping_to_dense_;
+    }
+
 };
 
 
 
 template <typename IndexRange>
 class UnmappedUseCollection final /* final for now, at least */
-  : public BasicUseCollection<IndexRange> {
-
+  : public PolymorphicSerializationAdapter<
+      UnmappedUseCollection<IndexRange>,
+      BasicUseCollection<IndexRange>
+    >
+{
   public:
 
-    using base_t = BasicUseCollection<IndexRange>;
+    using base_t = PolymorphicSerializationAdapter<
+      UnmappedUseCollection<IndexRange>,
+      BasicUseCollection<IndexRange>
+    >;
+
+    UnmappedUseCollection() = default;
 
     template <typename... IndexRangeArgs>
     explicit
@@ -232,7 +248,11 @@ make_unmapped_use_collection(Args&&... args) {
 
 template <typename IndexRange, typename Mapping>
 class MappedUseCollection final /* final for now, at least */
-  : public BasicUseCollection<IndexRange> {
+  : public PolymorphicSerializationAdapter<
+      MappedUseCollection<IndexRange, Mapping>,
+      BasicUseCollection<IndexRange>
+    >
+{
 
   public:
 
@@ -247,7 +267,10 @@ class MappedUseCollection final /* final for now, at least */
     mapping_t mapping_fe_handle_to_be_task_;
 
     using mapping_traits_t = darma_runtime::indexing::mapping_traits<Mapping>;
-    using base_t = BasicUseCollection<IndexRange>;
+    using base_t = PolymorphicSerializationAdapter<
+      MappedUseCollection<IndexRange, Mapping>,
+      BasicUseCollection<IndexRange>
+    >;
 
     // </editor-fold> end type aliases and data members }}}2
     //--------------------------------------------------------------------------
@@ -255,6 +278,8 @@ class MappedUseCollection final /* final for now, at least */
 
     //--------------------------------------------------------------------------
     // <editor-fold desc="ctors and destructor"> {{{2
+
+    MappedUseCollection() = default;
 
     template <
       typename UnmappedUseCollectionT,
@@ -383,6 +408,13 @@ class MappedUseCollection final /* final for now, at least */
     // </editor-fold> end abstract::frontend::UseCollection implementation }}}2
     //--------------------------------------------------------------------------
 
+    template <typename Archive>
+    void serialize(Archive& ar) {
+      ar | mapping_fe_handle_to_be_task_;
+      this->BasicUseCollection<IndexRange>::serialize(ar);
+    }
+
+
 };
 
 template <typename UnmappedCollectionT, typename... Args>
@@ -401,10 +433,16 @@ make_mapped_use_collection(UnmappedCollectionT&& clone_from, Args&&... args) {
 
 template <typename IndexRange>
 class BasicCollectionManagingUse final /* final for now, at least */
-  : public HandleUseBase
+  : public PolymorphicSerializationAdapter<
+      BasicCollectionManagingUse<IndexRange>, HandleUseBase
+    >
 {
 
   public:
+
+    using base_t = PolymorphicSerializationAdapter<
+      BasicCollectionManagingUse<IndexRange>, HandleUseBase
+    >;
 
     //--------------------------------------------------------------------------
     // <editor-fold desc="data members"> {{{2
@@ -418,6 +456,7 @@ class BasicCollectionManagingUse final /* final for now, at least */
     //--------------------------------------------------------------------------
     // <editor-fold desc="Constructors and Destructor"> {{{2
 
+    BasicCollectionManagingUse() = default;
     BasicCollectionManagingUse(BasicCollectionManagingUse const&) = delete;
     BasicCollectionManagingUse(BasicCollectionManagingUse&&) = default;
 
@@ -435,7 +474,7 @@ class BasicCollectionManagingUse final /* final for now, at least */
       UseCollectionUniquePtr&& use_collection,
       std::shared_ptr<VariableHandleBase> const& handle,
       PassthroughArgs&&... passthrough_args
-    ) : HandleUseBase(
+    ) : base_t(
           handle,
           std::forward<PassthroughArgs>(passthrough_args)...
         ),
@@ -464,7 +503,7 @@ class BasicCollectionManagingUse final /* final for now, at least */
       FlowRelationshipImpl&& anti_in_rel,
       FlowRelationshipImpl&& anti_out_rel,
       PassthroughArgs&&... passthrough_args
-    ) : HandleUseBase(
+    ) : base_t(
           clone_from, scheduling, immediate,
           std::move(in_rel).as_collection_relationship(),
           std::move(out_rel).as_collection_relationship(),
@@ -496,6 +535,13 @@ class BasicCollectionManagingUse final /* final for now, at least */
         )
     { /* forwarding ctor, must be empty */}
 
+    // This is for the purposes of reconstruction during migration
+    // TODO put an unpack_ctor_tag or something here?!?
+    BasicCollectionManagingUse(
+      HandleUseBase&& arg
+    ) : BasicCollectionManagingUse(safe_static_cast<BasicCollectionManagingUse&&>(std::move(arg)))
+    { }
+
     virtual ~BasicCollectionManagingUse() final = default;
 
     // </editor-fold> end Constructors and Destructor }}}2
@@ -526,6 +572,27 @@ class BasicCollectionManagingUse final /* final for now, at least */
     // </editor-fold> end abstract::frontend::Use implementation }}}2
     //--------------------------------------------------------------------------
 
+    template <typename Archive>
+    void compute_size(Archive& ar) const {
+      ar.add_to_size_raw(collection_->get_packed_size());
+      const_cast<BasicCollectionManagingUse*>(this)->HandleUseBase::do_serialize(ar);
+    }
+
+    template <typename Archive>
+    void pack(Archive& ar) const {
+      auto ptr_ar = serialization::PointerReferenceSerializationHandler<>::make_packing_archive_referencing(ar);
+      collection_->pack(*reinterpret_cast<char**>(&ar.data_pointer_reference()));
+      const_cast<BasicCollectionManagingUse*>(this)->HandleUseBase::do_serialize(ar);
+    }
+
+    template <typename Archive>
+    static void unpack(void* allocated, Archive& ar) {
+      auto* rv = new (allocated) BasicCollectionManagingUse();
+      auto ptr_ar = serialization::PointerReferenceSerializationHandler<>::make_unpacking_archive_referencing(ar);
+      rv->collection_ = abstract::frontend::PolymorphicSerializableObject<BasicUseCollection<IndexRange>>
+        ::unpack(*reinterpret_cast<char const**>(&ar.data_pointer_reference()));
+      rv->HandleUseBase::do_serialize(ar);
+    }
 };
 
 
@@ -767,7 +834,10 @@ class CollectionManagingUseBase
 
 template <typename IndexRangeT>
 class CollectionManagingUse
-  : public CollectionManagingUseBase<typename indexing::index_range_traits<IndexRangeT>::index_type>
+  : public PolymorphicSerializationAdapter<
+      CollectionManagingUse<IndexRangeT>,
+      CollectionManagingUseBase<typename indexing::index_range_traits<IndexRangeT>::index_type>
+    >
 {
   public:
 
