@@ -2,9 +2,9 @@
 //@HEADER
 // ************************************************************************
 //
-//                      SSO_key_fwd.h
+//                      bytes_type_metadata_serialization.h
 //                         DARMA
-//              Copyright (C) 2016 Sandia Corporation
+//              Copyright (C) 2018 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -42,43 +42,24 @@
 //@HEADER
 */
 
-#ifndef DARMA_IMPL_KEY_SSO_KEY_FWD_H
-#define DARMA_IMPL_KEY_SSO_KEY_FWD_H
+#ifndef DARMAFRONTEND_BYTES_TYPE_METADATA_SERIALIZATION_H
+#define DARMAFRONTEND_BYTES_TYPE_METADATA_SERIALIZATION_H
 
-#include <cstdint>
-#include <cstdlib>
-#include <tinympl/max_element.hpp>
+#include <darma/key/bytes_type_metadata.h>
+
+#include <darma/serialization/direct_serialization.h>
 
 namespace darma_runtime {
-namespace detail {
 
-namespace _impl {
+namespace serialization {
 
-typedef enum {
-  Long = (uint8_t)0,
-  Short = (uint8_t)1,
-  BackendAssigned = (uint8_t)2,
-  NeedsBackendAssignedKey = (uint8_t)3
-} sso_key_mode_t;
+template <>
+struct is_directly_serializable<darma_runtime::detail::bytes_type_metadata>
+  : std::true_type { };
 
-} // end namespace _impl
+} // end namespace serialization
 
-template <
-  /* default allows it to fit in a cache line */
-  std::size_t BufferSize = 64
-    - sizeof(std::size_t) /* base class vtable (guessing?) */
-    - sizeof(std::size_t) /* abstract base class vtable (guessing?) */
-    - tinympl::max<
-      std::integral_constant<size_t, sizeof(_impl::sso_key_mode_t)>,
-      std::integral_constant<size_t, 8>
-    >::value,
-  typename BackendAssignedKeyType = std::size_t,
-  typename PieceSizeOrdinal = uint8_t,
-  typename ComponentCountOrdinal = uint8_t
->
-class SSOKey;
-
-} // end namespace detail
 } // end namespace darma_runtime
 
-#endif //DARMA_IMPL_KEY_SSO_KEY_FWD_H
+
+#endif //DARMAFRONTEND_BYTES_TYPE_METADATA_SERIALIZATION_H

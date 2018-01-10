@@ -51,9 +51,6 @@
 #include <unordered_map>
 #include <typeindex>
 
-#include <darma/serialization/direct_serialization.h>
-
-
 namespace darma_runtime {
 
 namespace detail {
@@ -267,13 +264,6 @@ category_extension_bytes_value(const void* md) {
 ////////////////////////////////////////////////////////////////////////////////
 
 } // end namespace detail
-
-namespace serialization {
-
-template <>
-struct is_directly_serializable<darma_runtime::detail::bytes_type_metadata> : std::true_type { };
-
-} // end namespace serialization
 
 } // end namespace darma_runtime
 

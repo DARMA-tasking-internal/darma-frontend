@@ -81,22 +81,22 @@ template <typename T>
 using _compile_time_scheduling_modifiable = std::integral_constant<bool, T::is_compile_time_scheduling_modifiable>;
 
 template <typename T>
-using decayed_is_compile_time_immediate_readable = typename meta::detected_or_t<std::true_type,
+using decayed_is_compile_time_immediate_readable = typename tinympl::detected_or_t<std::true_type,
   _compile_time_immediate_readable, std::decay_t<T>
 >::type;
 
 template <typename T>
-using decayed_is_compile_time_immediate_modifiable = typename meta::detected_or_t<std::true_type,
+using decayed_is_compile_time_immediate_modifiable = typename tinympl::detected_or_t<std::true_type,
   _compile_time_immediate_modifiable, std::decay_t<T>
 >::type;
 
 template <typename T>
-using decayed_is_compile_time_scheduling_readable = typename meta::detected_or_t<std::true_type,
+using decayed_is_compile_time_scheduling_readable = typename tinympl::detected_or_t<std::true_type,
   _compile_time_scheduling_readable, std::decay_t<T>
 >::type;
 
 template <typename T>
-using decayed_is_compile_time_scheduling_modifiable = typename meta::detected_or_t<std::true_type,
+using decayed_is_compile_time_scheduling_modifiable = typename tinympl::detected_or_t<std::true_type,
   _compile_time_scheduling_modifiable, std::decay_t<T>
 >::type;
 
@@ -261,12 +261,12 @@ struct functor_call_traits {
               ::template with_required_scheduling_permissions<detail::AccessHandlePermissions::None>::type
           >;
 
-        using _const_conversion_capture_arg_tuple_entry = meta::detected_t<
+        using _const_conversion_capture_arg_tuple_entry = tinympl::detected_t<
           _const_conversion_capture_arg_tuple_entry_archetype, CallArg
         >;
         static_assert(
           not is_const_conversion_capture or not
-            std::is_same<_const_conversion_capture_arg_tuple_entry, meta::nonesuch>::value,
+            std::is_same<_const_conversion_capture_arg_tuple_entry, tinympl::nonesuch>::value,
           "internal error: const conversion capture detected, but arg_tuple type not detected correctly"
         );
 
@@ -284,12 +284,12 @@ struct functor_call_traits {
               // than Modify, we should get a compile-time error
           >;
 
-        using _nonconst_conversion_capture_arg_tuple_entry = meta::detected_t<
+        using _nonconst_conversion_capture_arg_tuple_entry = tinympl::detected_t<
           _nonconst_conversion_capture_arg_tuple_entry_archetype, CallArg
         >;
         static_assert(
           (not is_nonconst_conversion_capture)
-            or (not std::is_same<_nonconst_conversion_capture_arg_tuple_entry, meta::nonesuch>::value),
+            or (not std::is_same<_nonconst_conversion_capture_arg_tuple_entry, tinympl::nonesuch>::value),
           "internal error: non-const conversion capture detected, but arg_tuple type not detected correctly"
         );
 
@@ -304,7 +304,7 @@ struct functor_call_traits {
               ::template with_required_scheduling_permissions<detail::AccessHandlePermissions::Read>::type
           >;
 
-        using _read_only_handle_capture_arg_tuple_entry = meta::detected_t<
+        using _read_only_handle_capture_arg_tuple_entry = tinympl::detected_t<
           _read_only_handle_capture_arg_tuple_entry_archetype, CallArg
         >;
 

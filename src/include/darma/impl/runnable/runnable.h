@@ -317,7 +317,7 @@ class FunctorLikeRunnableBase
     { }
 
     FunctorLikeRunnableBase(
-      variadic_constructor_arg_t const,
+      utility::variadic_constructor_tag_t const,
       Args&&... args
     ) : args_(std::forward<Args>(args)...)
     { }

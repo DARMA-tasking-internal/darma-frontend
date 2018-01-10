@@ -45,11 +45,16 @@
 #ifndef SRC_DARMA_H_
 #define SRC_DARMA_H_
 
+#include <darma/key/key.h>
+#include <darma/key/dependent_on/serialization/key_serialization.h>
+
 #include <darma/interface/frontend.h>
 
 #include <darma/interface/app/darma.h>
 
 #include <darma/interface/frontend/detail/crtp_impl.h>
+
+#include <darma/key/key.impl.h>
 
 namespace darma = darma_runtime;
 

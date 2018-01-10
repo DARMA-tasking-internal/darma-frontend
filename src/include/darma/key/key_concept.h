@@ -45,10 +45,11 @@
 #ifndef FRONTEND_INCLUDE_DARMA_KEY_CONCEPT_H_
 #define FRONTEND_INCLUDE_DARMA_KEY_CONCEPT_H_
 
-#include <type_traits> // std::integral_constant
-
-#include <darma/impl/meta/detection.h>
 #include <darma/utility/static_assertions.h>
+
+#include <tinympl/detection.hpp>
+
+#include <type_traits> // std::integral_constant
 
 namespace darma_runtime {
 namespace detail {
@@ -68,13 +69,13 @@ struct meets_key_concept {
     //using specializes_key_traits_archetype = decltype( std::declval<key_traits<Key>>() );
     using specializes_key_traits_archetype = darma_runtime::detail::key_traits<Key>;
 
-    // This will be the type meta::nonesuch if the specialization doesn't exist
-    // and key_traits<Key> if it does (see meta::detected_t)
-    using traits_t = typename meta::is_detected<specializes_key_traits_archetype, T>::type;
+    // This will be the type tinympl::nonesuch if the specialization doesn't exist
+    // and key_traits<Key> if it does (see tinympl::detected_t)
+    using traits_t = typename tinympl::is_detected<specializes_key_traits_archetype, T>::type;
 
   public:
     static constexpr auto has_traits_specialization =
-        meta::is_detected<specializes_key_traits_archetype, T>::value;
+        tinympl::is_detected<specializes_key_traits_archetype, T>::value;
 
   ////////////////////////////////////////////////////////////////////////////////
   // must have a valid key_equal in traits
@@ -83,11 +84,11 @@ struct meets_key_concept {
     // Traits class must define key_equal type
     template <typename Traits>
     using traits_key_equal_archetype = typename Traits::key_equal;
-    using key_equal_t = meta::detected_t<traits_key_equal_archetype, traits_t>;
+    using key_equal_t = tinympl::detected_t<traits_key_equal_archetype, traits_t>;
 
   public:
     static constexpr auto has_key_equal =
-        meta::is_detected<traits_key_equal_archetype, traits_t>::value;
+        tinympl::is_detected<traits_key_equal_archetype, traits_t>::value;
 
   private:
 
@@ -98,7 +99,7 @@ struct meets_key_concept {
   public:
 
     static constexpr auto key_equal_works =
-        meta::is_detected_convertible<bool, key_equal_archetype, key_equal_t, T>::value;
+        tinympl::is_detected_convertible<bool, key_equal_archetype, key_equal_t, T>::value;
 
   ////////////////////////////////////////////////////////////////////////////////
   // must have a valid hasher in traits
@@ -107,11 +108,11 @@ struct meets_key_concept {
     // Traits class must define hasher type
     template <typename Traits>
     using traits_hasher_archetype = typename Traits::hasher;
-    typedef meta::detected_t<traits_hasher_archetype, traits_t> hasher_t;
+    typedef tinympl::detected_t<traits_hasher_archetype, traits_t> hasher_t;
 
   public:
     static constexpr auto has_hasher =
-        meta::is_detected<traits_hasher_archetype, traits_t>::value;
+        tinympl::is_detected<traits_hasher_archetype, traits_t>::value;
 
   private:
     // The hasher functor must be default constructible and must be callable with a const T
@@ -120,7 +121,7 @@ struct meets_key_concept {
 
   public:
     static constexpr auto hasher_works =
-        meta::is_detected_convertible<size_t, hasher_archetype, hasher_t, T>::value;
+        tinympl::is_detected_convertible<size_t, hasher_archetype, hasher_t, T>::value;
 
   ////////////////////////////////////////////////////////////////////////////////
   // must have a valid maker and maker_from_tuple in traits
@@ -129,21 +130,21 @@ struct meets_key_concept {
     // Traits class must define maker and maker_from_tuple member types
     template <typename Traits>
     using traits_maker_archetype = typename Traits::maker;
-    typedef meta::detected_t<traits_maker_archetype, traits_t> maker_t;
+    typedef tinympl::detected_t<traits_maker_archetype, traits_t> maker_t;
     //template <typename Traits>
     //using traits_maker_from_tuple_archetype = typename Traits::maker_from_tuple;
-    //typedef meta::detected_t<traits_maker_from_tuple_archetype, traits_t> maker_from_tuple_t;
+    //typedef tinympl::detected_t<traits_maker_from_tuple_archetype, traits_t> maker_from_tuple_t;
 
   public:
     static constexpr auto has_maker =
-        meta::is_detected<traits_maker_archetype, traits_t>::value;
+        tinympl::is_detected<traits_maker_archetype, traits_t>::value;
     //static constexpr auto has_maker_from_tuple =
-    //    meta::is_detected<traits_maker_from_tuple_archetype, traits_t>::value;
+    //    tinympl::is_detected<traits_maker_from_tuple_archetype, traits_t>::value;
 
   // This probably needs stronger concept support to do formally, since we need a KeyPart concept
   //public:
   //  static constexpr auto maker_works =
-  //      meta::is_detected_convertible<size_t, hasher_archetype, hasher_t>::value;
+  //      tinympl::is_detected_convertible<size_t, hasher_archetype, hasher_t>::value;
 
   ////////////////////////////////////////////////////////////////////////////////
   // must have a valid component<N>() member function
@@ -156,22 +157,22 @@ struct meets_key_concept {
     };
 
     // Test the first few integers...
-    typedef meta::detected_t<component_method_archetype<0>::template apply, T> key_part_0_t;
+    typedef tinympl::detected_t<component_method_archetype<0>::template apply, T> key_part_0_t;
     static constexpr auto has_key_part_0 =
-        meta::is_detected<component_method_archetype<0>::template apply, T>::value;
-    typedef meta::detected_t<component_method_archetype<1>::template apply, T> key_part_1_t;
+        tinympl::is_detected<component_method_archetype<0>::template apply, T>::value;
+    typedef tinympl::detected_t<component_method_archetype<1>::template apply, T> key_part_1_t;
     static constexpr auto has_key_part_1 =
-        meta::is_detected<component_method_archetype<1>::template apply, T>::value;
-    typedef meta::detected_t<component_method_archetype<2>::template apply, T> key_part_2_t;
+        tinympl::is_detected<component_method_archetype<1>::template apply, T>::value;
+    typedef tinympl::detected_t<component_method_archetype<2>::template apply, T> key_part_2_t;
     static constexpr auto has_key_part_2 =
-        meta::is_detected<component_method_archetype<2>::template apply, T>::value;
-    typedef meta::detected_t<component_method_archetype<3>::template apply, T> key_part_3_t;
+        tinympl::is_detected<component_method_archetype<2>::template apply, T>::value;
+    typedef tinympl::detected_t<component_method_archetype<3>::template apply, T> key_part_3_t;
     static constexpr auto has_key_part_3 =
-        meta::is_detected<component_method_archetype<3>::template apply, T>::value;
+        tinympl::is_detected<component_method_archetype<3>::template apply, T>::value;
     // And a random larger integer...
-    typedef meta::detected_t<component_method_archetype<17>::template apply, T> key_part_17_t;
+    typedef tinympl::detected_t<component_method_archetype<17>::template apply, T> key_part_17_t;
     static constexpr auto has_key_part_17 =
-        meta::is_detected<component_method_archetype<17>::template apply, T>::value;
+        tinympl::is_detected<component_method_archetype<17>::template apply, T>::value;
 
     // Also test that the key parts have an as<> function (just using int for now)
     typedef int component_as_test_t;
@@ -179,15 +180,15 @@ struct meets_key_concept {
     using key_part_as_archetype = decltype( std::declval<KeyPart>().template as<component_as_test_t>() );
 
     static constexpr auto key_part_0_has_as =
-        meta::is_detected_convertible<component_as_test_t, key_part_as_archetype, key_part_0_t>::value;
+        tinympl::is_detected_convertible<component_as_test_t, key_part_as_archetype, key_part_0_t>::value;
     static constexpr auto key_part_1_has_as =
-        meta::is_detected_convertible<component_as_test_t, key_part_as_archetype, key_part_1_t>::value;
+        tinympl::is_detected_convertible<component_as_test_t, key_part_as_archetype, key_part_1_t>::value;
     static constexpr auto key_part_2_has_as =
-        meta::is_detected_convertible<component_as_test_t, key_part_as_archetype, key_part_2_t>::value;
+        tinympl::is_detected_convertible<component_as_test_t, key_part_as_archetype, key_part_2_t>::value;
     static constexpr auto key_part_3_has_as =
-        meta::is_detected_convertible<component_as_test_t, key_part_as_archetype, key_part_3_t>::value;
+        tinympl::is_detected_convertible<component_as_test_t, key_part_as_archetype, key_part_3_t>::value;
     static constexpr auto key_part_17_has_as =
-        meta::is_detected_convertible<component_as_test_t, key_part_as_archetype, key_part_17_t>::value;
+        tinympl::is_detected_convertible<component_as_test_t, key_part_as_archetype, key_part_17_t>::value;
 
   public:
 

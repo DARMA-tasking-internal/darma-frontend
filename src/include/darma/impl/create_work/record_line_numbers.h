@@ -79,7 +79,7 @@ struct _create_work_while_creation_context : _create_work_creation_context {
   using _create_work_creation_context::_create_work_creation_context;
 
   template <
-    typename Functor=meta::nonesuch,
+    typename Functor=tinympl::nonesuch,
     typename... Args
   >
   auto
@@ -91,7 +91,7 @@ struct _create_work_if_creation_context : _create_work_creation_context {
   using _create_work_creation_context::_create_work_creation_context;
 
   template <
-    typename Functor=meta::nonesuch,
+    typename Functor=tinympl::nonesuch,
     typename... Args
   >
   auto

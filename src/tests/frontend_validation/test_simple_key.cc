@@ -47,7 +47,7 @@
 #include <gmock/gmock.h>
 
 #include <darma/impl/key/simple_key.h>
-#include <darma/impl/key_concept.h>
+#include <darma/key/key_concept.h>
 
 #include "../meta/blabbermouth.h"
 

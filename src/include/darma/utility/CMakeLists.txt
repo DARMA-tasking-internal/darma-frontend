@@ -10,6 +10,9 @@ set(DARMA_UTILITY_HEADERS
   not_a_type.h
   safe_static_cast.h
   static_assertions.h
+  tag_types.h
+  darma_assert.h
+  as_bytes.h
 )
 
 install (FILES ${DARMA_UTILITY_HEADERS} DESTINATION include/darma/utility)

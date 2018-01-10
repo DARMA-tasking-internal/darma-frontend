@@ -46,8 +46,8 @@
 #include <gmock/gmock.h>
 
 
-#include <darma/impl/key/SSO_key.h>
-#include <darma/impl/key_concept.h>
+#include <darma/key/SSO_key.h>
+#include <darma/key/key_concept.h>
 #include <darma/utility/static_assertions.h>
 #include <darma/impl/serialization/manager.h>
 

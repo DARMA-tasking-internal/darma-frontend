@@ -84,7 +84,7 @@ struct CaptureSetupHelperBase {
 //  // Use a tag as the first argument to prevent messing with copy ctors and such
 //  template <typename PreConstructAction>
 //  TaskCtorHelper(
-//    variadic_constructor_arg_t,
+//    utility::variadic_constructor_tag_t,
 //    PreConstructAction&& action
 //  ) : TaskBase()
 //  {

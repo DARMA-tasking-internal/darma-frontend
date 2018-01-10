@@ -2,9 +2,9 @@
 //@HEADER
 // ************************************************************************
 //
-//                      create_work_while.h
+//                      key_fwd.h
 //                         DARMA
-//              Copyright (C) 2017 Sandia Corporation
+//              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -42,50 +42,20 @@
 //@HEADER
 */
 
-#ifndef DARMAFRONTEND_CREATE_WORK_WHILE_H
-#define DARMAFRONTEND_CREATE_WORK_WHILE_H
+#ifndef DARMA_IMPL_KEY_KEY_FWD_H
+#define DARMA_IMPL_KEY_KEY_FWD_H
 
-#include <tinympl/vector.hpp>
-
-#include <darma/utility/config.h>
-
-#include <darma/impl/meta/detection.h>
-
-#include <darma/impl/create_work/create_work_while_fwd.h>
-
-#include <darma/impl/create_work/record_line_numbers.h>
+#include <darma/key/SSO_key_fwd.h>
 
 namespace darma_runtime {
 
-template <
-  typename Functor
-#if !DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
-  = tinympl::nonesuch
-#endif
-  , typename... Args
->
-auto
-#if DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
-_create_work_while_creation_context::_darma_create_work_while_with_line_numbers
-#else
-create_work_while
-#endif
-  (Args&& ... args)
-{
-  return detail::_create_work_while_helper<
-    Functor,
-    typename tinympl::vector<Args...>::safe_pop_back::type,
-    typename tinympl::vector<Args...>::template safe_back<tinympl::nonesuch>::type
-  >(
-#if DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
-    this,
-#endif
-    std::forward<Args>(args)...
-  );
-}
+namespace detail {
+
+template <typename T, typename Enable=void>
+struct bytes_convert;
+
+} // end namespace detail
 
 } // end namespace darma_runtime
 
-#include <darma/impl/create_work/create_work_while.h>
-
-#endif //DARMAFRONTEND_CREATE_WORK_WHILE_H
+#endif //DARMA_IMPL_KEY_KEY_FWD_H

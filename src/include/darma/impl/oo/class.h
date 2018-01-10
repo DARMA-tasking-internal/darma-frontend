@@ -86,14 +86,14 @@ using _is_complete_darma_class_from_archetype = typename T::_darma__this_is_a_co
 // Note that using this metafunction from multiple places with the same Context will
 // alway return the value retrieved from the first one!!!
 template <typename T, typename Context>
-using is_complete_darma_class_from_context = meta::detected_or_t<std::false_type,
+using is_complete_darma_class_from_context = tinympl::detected_or_t<std::false_type,
   _impl::_is_complete_darma_class_from_archetype, T, Context
 >;
 
 } // end namespace detail
 
 template <typename T>
-using is_darma_class = meta::detected_or_t<std::false_type,
+using is_darma_class = tinympl::detected_or_t<std::false_type,
   detail::_impl::_is_darma_class_archetype, T
 >;
 
@@ -298,7 +298,7 @@ struct darma_class
 
     template <typename T, typename... _Ignored_but_needed_for_SFINAE_to_work>
     using constructor_implementation_type = tinympl::identity<
-      darma_runtime::meta::detected_t<
+      darma_runtime::tinympl::detected_t<
         _constructor_implementation_type, T, _Ignored_but_needed_for_SFINAE_to_work...
       >
     >;
@@ -352,11 +352,11 @@ struct darma_class
         constructor_implementation_callable<ClassName, CTorArgs...>::value
         and sizeof...(CTorArgs) != 0
         and not std::is_same<
-          std::decay_t<tinympl::variadic::at_or_t<meta::nonesuch, 0, CTorArgs...>>,
+          std::decay_t<tinympl::variadic::at_or_t<tinympl::nonesuch, 0, CTorArgs...>>,
           ClassName
         >::value
         and not std::is_same<
-          std::decay_t<tinympl::variadic::at_or_t<meta::nonesuch, 0, CTorArgs...>>,
+          std::decay_t<tinympl::variadic::at_or_t<tinympl::nonesuch, 0, CTorArgs...>>,
           detail::oo_sentinel_value_t
         >::value
       >

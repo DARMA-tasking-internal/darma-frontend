@@ -46,7 +46,7 @@
 #define DARMAFRONTEND_DARMA_IMPL_H
 
 #include "array/array.impl.h"
-#include "key/key.impl.h"
+#include "darma/key/key.impl.h"
 #include "access_handle/access_handle.impl.h"
 #include "access_handle/access_handle_collection.impl.h"
 

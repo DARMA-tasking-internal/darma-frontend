@@ -233,7 +233,7 @@ struct _do_create_parallel_for<
         auto runnable = std::make_unique<
           ParallelForFunctorRunnable<Callable, decltype(args_to_fwd)...>
         >(
-          variadic_constructor_arg,
+          utility::variadic_constructor_tag,
           std::forward<decltype(args_to_fwd)>(args_to_fwd)...
         );
         runnable->set_n_iters(n_iters);

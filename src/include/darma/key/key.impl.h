@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      mem_copyable_key.h
+//                      key.impl.h
 //                         DARMA
 //              Copyright (C) 2017 Sandia Corporation
 //
@@ -42,11 +42,9 @@
 //@HEADER
 */
 
-#ifndef DARMAFRONTEND_MEM_COPYABLE_KEY_H
-#define DARMAFRONTEND_MEM_COPYABLE_KEY_H
+#ifndef DARMAFRONTEND_KEY_IMPL_H
+#define DARMAFRONTEND_KEY_IMPL_H
 
-namespace darma_runtime {
+#include <darma/key/SSO_key.impl.h>
 
-} // end namespace darma_runtime
-
-#endif //DARMAFRONTEND_MEM_COPYABLE_KEY_H
+#endif //DARMAFRONTEND_KEY_IMPL_H

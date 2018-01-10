@@ -141,7 +141,7 @@ struct async_accessible_object_traits {
     using _object_type_for_detection = std::conditional_t<
       _object_type_defines_is_async_accessible_object,
       object_type,
-      meta::nonesuch
+      tinympl::nonesuch
     >;
 
 
@@ -215,7 +215,7 @@ struct async_accessible_object_traits {
       _is_async_accessible_object_archetype
     >::value;
 
-    _darma_AAO_DETECTED_TYPE(value_type, meta::nonesuch);
+    _darma_AAO_DETECTED_TYPE(value_type, tinympl::nonesuch);
 
 
   //============================================================================
@@ -272,7 +272,7 @@ struct async_accessible_object_traits {
 
     using index_range = std::decay_t<
       _aao_detect_different_archs<
-        meta::nonesuch,
+        tinympl::nonesuch,
         _get_index_range_object_archetype,
         _get_index_range_adaptor_archetype,
         object_type // works around an ICC bug that can't deal with names from context in detectors

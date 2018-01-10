@@ -2,9 +2,9 @@
 //@HEADER
 // ************************************************************************
 //
-//                      key_fwd.h
+//                      tag_types.h
 //                         DARMA
-//              Copyright (C) 2016 Sandia Corporation
+//              Copyright (C) 2018 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -42,18 +42,18 @@
 //@HEADER
 */
 
-#ifndef DARMA_IMPL_KEY_KEY_FWD_H
-#define DARMA_IMPL_KEY_KEY_FWD_H
+#ifndef DARMAFRONTEND_TAG_TYPES_H
+#define DARMAFRONTEND_TAG_TYPES_H
 
 namespace darma_runtime {
+namespace utility {
 
-namespace detail {
+struct variadic_constructor_arg_t { };
+constexpr variadic_constructor_arg_t variadic_constructor_arg = { };
+using variadic_constructor_tag_t = variadic_constructor_arg_t;
+constexpr variadic_constructor_tag_t variadic_constructor_tag = variadic_constructor_arg;
 
-template <typename T, typename Enable=void>
-struct bytes_convert;
-
-} // end namespace detail
-
+} // end namespace utility
 } // end namespace darma_runtime
 
-#endif //DARMA_IMPL_KEY_KEY_FWD_H
+#endif //DARMAFRONTEND_TAG_TYPES_H

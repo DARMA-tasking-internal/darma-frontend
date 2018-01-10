@@ -293,7 +293,7 @@ struct _create_work_while_do_helper<
         callable_t, args_fwd_tuple_t, has_lambda_callable
       >
     >(
-      variadic_constructor_tag,
+      utility::variadic_constructor_tag,
       std::move(*this)
     );
     while_do_mngr->set_capture_managers(while_do_mngr);
@@ -346,14 +346,14 @@ struct _create_work_while_helper<
 #endif
   { }
 
-  template <typename DoFunctor=meta::nonesuch, typename... DoArgs>
+  template <typename DoFunctor=tinympl::nonesuch, typename... DoArgs>
   auto
   do_(DoArgs&&... args) &&
   {
     return _create_work_while_do_helper<
       _create_work_while_helper, DoFunctor,
       typename tinympl::vector<DoArgs...>::safe_pop_back::type,
-      typename tinympl::vector<DoArgs...>::template safe_back<meta::nonesuch>::type
+      typename tinympl::vector<DoArgs...>::template safe_back<tinympl::nonesuch>::type
     >(
       std::move(*this),
       std::forward<DoArgs>(args)...

@@ -307,7 +307,7 @@ void _do_register_concurrent_region(
     std::forward<ArgsTuple>(args_tup),
     [&](auto&&... args){
       auto runnable = std::make_unique<runnable_t>(
-        variadic_constructor_arg,
+        utility::variadic_constructor_tag,
         std::forward<decltype(args)>(args)...
       );
       runnable->set_mapping(mapping);

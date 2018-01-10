@@ -170,7 +170,7 @@ using _is_oo_name_tag_archetype = typename T::_darma__is_oo_name_tag;
 } // end namespace _impl
 
 template <typename T>
-using is_oo_name_tag = meta::detected_or_t<std::false_type,
+using is_oo_name_tag = tinympl::detected_or_t<std::false_type,
   _impl::_is_oo_name_tag_archetype, T
 >;
 

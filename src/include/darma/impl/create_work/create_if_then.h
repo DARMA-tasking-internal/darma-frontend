@@ -184,7 +184,7 @@ struct IfThenElseCaptureManager<
     template <typename HelperT>
     explicit
     IfThenElseCaptureManager(
-      variadic_constructor_tag_t,
+      utility::variadic_constructor_tag_t,
       HelperT&& helper,
       std::enable_if_t<
         std::decay_t<HelperT>::is_else_helper and ElseGiven,
@@ -203,7 +203,7 @@ struct IfThenElseCaptureManager<
 
     template <typename HelperT>
     IfThenElseCaptureManager(
-      variadic_constructor_tag_t,
+      utility::variadic_constructor_tag_t,
       HelperT&& helper,
       std::enable_if_t<
         not std::decay_t<HelperT>::is_else_helper and not ElseGiven,

@@ -262,13 +262,13 @@ namespace darma_runtime { namespace types {
 using runtime_instance_token_t = mock_backend::MockRuntimeInstanceToken;
 }} // end namespace darma_runtime::types
 
-#include <darma/impl/key/SSO_key_fwd.h>
+#include <darma/key/SSO_key_fwd.h>
 
 namespace darma_runtime { namespace types {
   typedef darma_runtime::detail::SSOKey<> key_t;
 }} // end namespace darma_runtime::types
 
-#include <darma/impl/key/SSO_key.h>
+#include <darma/key/SSO_key.h>
 
 
 

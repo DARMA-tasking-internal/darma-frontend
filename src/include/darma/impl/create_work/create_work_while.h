@@ -140,7 +140,7 @@ struct WhileDoCaptureManager<
 
   template <typename HelperT>
   WhileDoCaptureManager(
-    variadic_constructor_tag_t /*unused*/,
+    utility::variadic_constructor_tag_t /*unused*/,
     HelperT&& helper
   ) : while_task_(std::make_unique<while_task_t>(
         this, std::forward<HelperT>(helper),

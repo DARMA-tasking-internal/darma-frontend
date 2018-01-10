@@ -124,7 +124,7 @@ struct mapping_traits {
 
   public:
 
-    using is_index_mapping_t = meta::detected_or_t<std::false_type,
+    using is_index_mapping_t = tinympl::detected_or_t<std::false_type,
       _is_index_mapping_archetype, T
     >;
 
@@ -132,32 +132,32 @@ struct mapping_traits {
 
     using from_index_type = std::conditional_t<
       _has_from_index_type,
-      meta::detected_t<_from_index_type_archetype, T>,
-      meta::detected_t<_index_type_archetype, T>
+      tinympl::detected_t<_from_index_type_archetype, T>,
+      tinympl::detected_t<_index_type_archetype, T>
     >;
 
     using to_index_type = std::conditional_t<
       _has_from_index_type,
-      meta::detected_t<_to_index_type_archetype, T>,
-      meta::detected_t<_index_type_archetype, T>
+      tinympl::detected_t<_to_index_type_archetype, T>,
+      tinympl::detected_t<_index_type_archetype, T>
     >;
 
     using from_multi_index_type = std::conditional_t<
       _has_from_multi_index_type,
-      meta::detected_t<_from_multi_index_type_archetype, T>,
+      tinympl::detected_t<_from_multi_index_type_archetype, T>,
       std::conditional_t<
         _has_multi_index_type,
-        meta::detected_t<_multi_index_type_archetype, T>,
+        tinympl::detected_t<_multi_index_type_archetype, T>,
         from_index_type
       >
     >;
 
     using to_multi_index_type = std::conditional_t<
       _has_to_multi_index_type,
-      meta::detected_t<_to_multi_index_type_archetype, T>,
+      tinympl::detected_t<_to_multi_index_type_archetype, T>,
       std::conditional_t<
         _has_multi_index_type,
-        meta::detected_t<_multi_index_type_archetype, T>,
+        tinympl::detected_t<_multi_index_type_archetype, T>,
         to_index_type
       >
     >;
@@ -181,7 +181,7 @@ struct mapping_traits {
 
     template <typename ThisMapping, typename OtherMapping>
     using _mapping_is_same_return_t =
-      meta::detected_t<_is_same_archetype, ThisMapping, OtherMapping>;
+      tinympl::detected_t<_is_same_archetype, ThisMapping, OtherMapping>;
 
   public:
 
@@ -363,18 +363,18 @@ struct mapping_traits {
     } _map_method_overload;
 
     template <
-      typename Range1 = meta::nonesuch,
-      typename Range2 = meta::nonesuch,
+      typename Range1 = tinympl::nonesuch,
+      typename Range2 = tinympl::nonesuch,
       bool error_if_missing = false
     >
     using _forward_method_overload_tag = typename tinympl::select_first_t<
         tinympl::bool_<meta::is_detected_convertible<
           to_multi_index_type, _map_forward_two_ranges_archetype, T, Range1, Range2, from_index_type
-        >::value and not std::is_same<Range1, meta::nonesuch>::value and not std::is_same<Range2, meta::nonesuch>::value
+        >::value and not std::is_same<Range1, tinympl::nonesuch>::value and not std::is_same<Range2, tinympl::nonesuch>::value
       >, /* => */ std::integral_constant<_map_method_overload, _two_ranges>,
       tinympl::bool_<meta::is_detected_convertible<
           to_multi_index_type, _map_forward_one_range_archetype, T, Range1, from_index_type
-        >::value and not std::is_same<Range1, meta::nonesuch>::value
+        >::value and not std::is_same<Range1, tinympl::nonesuch>::value
       >, /* => */ std::integral_constant<_map_method_overload, _one_range>,
       tinympl::bool_<meta::is_detected_convertible<
         to_multi_index_type, _map_forward_no_ranges_archetype, T, from_index_type
@@ -391,18 +391,18 @@ struct mapping_traits {
     >::type;
 
     template <
-      typename Range1 = meta::nonesuch,
-      typename Range2 = meta::nonesuch,
+      typename Range1 = tinympl::nonesuch,
+      typename Range2 = tinympl::nonesuch,
       bool error_if_missing = false
     >
     using _backward_method_overload_tag = tinympl::select_first_t<
       tinympl::bool_<meta::is_detected_convertible<
           from_multi_index_type, _map_backward_two_ranges_archetype, T, Range1, Range2, to_index_type
-        >::value and not std::is_same<Range1, meta::nonesuch>::value and not std::is_same<Range2, meta::nonesuch>::value
+        >::value and not std::is_same<Range1, tinympl::nonesuch>::value and not std::is_same<Range2, tinympl::nonesuch>::value
       >, /* => */ std::integral_constant<_map_method_overload, _two_ranges>,
       tinympl::bool_<meta::is_detected_convertible<
           from_multi_index_type, _map_backward_one_range_archetype, T, Range1, to_index_type
-        >::value and not std::is_same<Range1, meta::nonesuch>::value
+        >::value and not std::is_same<Range1, tinympl::nonesuch>::value
       >, /* => */ std::integral_constant<_map_method_overload, _one_range>,
       tinympl::bool_<meta::is_detected_convertible<
         from_multi_index_type, _map_backward_no_ranges_archetype, T, to_index_type
@@ -502,7 +502,7 @@ struct mapping_traits {
     static to_multi_index_type
     map_forward(
       std::enable_if_t<
-        _forward_method_overload_tag<meta::nonesuch, meta::nonesuch>::value == _no_ranges
+        _forward_method_overload_tag<tinympl::nonesuch, tinympl::nonesuch>::value == _no_ranges
           and std::is_void<_for_SFINAE_only>::value,
         T const&
       > mapping,

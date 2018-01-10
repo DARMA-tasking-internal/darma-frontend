@@ -77,7 +77,7 @@ struct _commutative_access_impl {
 
   using given_value_type_t = std::conditional_t<
     is_access_handle_trait_flag<T>::value,
-    meta::nonesuch,
+    tinympl::nonesuch,
     T
   >;
 
@@ -165,7 +165,7 @@ struct _commutative_access_impl {
       "Argument to commutative_access(to_handle=...) must be an rvalue"
         " AccessHandle.  Use std::move() if necessary"
     );
-    static_assert(std::is_same<given_value_type_t, meta::nonesuch>::value
+    static_assert(std::is_same<given_value_type_t, tinympl::nonesuch>::value
         or std::is_same<
           given_value_type_t,
           typename std::decay_t<AccessHandleT>::value_type
@@ -283,7 +283,7 @@ struct _commutative_access_impl {
       "Argument to commutative_access(to_collection=...) must be an rvalue"
         " AccessHandle.  Use std::move() if necessary"
     );
-    static_assert(std::is_same<given_value_type_t, meta::nonesuch>::value
+    static_assert(std::is_same<given_value_type_t, tinympl::nonesuch>::value
         or std::is_same<
           given_value_type_t,
           typename std::decay_t<AccessHandleCollectionT>::value_type
@@ -364,7 +364,7 @@ struct _commutative_access_impl {
     auto* rt = abstract::backend::get_backend_runtime();
 
     static_assert(
-      not std::is_same<given_value_type_t, meta::nonesuch>::value,
+      not std::is_same<given_value_type_t, tinympl::nonesuch>::value,
       "Must give value type template parameter for overloads of"
         " commutative_access(...) that don't take an AccessHandle argument"
     );
@@ -486,7 +486,7 @@ struct _noncommutative_access_impl {
 
   using given_value_type_t = std::conditional_t<
     is_access_handle_trait_flag<T>::value,
-    meta::nonesuch,
+    tinympl::nonesuch,
     T
   >;
 
@@ -567,7 +567,7 @@ struct _noncommutative_access_impl {
       "Argument to noncommutative_access_to_handle(...) must be an rvalue"
         " AccessHandle.  You probably forgot to use std::move()."
     );
-    static_assert(std::is_same<given_value_type_t, meta::nonesuch>::value
+    static_assert(std::is_same<given_value_type_t, tinympl::nonesuch>::value
         or std::is_same<
           given_value_type_t,
           typename std::decay_t<AccessHandleT>::value_type
@@ -635,7 +635,7 @@ struct _noncommutative_collection_access_impl {
 
   using given_value_type_t = std::conditional_t<
     is_access_handle_trait_flag<T>::value,
-    meta::nonesuch,
+    tinympl::nonesuch,
     T
   >;
 
@@ -728,7 +728,7 @@ struct _noncommutative_collection_access_impl {
       "Argument to noncommutative_access_to_collection(...) must be an rvalue"
         " AccessHandleCollection.  You probably forgot to use std::move()."
     );
-    static_assert(std::is_same<given_value_type_t, meta::nonesuch>::value
+    static_assert(std::is_same<given_value_type_t, tinympl::nonesuch>::value
         or std::is_same<
           given_value_type_t,
           typename std::decay_t<AccessHandleCollectionT>::value_type
@@ -836,7 +836,7 @@ struct _noncommutative_collection_access_impl {
 } // end namespace detail
 
 
-template <typename T=meta::nonesuch,
+template <typename T=tinympl::nonesuch,
   typename... TraitFlags,
   typename... Args
 >
@@ -873,7 +873,7 @@ commutative_access(Args&&... args) {
 };
 
 template <
-  typename T=meta::nonesuch,
+  typename T=tinympl::nonesuch,
   typename... TraitFlags,
   typename Arg1,
   typename... Args
@@ -888,7 +888,7 @@ commutative_access_to_handle(Arg1&& a1, Args&&... args) {
 };
 
 template <
-  typename T=meta::nonesuch,
+  typename T=tinympl::nonesuch,
   typename... TraitFlags,
   typename... Args
 >
@@ -912,7 +912,7 @@ noncommutative_access_to_handle(Args&&... args) {
 };
 
 template <
-  typename T=meta::nonesuch,
+  typename T=tinympl::nonesuch,
   typename... TraitFlags,
   typename... Args
 >

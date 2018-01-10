@@ -2,9 +2,9 @@
 //@HEADER
 // ************************************************************************
 //
-//                      simple_key_fwd.h
+//                      raw_bytes_serialization.h
 //                         DARMA
-//              Copyright (C) 2016 Sandia Corporation
+//              Copyright (C) 2018 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -42,17 +42,40 @@
 //@HEADER
 */
 
-#ifndef DARMA_IMPL_KEY_SIMPLE_KEY_FWD_H
-#define DARMA_IMPL_KEY_SIMPLE_KEY_FWD_H
+#ifndef DARMAFRONTEND_RAW_BYTES_SERIALIZATION_H
+#define DARMAFRONTEND_RAW_BYTES_SERIALIZATION_H
+
+#include <darma/serialization/nonintrusive.h>
+
+#include <darma/key/raw_bytes.h>
 
 namespace darma_runtime {
 
-namespace detail {
+namespace serialization {
 
-class SimpleKey;
+template <>
+struct Serializer<darma_runtime::detail::raw_bytes> {
+  template <typename Archive>
+  void get_size(darma_runtime::detail::raw_bytes const& val, Archive& ar) const {
+    ar % val.get_size();
+    ar.add_to_size_raw(val.get_size());
+  }
+  template <typename Archive>
+  void pack(darma_runtime::detail::raw_bytes const& val, Archive& ar) const {
+    ar << val.get_size();
+    ar.pack_data_raw((char*)val.data.get(), (char*)val.data.get() + val.get_size());
+  }
+  template <typename Archive>
+  void unpack(void* allocated, Archive& ar) const {
+    size_t size = 0;
+    ar >> size;
+    auto* val = new (allocated) darma_runtime::detail::raw_bytes(size);
+    ar.template unpack_data_raw<char>(val->data.get(), size);
+  }
+};
 
-} // end namespace detail
+} // end namespace serialization
 
 } // end namespace darma_runtime
 
-#endif //DARMA_IMPL_KEY_SIMPLE_KEY_FWD_H
+#endif //DARMAFRONTEND_RAW_BYTES_SERIALIZATION_H

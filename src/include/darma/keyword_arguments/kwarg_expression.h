@@ -152,8 +152,8 @@ template <class T>
 struct is_kwarg_expression
   : public std::false_type
 {
-  typedef meta::nonesuch tag;
-  using argument_type = meta::nonesuch;
+  typedef tinympl::nonesuch tag;
+  using argument_type = tinympl::nonesuch;
 };
 
 template <typename T, typename KWArgName>
@@ -177,7 +177,7 @@ template <class T, class Tag>
 struct is_kwarg_expression_with_tag
   : public std::false_type
 {
-  using argument_type = meta::nonesuch;
+  using argument_type = tinympl::nonesuch;
 };
 
 template <class T, typename Tag>

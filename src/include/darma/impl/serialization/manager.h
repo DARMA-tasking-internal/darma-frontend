@@ -203,7 +203,7 @@ class SerializationManagerForType
 
     template <typename U>
     using _has_tagged_default_construct = tinympl::bool_<
-      meta::is_detected<
+      tinympl::is_detected<
         _has_tagged_default_construct_archetype, U
       >::value
     >;

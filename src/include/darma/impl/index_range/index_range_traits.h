@@ -73,7 +73,7 @@ class index_range_traits {
       _has_mapping_to_dense_archetype, T
     >;
 
-    using mapping_to_dense_type = meta::detected_t<
+    using mapping_to_dense_type = tinympl::detected_t<
       _has_mapping_to_dense_archetype, T
     >;
 
@@ -130,7 +130,7 @@ class index_range_traits {
 
   public:
 
-    using index_type = meta::detected_t<
+    using index_type = tinympl::detected_t<
       _has_index_type_archetype, T
     >;
 
@@ -142,7 +142,7 @@ class index_range_traits {
   // <editor-fold desc="is_index_range"> {{{1
 
     static constexpr auto is_index_range =
-      not std::is_same<index_type, meta::nonesuch>::value
+      not std::is_same<index_type, tinympl::nonesuch>::value
       and _has_size::value
       and has_mapping_to_dense::value;
 

@@ -64,7 +64,7 @@
 
 #include <darma/impl/task/task_fwd.h>
 #include <darma/impl/util.h>
-#include <darma/impl/darma_assert.h>
+#include <darma/utility/darma_assert.h>
 #include <darma/serialization/nonintrusive.h>
 #include <darma/impl/serialization/manager.h>
 
@@ -400,7 +400,7 @@ template <typename T>
 using is_access_handle_captured_as_unique_modify = tinympl::and_<
   decayed_is_access_handle<T>,
   tinympl::bool_<
-    meta::detected_or_t<std::false_type, _captured_as_unique_modify_archetype, std::decay_t<T>>::type::value
+    tinympl::detected_or_t<std::false_type, _captured_as_unique_modify_archetype, std::decay_t<T>>::type::value
   >
 >;
 
@@ -412,7 +412,7 @@ template <typename T>
 using is_access_handle_captured_as_shared_read = tinympl::and_<
   decayed_is_access_handle<T>,
   tinympl::bool_<
-    meta::detected_or_t<std::false_type, _captured_as_shared_read_archetype, std::decay_t<T>>::type::value
+    tinympl::detected_or_t<std::false_type, _captured_as_shared_read_archetype, std::decay_t<T>>::type::value
   >
 >;
 
@@ -423,14 +423,14 @@ using _value_type_archetype = typename T::value_type;
 
 } // end namespace _impl
 
-template <typename T, typename Otherwise=meta::nonesuch>
+template <typename T, typename Otherwise=tinympl::nonesuch>
 using value_type_if_access_handle = std::conditional<
   is_access_handle<T>::value,
-  meta::detected_t<_impl::_value_type_archetype, std::decay_t<T>>,
+  tinympl::detected_t<_impl::_value_type_archetype, std::decay_t<T>>,
   Otherwise
 >;
 
-template <typename T, typename Otherwise=meta::nonesuch>
+template <typename T, typename Otherwise=tinympl::nonesuch>
 using value_type_if_access_handle_t = typename value_type_if_access_handle<T, Otherwise>::type;
 
 } // end namespace detail

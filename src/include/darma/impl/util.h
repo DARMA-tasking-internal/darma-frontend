@@ -59,115 +59,16 @@
 
 #include <darma/utility/macros.h>
 
-#include <darma/impl/darma_assert.h>
+#include <darma/utility/darma_assert.h>
 #include <darma/utility/not_a_type.h>
 #include <darma/utility/compatibility.h>
-#include <darma/impl/meta/largest_aligned.h>
+#include <darma/utility/largest_aligned.h>
 #include <darma/interface/defaults/pointers.h>
 #include <darma/utility/safe_static_cast.h>
 
 namespace darma_runtime {
 
 namespace detail {
-
-struct variadic_constructor_arg_t { };
-constexpr variadic_constructor_arg_t variadic_constructor_arg = { };
-using variadic_constructor_tag_t = variadic_constructor_arg_t;
-constexpr variadic_constructor_tag_t variadic_constructor_tag = variadic_constructor_arg;
-
-//   http://stackoverflow.com/questions/2590677/how-do-i-combine-hash-values-in-c0x
-template <class T>
-inline void
-hash_combine(std::size_t& seed, const T& v)
-{
-  std::hash<T> hasher;
-  seed ^= hasher(v) + 0x9e3779b9 + (seed<<6) + (seed>>2);
-}
-
-template <typename T>
-inline size_t
-hash_as_bytes(T const& val) {
-  typedef typename meta::largest_aligned_int<T>::type largest_int_t;
-  constexpr size_t n_parts = sizeof(T) / sizeof(largest_int_t);
-  largest_int_t* spot = (largest_int_t*)&val;
-  size_t rv = 0;
-  for(int i = 0; i < n_parts; ++i, ++spot) {
-    hash_combine(rv, *spot);
-  }
-  return rv;
-}
-
-template <typename T, typename U>
-inline bool
-equal_as_bytes(T const& a, U const& b) {
-  if(sizeof(T) != sizeof(U)) return false;
-  typedef typename meta::largest_aligned_int<T>::type largest_int_t;
-  constexpr size_t n_parts = sizeof(T) / sizeof(largest_int_t);
-  largest_int_t* a_spot = (largest_int_t*)&a;
-  largest_int_t* b_spot = (largest_int_t*)&b;
-  for(int i = 0; i < n_parts; ++i, ++a_spot, ++b_spot) {
-    if(*a_spot != *b_spot) return false;
-  }
-  return true;
-}
-
-inline bool
-less_as_bytes(const char* a, size_t a_size, const char* b, size_t b_size) {
-  if(a_size != b_size) return a_size < b_size;
-  if(a_size % sizeof(uint64_t) == 0) {
-    const uint64_t* a_64 = reinterpret_cast<uint64_t const*>(a);
-    const uint64_t* b_64 = reinterpret_cast<uint64_t const*>(b);
-    const size_t n_iter = a_size / sizeof(uint64_t);
-    for(int i = 0; i < n_iter; ++i, ++a_64, ++b_64) {
-      if(*a_64 != *b_64) return *a_64 < *b_64;
-    }
-  }
-  else {
-    for (int i = 0; i < a_size; ++i, ++a, ++b) {
-      if (*a != *b) return *a < *b;
-    }
-  }
-  return false;
-}
-
-inline bool
-equal_as_bytes(const char* a, size_t a_size, const char* b, size_t b_size) {
-  if(a_size != b_size) return false;
-  if(a_size % sizeof(uint64_t) == 0) {
-    const uint64_t* a_64 = reinterpret_cast<uint64_t const*>(a);
-    const uint64_t* b_64 = reinterpret_cast<uint64_t const*>(b);
-    const size_t n_iter = a_size / sizeof(uint64_t);
-    for(int i = 0; i < n_iter; ++i, ++a_64, ++b_64) {
-      if(*a_64 != *b_64) return false;
-    }
-  }
-  else {
-    for (int i = 0; i < a_size; ++i, ++a, ++b) {
-      if (*a != *b) return false;
-    }
-  }
-  return true;
-}
-
-inline size_t
-hash_as_bytes(const char* a, size_t a_size) {
-  if(a_size % sizeof(uint64_t) == 0) {
-    size_t rv = 0;
-    const uint64_t* a_64 = reinterpret_cast<uint64_t const*>(a);
-    const size_t n_iter = a_size / sizeof(uint64_t);
-    for(int i = 0; i < n_iter; ++i, ++a_64) {
-      hash_combine(rv, *a_64);
-    }
-    return rv;
-  }
-  else {
-    size_t rv = 0;
-    for(int i = 0; i < a_size; ++i, ++a) {
-      hash_combine(rv, *a);
-    }
-    return rv;
-  }
-}
 
 
 

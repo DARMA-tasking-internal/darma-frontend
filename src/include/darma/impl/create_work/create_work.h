@@ -146,7 +146,7 @@ create_work
   return detail::_create_work_impl<
     Functor,
     typename tinympl::vector<>,
-    meta::nonesuch
+    tinympl::nonesuch
   >(
 #if DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
     this

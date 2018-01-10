@@ -166,7 +166,7 @@ struct _create_work_if_helper<
 #endif
   { }
 
-  template <typename ThenFunctor=meta::nonesuch, typename... ThenArgs>
+  template <typename ThenFunctor=tinympl::nonesuch, typename... ThenArgs>
   auto
   then_(ThenArgs&& ... args)&& {
     return _create_work_then_helper<
@@ -219,7 +219,7 @@ struct _create_work_then_helper<
   _create_work_then_helper(_create_work_then_helper&&) = default;
   _create_work_then_helper(_create_work_then_helper const&) = delete;
 
-  template <typename ElseFunctor=meta::nonesuch, typename... ElseArgs>
+  template <typename ElseFunctor=tinympl::nonesuch, typename... ElseArgs>
   void else_(ElseArgs&& ... args)&& {
     else_invoked = true;
     _create_work_else_helper<
@@ -239,7 +239,7 @@ struct _create_work_then_helper<
         callable_t, args_fwd_tuple_t, false,
         utility::_not_a_type, std::tuple<>, false, /* ElseGiven= */ false
       >>(
-        variadic_constructor_tag,
+        utility::variadic_constructor_tag,
         std::move(*this)
       );
       capture_manager->finish_construction_and_register_if_task(capture_manager);
@@ -293,7 +293,7 @@ struct _create_work_else_helper<
         ThenHelper::is_lambda_callable,
         callable_t, args_fwd_tuple_t, false, /* ElseGiven= */ true
       >>(
-        variadic_constructor_tag,
+        utility::variadic_constructor_tag,
         std::move(*this)
       );
       capture_manager->finish_construction_and_register_if_task(capture_manager);

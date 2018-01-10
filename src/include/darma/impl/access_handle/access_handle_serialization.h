@@ -48,6 +48,10 @@
 #include <darma/impl/feature_testing_macros.h>
 
 #include <darma/interface/app/access_handle.h>
+
+#include <darma/key/key.h>
+#include <darma/key/dependent_on/serialization/key_serialization.h>
+
 #include <darma/serialization/pointer_reference_archive.h>
 #include <darma/serialization/pointer_reference_handler.h>
 

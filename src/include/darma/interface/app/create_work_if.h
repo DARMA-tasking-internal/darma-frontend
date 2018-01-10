@@ -60,7 +60,7 @@ namespace darma_runtime {
 template <
   typename Functor
 #if !DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
-  =meta::nonesuch
+  =tinympl::nonesuch
 #endif
   , typename... Args
 >
@@ -75,7 +75,7 @@ create_work_if(
   return detail::_create_work_if_helper<
     Functor,
     typename tinympl::vector<Args...>::safe_pop_back::type,
-    typename tinympl::vector<Args...>::template safe_back<meta::nonesuch>::type
+    typename tinympl::vector<Args...>::template safe_back<tinympl::nonesuch>::type
   >(
 #if DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
     std::move(*this),

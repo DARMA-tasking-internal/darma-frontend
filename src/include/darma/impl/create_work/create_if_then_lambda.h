@@ -181,7 +181,7 @@ struct ThenElseLambdaTask
 
 template <typename Lambda, typename... Args>
 struct _create_work_if_helper<
-  meta::nonesuch,
+  tinympl::nonesuch,
   tinympl::vector<Args...>,
   Lambda
 > {
@@ -212,7 +212,7 @@ struct _create_work_if_helper<
 #endif
   { }
 
-  template <typename ThenFunctor=meta::nonesuch, typename... ThenArgs>
+  template <typename ThenFunctor=tinympl::nonesuch, typename... ThenArgs>
   auto
   then_(ThenArgs&& ... args)&& {
     return _create_work_then_helper<
@@ -234,7 +234,7 @@ struct _create_work_if_helper<
 
 template <typename IfHelper, typename Lambda, typename... Args>
 struct _create_work_then_helper<
-  IfHelper, meta::nonesuch, tinympl::vector<Args...>, Lambda
+  IfHelper, tinympl::nonesuch, tinympl::vector<Args...>, Lambda
 > {
 
   using if_helper_t = IfHelper;
@@ -265,7 +265,7 @@ struct _create_work_then_helper<
 
   bool else_invoked = false;
 
-  template <typename ElseFunctor=meta::nonesuch, typename... ElseArgs>
+  template <typename ElseFunctor=tinympl::nonesuch, typename... ElseArgs>
   void else_(ElseArgs&& ... args)&& {
     else_invoked = true;
     _create_work_else_helper<
@@ -285,7 +285,7 @@ struct _create_work_then_helper<
         callable_t, args_fwd_tuple_t, is_lambda_callable,
         utility::_not_a_type, std::tuple<>, false, /* ElseGiven= */ is_else_helper
       >>(
-        variadic_constructor_tag,
+        utility::variadic_constructor_tag,
         std::move(*this)
       );
       capture_manager->finish_construction_and_register_if_task(capture_manager);
@@ -302,7 +302,7 @@ struct _create_work_then_helper<
 
 template <typename ThenHelper, typename Lambda, typename... Args>
 struct _create_work_else_helper<
-  ThenHelper, meta::nonesuch, tinympl::vector<Args...>, Lambda
+  ThenHelper, tinympl::nonesuch, tinympl::vector<Args...>, Lambda
 > {
   public:
 
@@ -339,7 +339,7 @@ struct _create_work_else_helper<
           ThenHelper::is_lambda_callable,
           callable_t, args_fwd_tup_t, true, /* ElseGiven= */ is_else_helper
       >>(
-        variadic_constructor_tag,
+        utility::variadic_constructor_tag,
         std::move(*this)
       );
       capture_manager->finish_construction_and_register_if_task(capture_manager);

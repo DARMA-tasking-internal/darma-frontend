@@ -2,9 +2,9 @@
 //@HEADER
 // ************************************************************************
 //
-//                          largest_aligned.h
-//                         darma_new
-//              Copyright (C) 2016 Sandia Corporation
+//                      key_serialization.h
+//                         DARMA
+//              Copyright (C) 2018 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -42,55 +42,11 @@
 //@HEADER
 */
 
-#ifndef SRC_META_LARGEST_ALIGNED_H_
-#define SRC_META_LARGEST_ALIGNED_H_
+#ifndef DARMAFRONTEND_KEY_SERIALIZATION_H
+#define DARMAFRONTEND_KEY_SERIALIZATION_H
 
-#include <tinympl/vector.hpp>
-#include <tinympl/identity.hpp>
+#include <darma/key/dependent_on/serialization/bytes_type_metadata_serialization.h>
+#include <darma/key/dependent_on/serialization/SSO_key_serialization.h>
+#include <darma/key/dependent_on/serialization/raw_bytes_serialization.h>
 
-namespace darma_runtime {
-
-namespace meta {
-
-// TODO include SSE and AVX types
-typedef tinympl::vector<
-  unsigned long long int,
-  unsigned long int,
-  unsigned int,
-  unsigned short,
-  char
-> alignment_types_to_check;
-
-template <typename T, typename Aligns=alignment_types_to_check>
-struct largest_aligned_int
-{
-  typedef typename std::conditional<
-    sizeof(T) % sizeof(typename Aligns::front::type) == 0,
-    tinympl::identity<typename Aligns::front::type>,
-    largest_aligned_int<T, typename Aligns::pop_front::type>
-  >::type::type type;
-};
-
-//template <typename T>
-//using largest_aligned_int_t = typename std::conditional<
-//  sizeof(T) % sizeof(unsigned long long int) == 0,
-//  unsigned long long int, typename std::conditional<
-//    sizeof(T) % sizeof(unsigned long int) == 0,
-//    unsigned long int, typename std::conditional<
-//      sizeof(T) % sizeof(unsigned int) == 0,
-//      unsigned int, typename std::conditional<
-//        sizeof(T) % sizeof(unsigned short) == 0,
-//        unsigned short, char
-//      >::type
-//    >::type
-//  >::type
-//>::type;
-
-} // end namespace meta
-
-
-} // end namespace darma_runtime
-
-
-
-#endif /* SRC_META_LARGEST_ALIGNED_H_ */
+#endif //DARMAFRONTEND_KEY_SERIALIZATION_H

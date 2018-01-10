@@ -227,7 +227,7 @@ struct positional_or_keyword_argument : _argument_description_base<ParameterType
     template <typename T>
     using _value_type_if_kwarg_archetype = decltype( std::declval<T>().value() );
     template <typename T>
-    using _value_type_if_kwarg = meta::detected_t<
+    using _value_type_if_kwarg = tinympl::detected_t<
       _value_type_if_kwarg_archetype, T
     >;
 
@@ -306,7 +306,7 @@ struct keyword_only_argument : _argument_description_base<ParameterType> {
     template <typename T>
     using _value_type_if_kwarg_archetype = decltype(std::declval<T>().value());
     template <typename T>
-    using _value_type_if_kwarg = meta::detected_t<
+    using _value_type_if_kwarg = tinympl::detected_t<
       _value_type_if_kwarg_archetype, T
     >;
 
@@ -410,8 +410,8 @@ struct _overload_desc_is_valid_impl {
     typename IsOptional = std::false_type,
     typename CanBePositional = std::false_type,
     typename CanBeKeyWord = std::false_type,
-    typename ParameterType = meta::nonesuch,
-    typename TagType = tinympl::identity<meta::nonesuch>
+    typename ParameterType = tinympl::nonesuch,
+    typename TagType = tinympl::identity<tinympl::nonesuch>
   >
   struct nonesuch_description {
     using parameter_type = ParameterType;
@@ -472,7 +472,7 @@ struct _overload_desc_is_valid_impl {
   template <typename descpair,
     /* convenience default param used as alias */
     typename argpair=typename ArgsWithIdxs::template at_or_t<
-      arg_with_index<std::integral_constant<size_t, 0 /*ignored*/>, meta::nonesuch>,
+      arg_with_index<std::integral_constant<size_t, 0 /*ignored*/>, tinympl::nonesuch>,
       tinympl::find_if<ArgsWithIdxs,
         _make_kwarg_desc_tag_matches<descpair>::template apply
       >::value

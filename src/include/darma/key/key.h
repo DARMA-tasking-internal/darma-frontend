@@ -2,9 +2,9 @@
 //@HEADER
 // ************************************************************************
 //
-//                      key.impl.h
+//                      key.h
 //                         DARMA
-//              Copyright (C) 2017 Sandia Corporation
+//              Copyright (C) 2018 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -42,9 +42,9 @@
 //@HEADER
 */
 
-#ifndef DARMAFRONTEND_KEY_IMPL_H
-#define DARMAFRONTEND_KEY_IMPL_H
+#ifndef DARMAFRONTEND_KEY_KEY_H
+#define DARMAFRONTEND_KEY_KEY_H
 
-#include "SSO_key.impl.h"
+#include <darma/key/SSO_key.h>
 
-#endif //DARMAFRONTEND_KEY_IMPL_H
+#endif //DARMAFRONTEND_KEY_KEY_H

@@ -45,7 +45,6 @@
 #ifndef DARMAFRONTEND_SSO_KEY_IMPL_H
 #define DARMAFRONTEND_SSO_KEY_IMPL_H
 
-#include <darma/interface/backend/runtime.h>
 #include "SSO_key.h"
 
 namespace darma_runtime {
@@ -65,11 +64,25 @@ struct _do_add_component {
   _do_add_component(SSOKeyT& in_key, char*& in_buffer)
     : this_(in_key), buffer(in_buffer) { }
 
-  template <typename T>
-  void operator()(T&& arg) {
+  DARMA_FORCE_INLINE
+  void _impl() { }
+
+  template <typename T, typename... Ts>
+  DARMA_FORCE_INLINE
+  void _impl(T&& arg, Ts&&... args) {
     actual_component_count +=
       darma_runtime::detail::_impl::sso_key_add(this_, buffer, std::forward<T>(arg));
+    _impl(std::forward<Ts>(args)...);
   }
+
+  template <typename Tuple, size_t... Idxs>
+  DARMA_FORCE_INLINE
+  void add_tuple(
+    std::integer_sequence<size_t, Idxs...>,
+    Tuple&& tup
+  ) {
+    _impl(std::get<Idxs>(std::forward<Tuple>(tup))...);
+  };
 };
 
 } // end namespace _impl
@@ -82,7 +95,7 @@ template <
 >
 template <typename... Args>
 SSOKey<BufferSize, BackendAssignedKeyType, PieceSizeOrdinal, ComponentCountOrdinal>::SSOKey(
-  variadic_constructor_arg_t,
+  utility::variadic_constructor_tag_t,
   Args&&... args
 ) {
 
@@ -119,8 +132,9 @@ SSOKey<BufferSize, BackendAssignedKeyType, PieceSizeOrdinal, ComponentCountOrdin
   // use out-of-line functor to avoid lambda instantiation proliferation and
   // speed up compile times, even though this makes the code a bit less readable
   auto component_adder = _impl::_do_add_component<SSOKey, ComponentCountOrdinal>(*this, buffer);
-  meta::tuple_for_each(
-    std::forward_as_tuple(std::forward<Args>(args)...), component_adder
+  component_adder.add_tuple(
+    std::index_sequence_for<Args...>{},
+    std::forward_as_tuple(std::forward<Args>(args)...)
   );
   *reinterpret_cast<ComponentCountOrdinal*>(buffer_start) =
     component_adder.actual_component_count;

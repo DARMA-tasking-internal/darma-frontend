@@ -116,7 +116,7 @@ class ReduceOperationWrapper
     template <typename T>
     using _is_indexed_archetype = std::integral_constant<bool, T::is_indexed>;
 
-    using is_indexed_t = typename meta::detected_or_t<
+    using is_indexed_t = typename tinympl::detected_or_t<
       std::true_type,
       _is_indexed_archetype, Op
     >::type;

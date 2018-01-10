@@ -134,9 +134,7 @@ struct TaskCollectionImpl
 
   public:
 
-    types::key_t name_ = types::key_t(
-      types::key_t::request_backend_assigned_key_tag{}
-    );
+    types::key_t name_ = detail::key_traits<types::key_t>::make_awaiting_backend_assignment_key();
 
     // Leave this member declaration order the same; construction of args_stored_
     // depends on collection_range_ being initialized already

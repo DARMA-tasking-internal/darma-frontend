@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                       segmented_key.h
+//                       bytes_convert.h
 //                         darma
 //              Copyright (C) 2016 Sandia Corporation
 //
@@ -45,19 +45,19 @@
 #ifndef DARMA_BYTES_CONVERT_H
 #define DARMA_BYTES_CONVERT_H
 
+#include <darma/key/key_fwd.h>
+#include <darma/key/bytes_type_metadata.h>
+
+#include <darma/utility/darma_assert.h>
+
+#include <tinympl/detection.hpp>
+
 #include <cstddef>
-#include <stdalign.h>
 #include <cstdint>
 #include <limits>
 #include <cassert>
 #include <cstring>
 #include <sstream>
-#include <darma/impl/meta/detection.h>
-#include <darma/impl/meta/is_streamable.h>
-#include <darma/impl/util.h>
-
-#include <darma/impl/key/key_fwd.h>
-#include <darma/impl/key/bytes_type_metadata.h>
 
 namespace darma_runtime {
 
@@ -71,7 +71,7 @@ template <typename T>
 using has_char_traits_archetype = std::char_traits<T>;
 
 template <typename T>
-using has_char_traits = meta::is_detected<has_char_traits_archetype, T>;
+using has_char_traits = tinympl::is_detected<has_char_traits_archetype, T>;
 
 //----------------------------------------
 // <editor-fold desc="std::basic_string">
@@ -135,41 +135,7 @@ struct bytes_convert<volatile std::basic_string<CharT, Traits, Allocator>>
 // <editor-fold desc="generic version, using stream operator">
 
 template <typename T, typename Enable>
-struct bytes_convert; // {
-//  static constexpr bool size_known_statically = false;
-//
-//  inline
-//  std::enable_if_t<
-//    meta::is_out_streamable<T, std::ostringstream>::value
-//  >
-//  get_size(T const& val) const {
-//    std::ostringstream osstr;
-//    osstr << val;
-//    return bytes_convert<std::string>().get_size(osstr.str());
-//  }
-//
-//  inline
-//  std::enable_if_t<
-//    meta::is_out_streamable<T, std::ostringstream>::value
-//  >
-//  operator()(T const &val, void *dest, const size_t n_bytes, const size_t offset) const {
-//    std::ostringstream osstr;
-//    osstr << val;
-//    bytes_convert<std::string>()(osstr.str(), dest, n_bytes, offset);
-//  }
-//
-//  inline
-//  std::enable_if_t<
-//    meta::is_in_streamable<T, std::istringstream>::value,
-//    T
-//  >
-//  get_value(bytes_type_metadata const* md, void* data, size_t size) const {
-//    std::istringstream isstr(bytes_convert<std::string>().get_value(md, data, size));
-//    T rv;
-//    isstr >> rv;
-//    return rv;
-//  }
-//};
+struct bytes_convert;
 
 // </editor-fold>
 //----------------------------------------
@@ -559,7 +525,7 @@ using convertible_to_bytes_archetype = decltype(bytes_convert<T>()(
 ));
 } // end namespace _impl
 template <typename T>
-using convertible_to_bytes = meta::is_detected<_impl::convertible_to_bytes_archetype, T>;
+using convertible_to_bytes = tinympl::is_detected<_impl::convertible_to_bytes_archetype, T>;
 
 namespace _impl {
 template<typename T>
@@ -568,7 +534,7 @@ using convertible_from_bytes_archetype = decltype(std::declval<bytes_convert<T>>
 ));
 } // end namespace _impl
 template <typename T>
-using convertible_from_bytes = meta::is_detected_convertible<T, _impl::convertible_from_bytes_archetype, T>;
+using convertible_from_bytes = tinympl::is_detected_convertible<T, _impl::convertible_from_bytes_archetype, T>;
 
 namespace _impl {
 template<typename T>
@@ -577,7 +543,7 @@ using can_reinterpret_cast_bytes_archetype =
 } // end namespace _impl
 template <typename T>
 using can_reinterpret_cast_bytes =
-  meta::detected_or<std::false_type, _impl::can_reinterpret_cast_bytes_archetype, T>;
+  tinympl::detected_or<std::false_type, _impl::can_reinterpret_cast_bytes_archetype, T>;
 
 namespace _impl {
 template<typename T>
@@ -586,7 +552,7 @@ std::integral_constant<bool, bytes_convert<T>::size_known_statically>;
 } // end namespace _impl
 template <typename T>
 using bytes_size_known_statically =
-  meta::detected_or<std::false_type, _impl::bytes_size_known_statically_archetype, T>;
+  tinympl::detected_or<std::false_type, _impl::bytes_size_known_statically_archetype, T>;
 
 
 

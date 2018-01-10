@@ -675,7 +675,7 @@ struct AccessHandleCollectionAccess<initial_access_collection_tag, ValueType,
     variadic_arguments_begin_tag
   ) const {
 
-    auto key = types::key_t(types::key_t::request_backend_assigned_key_tag{});
+    auto key = detail::key_traits<types::key_t>::make_awaiting_backend_assignment_key();
 
     return _impl(key, std::forward<IndexRangeT>(range));
 

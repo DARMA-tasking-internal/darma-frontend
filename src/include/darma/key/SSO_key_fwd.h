@@ -2,9 +2,9 @@
 //@HEADER
 // ************************************************************************
 //
-//                      create_work_while.h
+//                      SSO_key_fwd.h
 //                         DARMA
-//              Copyright (C) 2017 Sandia Corporation
+//              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -42,50 +42,43 @@
 //@HEADER
 */
 
-#ifndef DARMAFRONTEND_CREATE_WORK_WHILE_H
-#define DARMAFRONTEND_CREATE_WORK_WHILE_H
+#ifndef DARMA_IMPL_KEY_SSO_KEY_FWD_H
+#define DARMA_IMPL_KEY_SSO_KEY_FWD_H
 
-#include <tinympl/vector.hpp>
+#include <tinympl/max_element.hpp>
 
-#include <darma/utility/config.h>
-
-#include <darma/impl/meta/detection.h>
-
-#include <darma/impl/create_work/create_work_while_fwd.h>
-
-#include <darma/impl/create_work/record_line_numbers.h>
+#include <cstdint>
+#include <cstdlib>
 
 namespace darma_runtime {
+namespace detail {
+
+namespace _impl {
+
+typedef enum {
+  Long = (uint8_t)0,
+  Short = (uint8_t)1,
+  BackendAssigned = (uint8_t)2,
+  NeedsBackendAssignedKey = (uint8_t)3
+} sso_key_mode_t;
+
+} // end namespace _impl
 
 template <
-  typename Functor
-#if !DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
-  = tinympl::nonesuch
-#endif
-  , typename... Args
+  /* default allows it to fit in a cache line */
+  std::size_t BufferSize = 64
+    - 8 // alignment or something?!?
+    - tinympl::max<
+      std::integral_constant<size_t, sizeof(_impl::sso_key_mode_t)>,
+      std::integral_constant<size_t, 8>
+    >::value,
+  typename BackendAssignedKeyType = std::size_t,
+  typename PieceSizeOrdinal = uint8_t,
+  typename ComponentCountOrdinal = uint8_t
 >
-auto
-#if DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
-_create_work_while_creation_context::_darma_create_work_while_with_line_numbers
-#else
-create_work_while
-#endif
-  (Args&& ... args)
-{
-  return detail::_create_work_while_helper<
-    Functor,
-    typename tinympl::vector<Args...>::safe_pop_back::type,
-    typename tinympl::vector<Args...>::template safe_back<tinympl::nonesuch>::type
-  >(
-#if DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
-    this,
-#endif
-    std::forward<Args>(args)...
-  );
-}
+class SSOKey;
 
+} // end namespace detail
 } // end namespace darma_runtime
 
-#include <darma/impl/create_work/create_work_while.h>
-
-#endif //DARMAFRONTEND_CREATE_WORK_WHILE_H
+#endif //DARMA_IMPL_KEY_SSO_KEY_FWD_H

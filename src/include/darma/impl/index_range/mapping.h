@@ -380,7 +380,7 @@ struct ReverseMapping {
     template <typename... Args,
       typename=std::enable_if_t<
         not std::is_same<std::decay_t<
-          tinympl::variadic::at_or_t<meta::nonesuch, 0, Args...>
+          tinympl::variadic::at_or_t<tinympl::nonesuch, 0, Args...>
         >, ReverseMapping>::value
       >
     >

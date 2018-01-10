@@ -49,7 +49,7 @@
 #include <vector>
 #include <type_traits>
 
-#include <darma/impl/darma_assert.h>
+#include <darma/utility/darma_assert.h>
 #include <darma/serialization/nonintrusive.h>
 
 namespace darma_runtime {

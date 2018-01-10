@@ -58,7 +58,7 @@
 #include <darma/impl/task_collection/task_collection_fwd.h>
 
 #include <darma/utility/static_assertions.h> // _darma__static_failure
-#include <darma/impl/darma_assert.h>
+#include <darma/utility/darma_assert.h>
 #include <darma/impl/handle_fwd.h> // AccessHandlePermissions
 #include <darma/keyword_arguments/parse.h> // AccessHandlePermissions
 

@@ -2,9 +2,9 @@
 //@HEADER
 // ************************************************************************
 //
-//                      create_work_while.h
-//                         DARMA
-//              Copyright (C) 2017 Sandia Corporation
+//                          largest_aligned.h
+//                         darma_new
+//              Copyright (C) 2016 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -42,50 +42,39 @@
 //@HEADER
 */
 
-#ifndef DARMAFRONTEND_CREATE_WORK_WHILE_H
-#define DARMAFRONTEND_CREATE_WORK_WHILE_H
+#ifndef SRC_META_LARGEST_ALIGNED_H_
+#define SRC_META_LARGEST_ALIGNED_H_
 
 #include <tinympl/vector.hpp>
-
-#include <darma/utility/config.h>
-
-#include <darma/impl/meta/detection.h>
-
-#include <darma/impl/create_work/create_work_while_fwd.h>
-
-#include <darma/impl/create_work/record_line_numbers.h>
+#include <tinympl/identity.hpp>
 
 namespace darma_runtime {
 
-template <
-  typename Functor
-#if !DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
-  = tinympl::nonesuch
-#endif
-  , typename... Args
->
-auto
-#if DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
-_create_work_while_creation_context::_darma_create_work_while_with_line_numbers
-#else
-create_work_while
-#endif
-  (Args&& ... args)
+namespace utility {
+
+// TODO include SSE and AVX types
+typedef tinympl::vector<
+  unsigned long long int,
+  unsigned long int,
+  unsigned int,
+  unsigned short,
+  char
+> alignment_types_to_check;
+
+template <typename T, typename Aligns=alignment_types_to_check>
+struct largest_aligned_int
 {
-  return detail::_create_work_while_helper<
-    Functor,
-    typename tinympl::vector<Args...>::safe_pop_back::type,
-    typename tinympl::vector<Args...>::template safe_back<tinympl::nonesuch>::type
-  >(
-#if DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
-    this,
-#endif
-    std::forward<Args>(args)...
-  );
-}
+  typedef typename std::conditional<
+    sizeof(T) % sizeof(typename Aligns::front::type) == 0,
+    tinympl::identity<typename Aligns::front::type>,
+    largest_aligned_int<T, typename Aligns::pop_front::type>
+  >::type::type type;
+};
+
+} // end namespace utility
 
 } // end namespace darma_runtime
 
-#include <darma/impl/create_work/create_work_while.h>
 
-#endif //DARMAFRONTEND_CREATE_WORK_WHILE_H
+
+#endif /* SRC_META_LARGEST_ALIGNED_H_ */

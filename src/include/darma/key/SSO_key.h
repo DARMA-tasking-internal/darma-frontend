@@ -45,38 +45,26 @@
 #ifndef DARMA_IMPL_KEY_SSO_KEY_H
 #define DARMA_IMPL_KEY_SSO_KEY_H
 
-#include <string>
-#include <darma/impl/util.h>
+#include <darma/key/bytes_convert.h>
+#include <darma/key/SSO_key_fwd.h>
+#include <darma/key/key_concept.h>
+
+#include <darma/serialization/serialization_fwd.h>
+
+#include <darma/utility/tag_types.h>
+#include <darma/utility/as_bytes.h>
 
 #include <tinympl/vector.hpp>
 
-#include <darma/impl/key_concept.h>
-#include <darma/impl/key/bytes_convert.h>
-#include <darma/impl/meta/tuple_for_each.h>
-#include <darma/impl/serialization/manager.h>
-
-#include <darma/serialization/nonintrusive.h>
-#include <darma/serialization/serializers/arithmetic_types.h>
-#include <darma/serialization/serializers/array.h>
-#include <darma/serialization/serializers/enum.h>
-
-#include "SSO_key_fwd.h"
-
+#include <string>
 
 namespace darma_runtime {
 
 namespace detail {
 
-
-// TODO move this forward declaration
-template <typename T, typename...>
-struct _initial_access_key_helper;
-template <typename...>
-struct AccessHandleCollectionAccess;
-template <typename, typename, typename...>
-class TaskCollectionImpl;
-
 namespace _impl {
+
+static constexpr uint8_t _component_index_not_given = std::numeric_limits<uint8_t>::max();
 
 template <typename T> struct is_sso_key : std::false_type { };
 template <
@@ -87,7 +75,6 @@ template <
 >
 struct is_sso_key<SSOKey<BufferSize, BackendAssignedKeyType, PieceSizeOrdinal, ComponentCountOrdinal>>
   : std::true_type { };
-
 
 template <
   typename T,
@@ -237,7 +224,6 @@ inline auto _sum() {
 
 } // end namespace _impl
 
-
 //==============================================================================
 // <editor-fold desc="SSOKey implementation">
 
@@ -250,24 +236,15 @@ template <
   typename PieceSizeOrdinal /*= uint8_t */,
   typename ComponentCountOrdinal /*= uint8_t */
 >
-class SSOKey
-    // TODO Optimize this out at some point.  This base has nonzero size because it inherits from SerializationManager.
-  : public serialization::detail::SerializationManagerForType<
-      SSOKey<BufferSize, BackendAssignedKeyType, PieceSizeOrdinal, ComponentCountOrdinal>
-    >
-{
+class SSOKey {
   private:
 
     using piece_size_ordinal_t = PieceSizeOrdinal;
     using component_count_ordinal_t = ComponentCountOrdinal;
 
-    //template <typename... Args>
-    //friend detail::SSOKey<buffer_size> darma_runtime::make_key(Args&&...);
-
     struct backend_assigned_key_tag { };
     struct request_backend_assigned_key_tag { };
     struct unpack_ctor_tag { };
-
 
     struct _short {
       size_t size;
@@ -308,66 +285,27 @@ class SSOKey
     }
 
     template <typename Archive>
-    SSOKey(
-      unpack_ctor_tag,
-      Archive& ar
-    ) {
-      ar >> mode;
-      DARMA_ASSERT_MESSAGE(
-        mode != _impl::NeedsBackendAssignedKey,
-        "SSOKey unpack got mode NeedsBackendAssignedKey, which is not allowed."
-          "  (This is a backend implementation bug; contact your backend developer)"
-      );
-      switch (mode) {
-        case darma_runtime::detail::_impl::BackendAssigned: {
-          repr.as_backend_assigned = _backend_assigned{};
-          ar >> repr.as_backend_assigned.backend_assigned_key;
-          break;
-        }
-        case darma_runtime::detail::_impl::Short: {
-          repr.as_short = _short{};
-          ar >> repr.as_short.size;
-          // This could be smaller...
-          ar >> repr.as_short.data;
-          break;
-        }
-        case darma_runtime::detail::_impl::Long: {
-          repr.as_long = _long{};
-          // don't really need to store size since range does it
-          ar >> repr.as_long.size;
-          using alloc_t = typename std::allocator_traits<typename Archive::allocator_type>
-            ::template rebind_alloc<char>;
-          alloc_t alloc = ar.template get_allocator_as<alloc_t>();
-          repr.as_long.data = std::allocator_traits<alloc_t>::allocate(alloc, repr.as_long.size);
-          ar.template unpack_data_raw<char>(repr.as_long.data, repr.as_long.size);
-          break;
-        }
-        case darma_runtime::detail::_impl::NeedsBackendAssignedKey: {
-          DARMA_ASSERT_UNREACHABLE_FAILURE("NeedsBackendAssignedKey");            // LCOV_EXCL_LINE
-          break;                                                                  // LCOV_EXCL_LINE
-        }
-      }
-    }
-
+    SSOKey(unpack_ctor_tag, Archive& ar);
 
     SSOKey(
       backend_assigned_key_tag,
       BackendAssignedKeyType const& value
-    )
-      : mode(_impl::BackendAssigned) {
+    ) : mode(_impl::BackendAssigned)
+    {
       repr.as_backend_assigned = _backend_assigned{value};
     }
 
     SSOKey(
       backend_assigned_key_tag,
       BackendAssignedKeyType&& value
-    ) : mode(_impl::BackendAssigned) {
+    ) : mode(_impl::BackendAssigned)
+    {
       repr.as_backend_assigned = _backend_assigned{std::move(value)};
     }
 
     template <typename... Args>
     SSOKey(
-      variadic_constructor_arg_t,
+      utility::variadic_constructor_arg_t,
       Args&& ... args
     );
 
@@ -399,8 +337,9 @@ class SSOKey
         case _impl::NeedsBackendAssignedKey:
           return nullptr;
       }
+      // unreachable, but prevents warnings on certain compilers
+      return nullptr;                                                           // LCOV_EXCL_LINE
     }
-
 
     struct SSOKeyComponent {
       private:
@@ -428,37 +367,18 @@ class SSOKey
         }
     };
 
-    //SSOKey()
-    //  : SSOKey(request_backend_assigned_key_tag{}) {}
-
-    static constexpr uint8_t not_given = std::numeric_limits<uint8_t>::max();
 
     friend struct key_traits<SSOKey>;
     friend struct bytes_convert<SSOKey, void>;
+
     friend struct _impl::SSOKeyAttorney;
+
     friend struct serialization::Serializer<SSOKey>;
     friend struct serialization::Serializer<const SSOKey>;
 
-    template <typename T, typename...>
-    friend struct darma_runtime::detail::_initial_access_key_helper;
-
-    template <typename...>
-    friend class AccessHandleCollectionAccess;
-
-    template <typename, typename, typename...>
-    friend class TaskCollectionImpl;
-
   public:
 
-    SSOKey() : SSOKey(variadic_constructor_arg) { }
-
-    // TODO make this private and add the appropriate friend
-    SSOKey(
-      darma_runtime::serialization::detail::serialization_manager_default_construct_tag_t
-    ) : SSOKey(variadic_constructor_arg)
-    { }
-
-    // TODO efficient move constructor
+    SSOKey() : SSOKey(utility::variadic_constructor_arg) { }
 
     ~SSOKey();
 
@@ -468,7 +388,6 @@ class SSOKey
       new (this) SSOKey(other);
       return *this;
     }
-
 
     size_t n_components() const {
       if (mode == _impl::BackendAssigned) return 0;
@@ -538,18 +457,17 @@ class SSOKey
       }
     }
 
-
-    template <uint8_t N = not_given>
+    template <uint8_t N = _impl::_component_index_not_given>
     SSOKeyComponent
-    component(size_t N_dynamic = not_given) const {
-      assert(N_dynamic == not_given || N_dynamic
+    component(size_t N_dynamic = _impl::_component_index_not_given) const {
+      assert(N_dynamic == _impl::_component_index_not_given || N_dynamic
         < (size_t)std::numeric_limits<ComponentCountOrdinal>::max());
       static_assert(
-        N == not_given || N < std::numeric_limits<ComponentCountOrdinal>::max(),
+        N == _impl::_component_index_not_given || N < std::numeric_limits<ComponentCountOrdinal>::max(),
         "tried to get key component greater than max_num_parts"
       );
-      assert(N == not_given xor N_dynamic == not_given);
-      const uint8_t actual_N = N == not_given ? (uint8_t)N_dynamic : N;
+      assert(N == _impl::_component_index_not_given xor N_dynamic == _impl::_component_index_not_given);
+      const uint8_t actual_N = N == _impl::_component_index_not_given ? (uint8_t)N_dynamic : N;
       DARMA_ASSERT_RELATED_VERBOSE((int)actual_N, <, n_components());
       DARMA_ASSERT_MESSAGE(mode != _impl::BackendAssigned,
         "Can't get component of backend-assigned key"
@@ -569,11 +487,6 @@ class SSOKey
         reinterpret_cast<bytes_type_metadata const*>(buffer
           + sizeof(PieceSizeOrdinal))
       );
-    }
-
-    abstract::frontend::SerializationManager const*
-    get_serialization_manager() const {
-      return this;
     }
 
     bool operator<(SSOKey const& other) const {
@@ -603,8 +516,9 @@ class SSOKey
           }
         }
       }
+      // unreachable, but prevents warnings on certain compilers
+      return false;                                                             // LCOV_EXCL_LINE
     }
-
 };
 
 
@@ -671,7 +585,7 @@ struct key_traits<
     inline sso_key_t
     operator()(Args&& ... args) const {
       return sso_key_t(
-        variadic_constructor_arg,
+        utility::variadic_constructor_arg,
         std::forward<Args>(args)...
       );
     }
@@ -743,96 +657,6 @@ struct key_traits<
 //==============================================================================
 // <editor-fold desc="Serializer specialization for SSOKey">
 
-namespace serialization {
-
-template <
-  /* default allows it to fit in a cache line */
-  size_t BufferSize /* = 64 - sizeof(size_t) - sizeof(_impl::sso_key_mode_t) */,
-  typename BackendAssignedKeyType /*= size_t */,
-  typename PieceSizeOrdinal /*= uint8_t */,
-  typename ComponentCountOrdinal /*= uint8_t */
->
-struct Serializer<
-  darma_runtime::detail::SSOKey<
-    BufferSize,
-    BackendAssignedKeyType,
-    PieceSizeOrdinal,
-    ComponentCountOrdinal
-  >
-> {
-  using sso_key_t = darma_runtime::detail::SSOKey<
-    BufferSize, BackendAssignedKeyType, PieceSizeOrdinal, ComponentCountOrdinal
-  >;
-  using key_traits_t = darma_runtime::detail::key_traits<sso_key_t>;
-
-  template <typename ArchiveT>
-  static void compute_size(sso_key_t const& val, ArchiveT& ar) {
-    DARMA_ASSERT_MESSAGE(
-      not key_traits_t::needs_backend_key(val),
-      "Cannot compute size of a key that is awaiting a backend assigned value."
-        "  (This is a backend implementation bug; contact your backend developer)"
-    );
-    ar % val.mode;
-    switch (val.mode) {
-      case darma_runtime::detail::_impl::BackendAssigned:
-        ar % val.repr.as_backend_assigned.backend_assigned_key;
-        break;
-      case darma_runtime::detail::_impl::Short:
-        ar % val.repr.as_short.size;
-        // This could be smaller...
-        ar % val.repr.as_short.data;
-        break;
-      case darma_runtime::detail::_impl::Long:
-        // don't really need to store size since range does it
-        ar % val.repr.as_long.size;
-        ar.add_to_size_raw(val.repr.as_long.size);
-        break;
-      case darma_runtime::detail::_impl::NeedsBackendAssignedKey:
-        DARMA_ASSERT_UNREACHABLE_FAILURE("NeedsBackendAssignedKey");            // LCOV_EXCL_LINE
-        break;                                                                  // LCOV_EXCL_LINE
-    }
-  }
-
-  template <typename ArchiveT>
-  static void pack(sso_key_t const& val, ArchiveT& ar)  {
-    DARMA_ASSERT_MESSAGE(
-      not key_traits_t::needs_backend_key(val),
-      "Cannot pack a key that is awaiting a backend assigned value."
-        "  (This is a backend implementation bug; contact your backend developer)"
-    );
-    ar << val.mode;
-    switch (val.mode) {
-      case darma_runtime::detail::_impl::BackendAssigned:
-        ar << val.repr.as_backend_assigned.backend_assigned_key;
-        break;
-      case darma_runtime::detail::_impl::Short:
-        ar << val.repr.as_short.size;
-        // This could be smaller...
-        ar << val.repr.as_short.data;
-        break;
-      case darma_runtime::detail::_impl::Long:
-        // don't really need to store size since range does it
-        ar << val.repr.as_long.size;
-        ar.pack_data_raw(
-          (const_cast<char*&>(val.repr.as_long.data)),
-          val.repr.as_long.data + val.repr.as_long.size
-        );
-        break;
-      case darma_runtime::detail::_impl::NeedsBackendAssignedKey:
-        DARMA_ASSERT_UNREACHABLE_FAILURE("NeedsBackendAssignedKey");            // LCOV_EXCL_LINE
-        break;                                                                  // LCOV_EXCL_LINE
-    }
-  }
-
-  template <typename ArchiveT>
-  static void unpack(void* allocated, ArchiveT& ar)  {
-    new (allocated) sso_key_t(
-      typename sso_key_t::unpack_ctor_tag{}, ar
-    );
-  }
-};
-
-} // end namespace serialization
 
 // </editor-fold> end Serializer specialization for SSOKey
 //==============================================================================

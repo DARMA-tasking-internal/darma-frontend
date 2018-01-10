@@ -45,10 +45,12 @@
 #ifndef DARMAFRONTEND_SERIALIZATION_NONINTRUSIVE_H
 #define DARMAFRONTEND_SERIALIZATION_NONINTRUSIVE_H
 
+#include <darma/serialization/serialization_fwd.h>
+
 namespace darma_runtime {
 namespace serialization {
 
-template <typename T, typename Enable=void>
+template <typename T, typename Enable/*=void*/>
 struct Serializer_enabled_if {
   /* default case has nothing implemented */
 };

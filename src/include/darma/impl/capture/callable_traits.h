@@ -463,7 +463,7 @@ struct callable_traits {
             typename tinympl::lazy<UnaryMetafunction>::template instantiated_with<
               // Evaluate the at with a default in case it's not valid (checked
               // by the first condition
-              tinympl::at_or_t<meta::nonesuch, N, params_vector>
+              tinympl::at_or_t<tinympl::nonesuch, N, params_vector>
             > // end lazy<UnaryMetafunction>
           > // end extract_value_potentially_lazy
         > // end and_ (that short circuits if necessary)

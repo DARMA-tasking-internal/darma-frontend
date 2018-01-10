@@ -53,7 +53,7 @@
 
 #include <darma/interface/backend/runtime.h> // get_backend_runtime()
 
-#include <darma/impl/darma_assert.h>
+#include <darma/utility/darma_assert.h>
 
 #include <darma/impl/use.h> // HandleUse, CollectionManagingUse
 

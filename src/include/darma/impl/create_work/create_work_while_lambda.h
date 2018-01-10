@@ -262,7 +262,7 @@ struct DoLambdaTask
 template <typename WhileHelper, typename Lambda, typename... Args>
 struct _create_work_while_do_helper<
   WhileHelper,
-  meta::nonesuch,
+  tinympl::nonesuch,
   tinympl::vector<Args...>,
   Lambda
 >
@@ -304,7 +304,7 @@ struct _create_work_while_do_helper<
         callable_t, args_tuple_t, has_lambda_callable
       >
     >(
-      variadic_constructor_tag,
+      utility::variadic_constructor_tag,
       std::move(*this)
     );
     while_do_mngr->set_capture_managers(while_do_mngr);
@@ -323,7 +323,7 @@ struct _create_work_while_do_helper<
 
 template <typename Lambda, typename... Args>
 struct _create_work_while_helper<
-  meta::nonesuch,
+  tinympl::nonesuch,
   tinympl::vector<Args...>,
   Lambda
 >
@@ -364,7 +364,7 @@ struct _create_work_while_helper<
 #endif
   { }
 
-  template <typename DoFunctor=meta::nonesuch, typename... DoArgs>
+  template <typename DoFunctor=tinympl::nonesuch, typename... DoArgs>
   auto
   do_(DoArgs&&... args)&&
   {

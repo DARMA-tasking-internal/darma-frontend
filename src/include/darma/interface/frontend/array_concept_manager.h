@@ -47,7 +47,7 @@
 
 #include "element_range.h"
 #include "index_range.h"
-#include <darma/impl/darma_assert.h>
+#include <darma/utility/darma_assert.h>
 #include <darma/interface/defaults/pointers.h>
 
 namespace darma_runtime {

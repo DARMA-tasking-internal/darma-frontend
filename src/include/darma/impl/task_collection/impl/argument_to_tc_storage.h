@@ -225,7 +225,7 @@ struct _get_storage_arg_helper<
   >;
 
   template <typename AHC>
-  using _required_immediate_permissions = meta::detected_or_t<
+  using _required_immediate_permissions = tinympl::detected_or_t<
     std::integral_constant<access_handle_permissions_t, AccessHandlePermissions::NotGiven>,
     _required_immediate_permissions_archetype, AHC
   >;
@@ -236,7 +236,7 @@ struct _get_storage_arg_helper<
   >;
 
   template <typename AHC>
-  using _required_scheduling_permissions = meta::detected_or_t<
+  using _required_scheduling_permissions = tinympl::detected_or_t<
     std::integral_constant<access_handle_permissions_t, AccessHandlePermissions::NotGiven>,
     _required_scheduling_permissions_archetype, AHC
   >;

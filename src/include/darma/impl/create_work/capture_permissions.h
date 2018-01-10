@@ -225,7 +225,7 @@ struct DeferredPermissionsModifications : DeferredPermissionsModificationsBase
 
     template <typename CallableDeduced, typename... ArgsDeduced>
     DeferredPermissionsModifications(
-      variadic_constructor_tag_t /*unused*/, // prevent generation of move and copy ctors via this template
+      utility::variadic_constructor_tag_t /*unused*/, // prevent generation of move and copy ctors via this template
       CallableDeduced&& callable,
       ArgsDeduced&&... args_in
     ) : callable_(std::forward<CallableDeduced>(callable)),
@@ -246,7 +246,7 @@ make_deferred_permissions_modifications(
   return DeferredPermissionsModifications<
     std::decay_t<Callable>, PassThroughArgs...
   >(
-    variadic_constructor_tag,
+    utility::variadic_constructor_tag,
     std::forward<Callable>(callable),
     std::forward<PassThroughArgs>(pass_through)...
   );
