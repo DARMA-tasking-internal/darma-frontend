@@ -45,7 +45,7 @@
 #ifndef DARMAFRONTEND_SEMANTICS_MACROS_H
 #define DARMAFRONTEND_SEMANTICS_MACROS_H
 
-#include <darma/impl/util/macros.h>
+#include <darma/utility/macros.h>
 
 /*******************************************************************************
  * @internal

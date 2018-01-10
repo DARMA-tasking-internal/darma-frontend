@@ -45,7 +45,7 @@
 #ifndef SRC_ABSTRACT_FRONTEND_TASK_H_
 #define SRC_ABSTRACT_FRONTEND_TASK_H_
 
-#include <darma/impl/config.h>
+#include <darma/utility/config.h>
 #include <darma/impl/feature_testing_macros.h>
 
 #include <darma_types.h>

@@ -48,7 +48,7 @@
 #include <tinympl/vector.hpp>
 #include <tinympl/stl_integer_sequence.hpp>
 #include <tinympl/detection.hpp> // tinympl::nonesuch
-#include <darma/impl/util/static_assertions.h>
+#include <darma/utility/static_assertions.h>
 
 #include <util/empty_main.h>
 

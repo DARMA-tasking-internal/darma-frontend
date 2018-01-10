@@ -52,8 +52,8 @@
 #include <darma/impl/commutative_access_fwd.h>
 
 #include <darma/impl/meta/detection.h> // nonesuch
-#include <darma/impl/keyword_arguments/macros.h>
-#include <darma/impl/keyword_arguments/parse.h>
+#include <darma/keyword_arguments/macros.h>
+#include <darma/keyword_arguments/parse.h>
 #include <darma/impl/handle.h> // is_access_handle
 #include "flow_handling.h"
 #include "use.h"
@@ -155,7 +155,7 @@ struct _commutative_access_impl {
   operator()(AccessHandleT&& in_handle,
     std::enable_if_t<
       is_access_handle<std::decay_t<AccessHandleT>>::value,
-      _not_a_type_numbered<0>
+      utility::_not_a_type_numbered<0>
     > = {}
   ) const
   {
@@ -272,7 +272,7 @@ struct _commutative_access_impl {
     AccessHandleCollectionT&& in_handle,
     std::enable_if_t<
       is_access_handle_collection<std::decay_t<AccessHandleCollectionT>>::value,
-      _not_a_type_numbered<1>
+      utility::_not_a_type_numbered<1>
     > = {}
   ) const
   {

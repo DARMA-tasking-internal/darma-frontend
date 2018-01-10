@@ -428,7 +428,7 @@ MATCHER_P(UsesInGetDependencies, uses,
     }
     try {
       if (deps.find(
-        ::darma_runtime::detail::try_dynamic_cast<
+        ::darma_runtime::utility::try_dynamic_cast<
           ::darma_runtime::abstract::frontend::DependencyUse*
         >(*use)
       ) == deps.end()) {

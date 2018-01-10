@@ -48,7 +48,7 @@
 
 #include <darma/impl/key/SSO_key.h>
 #include <darma/impl/key_concept.h>
-#include <darma/impl/util/static_assertions.h>
+#include <darma/utility/static_assertions.h>
 #include <darma/impl/serialization/manager.h>
 
 

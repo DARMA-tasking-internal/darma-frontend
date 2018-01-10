@@ -67,7 +67,7 @@
 
 #include <darma_types.h>
 
-#include <darma/impl/util/safe_static_cast.h>
+#include <darma/utility/safe_static_cast.h>
 
 #include <darma/interface/backend/types.h>
 #include <darma/interface/backend/runtime.h>
@@ -93,7 +93,7 @@
 #include <darma/impl/util/smart_pointers.h>
 #include <darma/impl/capture.h>
 #include <darma/impl/polymorphic_serialization.h>
-#include <darma/impl/keyword_arguments/parse.h>
+#include <darma/keyword_arguments/parse.h>
 
 namespace darma_runtime {
 namespace detail {
@@ -645,7 +645,7 @@ inline TaskBase*
 get_running_task_impl(
   abstract::backend::Context* rt
 ) {
-  return darma_runtime::detail::safe_static_cast<TaskBase*>(
+  return darma_runtime::utility::safe_static_cast<TaskBase*>(
     rt->get_running_task()
   );
 }

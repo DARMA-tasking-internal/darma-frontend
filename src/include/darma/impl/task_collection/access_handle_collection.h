@@ -58,11 +58,11 @@
 // included from elsewhere in impl
 #include <darma/impl/handle.h>
 #include <darma/impl/use.h>
-#include <darma/impl/keyword_arguments/parse.h>
-#include <darma/impl/keyword_arguments/macros.h>
-#include <darma/impl/keyword_arguments/parse.h>
+#include <darma/keyword_arguments/parse.h>
+#include <darma/keyword_arguments/macros.h>
+#include <darma/keyword_arguments/parse.h>
 #include <darma/impl/access_handle_base.h>
-#include <darma/impl/util/optional_boolean.h>
+#include <darma/utility/optional_boolean.h>
 #include <darma/impl/use_collection.h>
 
 // included from task_collection folder
@@ -147,7 +147,7 @@ class AccessHandleCollection
       typename _Ignored_SFINAE=void,
       typename=std::enable_if_t<
         std::is_void<_Ignored_SFINAE>::value // should always be true
-          and traits::semantic_traits::is_outer != KnownTrue
+          and traits::semantic_traits::is_outer != OptionalBoolean::KnownTrue
       >
     >
     auto
@@ -217,7 +217,7 @@ class AccessHandleCollection
 //      else {
 //        // TODO fix this for create_work_while!!!
 //        //auto& source = reinterpret_cast<AccessHandleCollection const&>(source_in);
-//        auto& source = detail::safe_static_cast<AccessHandleCollection const&>(source_in);
+//        auto& source = utility::safe_static_cast<AccessHandleCollection const&>(source_in);
 //        for(auto&& local_holder_pair : source.local_use_holders_) {
 //          local_use_holders_[local_holder_pair.first] = detail::make_captured_use_holder(
 //            var_handle,
@@ -244,7 +244,7 @@ class AccessHandleCollection
 
 //    void
 //    replace_use_holder_with(detail::AccessHandleBase const& other_handle) override {
-//      auto& other_as_this_type = detail::safe_static_cast<AccessHandleCollection const&>(
+//      auto& other_as_this_type = utility::safe_static_cast<AccessHandleCollection const&>(
 //        other_handle
 //      );
 //      current_use_ = other_as_this_type.current_use_;
@@ -314,7 +314,7 @@ class AccessHandleCollection
       std::enable_if_t<
         traits::template is_convertible_from<OtherTraits>::value
           and not std::is_same<OtherTraits, traits>::value,
-        detail::_not_a_type
+        utility::_not_a_type
       > = { }
     )
     {
@@ -345,7 +345,7 @@ class AccessHandleCollection
     template <typename OtherTraits, typename _Ignored_SFINAE=void,
       typename=std::enable_if_t<
         // TODO generalize this into an is_assignable_from_... metafunction
-        traits::semantic_traits::is_outer != KnownTrue
+        traits::semantic_traits::is_outer != OptionalBoolean::KnownTrue
           and traits::semantic_traits::is_outer != OtherTraits::semantic_traits::is_outer
           and std::is_void<_Ignored_SFINAE>::value // should always be true
       >
@@ -427,7 +427,7 @@ class AccessHandleCollection
 
     // TODO get rid of this in favor of mapped/unmapped
     mutable bool dynamic_is_outer =
-      traits::semantic_traits::is_outer == KnownTrue;
+      traits::semantic_traits::is_outer == OptionalBoolean::KnownTrue;
 
     mutable std::map<
       typename base_t::index_range_traits_t::index_type,
@@ -544,7 +544,7 @@ class AccessHandleCollection
       std::shared_ptr<typename base_t::use_holder_t> const& use_holder
     ) : base_t(var_handle, use_holder)
     {
-      assert(detail::safe_static_cast<detail::VariableHandle<T>*>(var_handle.get()) != nullptr);
+      assert(utility::safe_static_cast<detail::VariableHandle<T>*>(var_handle.get()) != nullptr);
     }
 
   // </editor-fold> end private ctors }}}1
@@ -802,7 +802,7 @@ struct Serializer<darma_runtime::AccessHandleCollection<T, IndexRangeT, Traits>>
     std::enable_if_t<
       not is_packable_with_archive<types::flow_t, ConvertiblePackingArchive>::value
         or not is_packable_with_archive<types::anti_flow_t, ConvertiblePackingArchive>::value,
-      darma_runtime::detail::_not_a_type
+      darma_runtime::utility::_not_a_type
     > = { }
   ) {
     // Packing flows uses pointer references, so we need to convert to an archive
@@ -817,7 +817,7 @@ struct Serializer<darma_runtime::AccessHandleCollection<T, IndexRangeT, Traits>>
     std::enable_if_t<
       is_packable_with_archive<types::flow_t, ArchiveT>::value
         and is_packable_with_archive<types::anti_flow_t, ArchiveT>::value,
-      darma_runtime::detail::_not_a_type
+      darma_runtime::utility::_not_a_type
     > = { }
   ) {
     ar | ahc.var_handle_base_->get_key();
@@ -836,7 +836,7 @@ struct Serializer<darma_runtime::AccessHandleCollection<T, IndexRangeT, Traits>>
     std::enable_if_t<
       not is_unpackable_with_archive<types::flow_t, ConvertibleUnpackingArchive>::value
         or not is_unpackable_with_archive<types::anti_flow_t, ConvertibleUnpackingArchive>::value,
-      darma_runtime::detail::_not_a_type
+      darma_runtime::utility::_not_a_type
     > = { }
   )
   {

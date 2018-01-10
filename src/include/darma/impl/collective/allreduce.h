@@ -55,11 +55,11 @@
 
 #include <darma/impl/collective/collective_fwd.h>
 
-#include <darma/impl/keyword_arguments/macros.h>
-#include <darma/impl/keyword_arguments/keyword_argument_name.h>
-#include <darma/impl/keyword_arguments/check_allowed_kwargs.h>
-#include <darma/impl/keyword_arguments/get_kwarg.h>
-#include <darma/impl/keyword_arguments/parse.h>
+#include <darma/keyword_arguments/macros.h>
+#include <darma/keyword_arguments/keyword_argument_name.h>
+#include <darma/keyword_arguments/check_allowed_kwargs.h>
+#include <darma/keyword_arguments/get_kwarg.h>
+#include <darma/keyword_arguments/parse.h>
 #include <darma/interface/frontend/collective_details.h>
 
 #include <darma/impl/handle.h> // is_access_handle
@@ -105,7 +105,7 @@ struct all_reduce_impl {
   {
     #if _darma_has_feature(task_collection_token)
     auto* running_task =
-      detail::safe_static_cast<darma_runtime::detail::TaskBase*>(
+      utility::safe_static_cast<darma_runtime::detail::TaskBase*>(
         abstract::backend::get_backend_context()->get_running_task()
       );
     if(running_task->parent_token_available) {

@@ -52,8 +52,8 @@
 
 #include <darma/interface/app/keyword_arguments/n_iterations.h>
 #include <darma/interface/backend/parallel_for.h>
-#include <darma/impl/keyword_arguments/parse.h>
-#include <darma/impl/keyword_arguments/macros.h>
+#include <darma/keyword_arguments/parse.h>
+#include <darma/keyword_arguments/macros.h>
 
 
 DeclareDarmaTypeTransparentKeyword(parallel_for, n_workers);

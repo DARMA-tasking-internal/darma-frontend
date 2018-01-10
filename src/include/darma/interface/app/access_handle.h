@@ -58,13 +58,13 @@
 #include <darma/impl/util/managing_ptr.h>
 
 #include <darma/impl/task/task.h>
-#include <darma/impl/keyword_arguments/check_allowed_kwargs.h>
+#include <darma/keyword_arguments/check_allowed_kwargs.h>
 #include <darma/impl/util.h>
 #include <darma/impl/use.h>
 #include <darma/impl/publication_details.h>
 #include <darma/impl/flow_handling.h>
 #include <darma/impl/task_collection/task_collection_fwd.h>
-#include <darma/impl/keyword_arguments/parse.h>
+#include <darma/keyword_arguments/parse.h>
 #include <darma/impl/access_handle_base.h>
 #include <darma/impl/access_handle/copy_captured_object.h>
 #include <darma/impl/access_handle/basic_access_handle.h>
@@ -330,8 +330,8 @@ class AccessHandle
             AccessHandleT
           >::value
           and not is_reinterpret_castable_from_access_handle<AccessHandleT>::value,
-        detail::_not_a_type
-      > _nat = {detail::_not_a_type_ctor_tag}
+        utility::_not_a_type
+      > _nat = {utility::_not_a_type_ctor_tag}
     ) : base_t(std::move(other)),
         copy_capture_handler_t(),
         other_private_members_(std::move(other.other_private_members_))
@@ -943,7 +943,7 @@ class AccessHandle
       std::shared_ptr<typename base_t::use_holder_t> const& use_holder
     ) : base_t(var_handle, use_holder)
     {
-      assert(detail::safe_static_cast<detail::VariableHandle<T>*>(var_handle.get()) != nullptr);
+      assert(utility::safe_static_cast<detail::VariableHandle<T>*>(var_handle.get()) != nullptr);
     }
 
     explicit
@@ -953,7 +953,7 @@ class AccessHandle
       std::unique_ptr<types::flow_t>&& suspended_out_flow
     ) : base_t(var_handle, use_holder)
     {
-      assert(detail::safe_static_cast<detail::VariableHandle<T>*>(var_handle.get()) != nullptr);
+      assert(utility::safe_static_cast<detail::VariableHandle<T>*>(var_handle.get()) != nullptr);
       current_use_base_->use_base->suspended_out_flow_ = std::move(suspended_out_flow);
     }
 

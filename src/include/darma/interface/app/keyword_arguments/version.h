@@ -45,7 +45,7 @@
 #ifndef DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_VERSION_H
 #define DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_VERSION_H
 
-#include <darma/impl/keyword_arguments/macros.h>
+#include <darma/keyword_arguments/macros.h>
 
 DeclareDarmaTypeTransparentKeyword(publication, version);
 

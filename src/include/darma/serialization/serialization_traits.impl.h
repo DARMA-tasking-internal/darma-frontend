@@ -48,7 +48,7 @@
 #include <darma/serialization/nonintrusive.h>
 #include <darma/serialization/serialization_traits.h>
 
-#include <darma/impl/util/static_assertions.h>
+#include <darma/utility/static_assertions.h>
 
 #include <tinympl/detection.hpp>
 #include <tinympl/bool.hpp>

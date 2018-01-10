@@ -68,7 +68,7 @@ class TestAccessHandle_publish_MM_Test;
 #include <darma/interface/app/read_access.h>
 #include <darma/serialization/serializers/standard_library/string.h>
 
-#include <darma/impl/util/static_assertions.h>
+#include <darma/utility/static_assertions.h>
 
 ////////////////////////////////////////////////////////////////////////////////
 

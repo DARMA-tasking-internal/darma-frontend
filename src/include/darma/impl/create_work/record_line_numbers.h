@@ -47,7 +47,7 @@
 
 #include <cstdint>
 
-#include <darma/impl/config.h>
+#include <darma/utility/config.h>
 #include <darma/interface/app/create_work.h>
 
 namespace darma_runtime {

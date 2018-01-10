@@ -47,7 +47,7 @@
 
 #include <darma_features.h>  // should contain feature macro definitions
 
-#include "util/macros.h"
+#include "darma/utility/macros.h"
 
 //==============================================================================
 // <editor-fold desc="Feature Dates and Defaults"> {{{1

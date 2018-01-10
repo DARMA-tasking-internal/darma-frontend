@@ -49,8 +49,8 @@
 
 #include <darma/interface/app/access_handle.h>
 #include <darma/impl/handle_attorneys.h>
-#include <darma/impl/keyword_arguments/check_allowed_kwargs.h>
-#include <darma/impl/keyword_arguments/parse.h>
+#include <darma/keyword_arguments/check_allowed_kwargs.h>
+#include <darma/keyword_arguments/parse.h>
 #include <darma/impl/util.h>
 #include <darma/impl/flow_handling.h>
 

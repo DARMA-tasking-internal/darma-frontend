@@ -47,7 +47,7 @@
 
 #include <cstdlib> // std::size_t
 #include <vector>
-#include <darma/impl/util/optional_boolean.h>
+#include <darma/utility/optional_boolean.h>
 
 namespace darma_runtime {
 

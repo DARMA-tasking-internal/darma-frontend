@@ -46,7 +46,7 @@
 #define DARMA_IMPL_COLLECTIVE_DETAILS_H
 
 #include <darma/interface/frontend/collective_details.h>
-#include <darma/impl/util/compressed_pair.h>
+#include <darma/utility/compressed_pair.h>
 
 #include "reduce_op.h"
 

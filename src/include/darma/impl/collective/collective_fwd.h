@@ -55,7 +55,7 @@ struct op_not_given { };
 
 
 // TODO move these to interface files!
-#include <darma/impl/keyword_arguments/macros.h>
+#include <darma/keyword_arguments/macros.h>
 
 DeclareDarmaTypeTransparentKeyword(collectives, input);
 DeclareDarmaTypeTransparentKeyword(collectives, output);

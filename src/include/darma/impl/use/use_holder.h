@@ -45,7 +45,7 @@
 #ifndef DARMAFRONTEND_USE_PTR_H
 #define DARMAFRONTEND_USE_PTR_H
 
-#include <darma/impl/util/managed_swap_storage.h>
+#include <darma/utility/managed_swap_storage.h>
 #include <darma/impl/handle_use_base.h>
 
 namespace darma_runtime {
@@ -79,7 +79,7 @@ class UseHolder : public UseHolderBase {
 
   protected:
 
-    using use_storage_t = util::managed_swap_storage<
+    using use_storage_t = utility::managed_swap_storage<
       UnderlyingUse, HandleUseBase
     >;
 
@@ -95,7 +95,7 @@ class UseHolder : public UseHolderBase {
       UseCtorArgs&&... args
     ) : use_(
           use_base,
-          util::in_place_tag,
+          utility::in_place_tag,
           std::forward<UseCtorArgs>(args)...
         )
     {
@@ -179,7 +179,7 @@ class UseHolder : public UseHolderBase {
           abstract::backend::get_backend_runtime()->register_use(&to_be_registered);
           abstract::backend::get_backend_runtime()->release_use(&to_be_released);
         },
-        util::in_place_tag,
+        utility::in_place_tag,
         std::forward<Arg1>(a1),
         std::forward<Args>(args)...
       );

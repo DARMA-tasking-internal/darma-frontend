@@ -46,7 +46,7 @@
 
 #include <tinympl/erase.hpp>
 #include <tinympl/stl_integer_sequence.hpp>
-#include <darma/impl/util/static_assertions.h>
+#include <darma/utility/static_assertions.h>
 #include <tinympl/bool.hpp> // tinympl::bool_
 
 #include <util/empty_main.h>

@@ -48,7 +48,7 @@
 #include "simple_handler_fwd.h"
 #include "pointer_reference_handler_fwd.h"
 
-#include <darma/impl/compatibility.h>
+#include <darma/utility/compatibility.h>
 
 #include <darma/serialization/pointer_reference_archive.h>
 

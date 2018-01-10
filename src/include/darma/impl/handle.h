@@ -69,7 +69,7 @@
 #include <darma/impl/serialization/manager.h>
 
 
-#include <darma/impl/keyword_arguments/keyword_arguments.h>
+#include <darma/keyword_arguments/keyword_arguments.h>
 #include <darma/interface/app/keyword_arguments/n_readers.h>
 #include <darma/interface/app/keyword_arguments/version.h>
 

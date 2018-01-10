@@ -46,7 +46,7 @@
 #define DARMA_INTERFACE_APP_RESOURCE_COUNT_H
 
 #include <darma/impl/meta/tagged_constant.h>
-#include <darma/impl/keyword_arguments/parse.h>
+#include <darma/keyword_arguments/parse.h>
 
 namespace darma_runtime {
 

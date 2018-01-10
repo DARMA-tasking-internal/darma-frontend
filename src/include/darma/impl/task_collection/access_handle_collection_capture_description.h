@@ -123,7 +123,7 @@ AccessHandleCollection<T, IndexRangeT, Traits>::get_capture_description(
   detail::CapturedObjectBase::capture_op_t immediate_capture_op
 ) const {
 
-  auto* captured_ptr = detail::safe_static_cast<AccessHandleCollection<T, IndexRangeT, Traits>*>(
+  auto* captured_ptr = utility::safe_static_cast<AccessHandleCollection<T, IndexRangeT, Traits>*>(
     &captured_in
   );
 

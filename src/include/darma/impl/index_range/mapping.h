@@ -49,7 +49,7 @@
 
 #include <tinympl/variadic/at.hpp>
 
-#include <darma/impl/util/not_a_type.h>
+#include <darma/utility/not_a_type.h>
 
 #include <darma/impl/meta/detection.h>
 #include "mapping_traits.h"
@@ -194,7 +194,7 @@ struct CompositeMapping {
           and std::is_convertible<M1ToRangeConvertible&&, M1ToRange>::value
           and std::is_default_constructible<Mapping1>::value
           and std::is_default_constructible<Mapping2>::value,
-        detail::_not_a_type_numbered<1>
+        utility::_not_a_type_numbered<1>
       > = { }
     ) : m1_to_range_(std::forward<M1ToRangeConvertible>(m1rng))
     { }
@@ -207,7 +207,7 @@ struct CompositeMapping {
           and std::is_convertible<M2FromRangeConvertible&&, M2FromRange>::value
           and std::is_default_constructible<Mapping1>::value
           and std::is_default_constructible<Mapping2>::value,
-        detail::_not_a_type_numbered<2>
+        utility::_not_a_type_numbered<2>
       > = { }
     ) : m2_from_range_(std::forward<M2FromRangeConvertible>(m2rng))
     { }
@@ -227,7 +227,7 @@ struct CompositeMapping {
           and std::is_convertible<M2FromRangeConvertible&&, M2FromRange>::value
           and std::is_convertible<Mapping1Convertible&&, Mapping1>::value
           and std::is_convertible<Mapping2Convertible&&, Mapping2>::value,
-        detail::_not_a_type_numbered<3>
+        utility::_not_a_type_numbered<3>
       > = { }
     ) : m1_(std::forward<Mapping1Convertible>(m1)),
         m2_(std::forward<Mapping2Convertible>(m2)),
@@ -251,7 +251,7 @@ struct CompositeMapping {
           and std::is_same<M2FromRange, detail::not_an_index_range>::value
           and _traits_2::allows_no_range_map_forward::value
           and _traits_1::template allows_one_range_map_forward<FromRange>::value,
-        detail::_not_a_type
+        utility::_not_a_type
       > = { }
     ) const {
       return _traits_2::map_forward(m2_,
@@ -268,7 +268,7 @@ struct CompositeMapping {
           and not std::is_same<M2FromRange, detail::not_an_index_range>::value
           and _traits_2::template allows_one_range_map_forward<M2FromRange>::value
           and _traits_1::template allows_one_range_map_forward<FromRange>::value,
-        detail::_not_a_type
+        utility::_not_a_type
       > = { }
     ) const {
       return _traits_2::map_forward(m2_,
@@ -300,7 +300,7 @@ struct CompositeMapping {
           and std::is_same<M2FromRange, detail::not_an_index_range>::value
           and _traits_2::allows_no_range_map_backward::value
           and _traits_1::template allows_one_range_map_backward<FromRange>::value,
-        detail::_not_a_type
+        utility::_not_a_type
       > = { }
     ) const {
       return _traits_1::map_backward(m1_,
@@ -316,7 +316,7 @@ struct CompositeMapping {
           and not std::is_same<M2FromRange, detail::not_an_index_range>::value
           and _traits_2::template allows_one_range_map_backward<M2FromRange>::value
           and _traits_1::template allows_one_range_map_backward<FromRange>::value,
-        detail::_not_a_type
+        utility::_not_a_type
       > = { }
     ) const {
       return _traits_1::map_backward(m1_,
@@ -333,7 +333,7 @@ struct CompositeMapping {
           //and _traits_2::allows_no_range_map_backward::value
           and std::is_same<M1ToRange, detail::not_an_index_range>::value
           and std::is_same<M2FromRange, detail::not_an_index_range>::value,
-        detail::_not_a_type
+        utility::_not_a_type
       > = { }
     ) const {
       return _traits_1::map_backward(m1_,
@@ -351,7 +351,7 @@ struct CompositeMapping {
           and _traits_2::template allows_one_range_map_backward<M2FromRange>::value
           and std::is_same<M1ToRange, detail::not_an_index_range>::value
           and not std::is_same<M2FromRange, detail::not_an_index_range>::value,
-        detail::_not_a_type
+        utility::_not_a_type
       > = { }
     ) const {
       return _traits_1::map_backward(m1_,

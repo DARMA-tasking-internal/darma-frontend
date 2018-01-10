@@ -48,7 +48,7 @@
 
 #include <darma/impl/access_handle/access_handle_traits.h>
 
-#include <darma/impl/util/optional_boolean.h>
+#include <darma/utility/optional_boolean.h>
 
 namespace darma_runtime {
 

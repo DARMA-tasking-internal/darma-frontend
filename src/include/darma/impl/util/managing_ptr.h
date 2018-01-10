@@ -46,7 +46,7 @@
 #define DARMA_IMPL_UTIL_MANAGING_PTR_H
 
 #include <type_traits>
-#include <darma/impl/util/not_a_type.h>
+#include <darma/utility/not_a_type.h>
 
 namespace darma_runtime {
 namespace detail {
@@ -125,7 +125,7 @@ class managing_ptr {
       std::enable_if_t<
         std::is_void<_Ignored_SFINAE>::value
           and managed_is_directly_assignable::value,
-        _not_a_type_numbered<1>
+        utility::_not_a_type_numbered<1>
       > = {}
     ) {
       managed_ptr_ = smart_ptr_;
@@ -137,7 +137,7 @@ class managing_ptr {
       std::enable_if_t<
         std::is_void<_Ignored_SFINAE>::value
           and not managed_is_directly_assignable::value,
-        _not_a_type_numbered<2>
+        utility::_not_a_type_numbered<2>
       > = {}
     ) {
       managed_ptr_ = smart_ptr_.get();
@@ -150,7 +150,7 @@ class managing_ptr {
       std::enable_if_t<
         std::is_void<_Ignored_SFINAE>::value
           and managed_is_directly_assignable::value,
-        _not_a_type_numbered<1>
+        utility::_not_a_type_numbered<1>
       > = {}
     ) {
       managed_ptr_.reset();
@@ -163,7 +163,7 @@ class managing_ptr {
       std::enable_if_t<
         std::is_void<_Ignored_SFINAE>::value
           and not managed_is_directly_assignable::value,
-        _not_a_type_numbered<2>
+        utility::_not_a_type_numbered<2>
       > = {}
     ) {
       managed_ptr_ = nullptr;

@@ -45,7 +45,7 @@
 #ifndef DARMA_IMPL_TASK_COLLECTION_ERRORS_H
 #define DARMA_IMPL_TASK_COLLECTION_ERRORS_H
 
-#include <darma/impl/config.h>
+#include <darma/utility/config.h>
 
 #include <darma/impl/errors.h>
 

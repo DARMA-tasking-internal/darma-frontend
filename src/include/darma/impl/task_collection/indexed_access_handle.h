@@ -57,10 +57,10 @@
 
 #include <darma/impl/task_collection/task_collection_fwd.h>
 
-#include <darma/impl/util/static_assertions.h> // _darma__static_failure
+#include <darma/utility/static_assertions.h> // _darma__static_failure
 #include <darma/impl/darma_assert.h>
 #include <darma/impl/handle_fwd.h> // AccessHandlePermissions
-#include <darma/impl/keyword_arguments/parse.h> // AccessHandlePermissions
+#include <darma/keyword_arguments/parse.h> // AccessHandlePermissions
 
 #include <darma/impl/task_collection/errors.h>
 #include <darma/impl/access_handle/access_handle_traits.h>
@@ -201,7 +201,7 @@ class IndexedAccessHandle {
 
           auto old_key = parent_.var_handle_base_->get_key();
           auto new_handle = std::make_shared<detail::VariableHandle<value_type>>(
-            detail::safe_static_cast<detail::VariableHandle<value_type> const*>(
+            utility::safe_static_cast<detail::VariableHandle<value_type> const*>(
               parent_.var_handle_base_.get()
             )->with_different_key(
               old_key.is_backend_generated() ?

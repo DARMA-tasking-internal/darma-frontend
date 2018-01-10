@@ -55,9 +55,9 @@
 
 #include <darma/impl/access_handle_base.h>
 
-#include <darma/impl/util/not_a_type.h>
+#include <darma/utility/not_a_type.h>
 
-#include <darma/impl/config.h>
+#include <darma/utility/config.h>
 
 #include <darma/impl/create_work/create_work_while_fwd.h>
 #include <darma/impl/task/lambda_task.h>
@@ -225,7 +225,7 @@ struct WhileDoCaptureManager<
         while_details->replace_source_pointer(implicit_source_and_cont.get());
 
 
-        found->second = safe_static_cast<AccessHandleBase*>(
+        found->second = utility::safe_static_cast<AccessHandleBase*>(
           while_details->get_captured_pointer()
         )->copy();
         while_details->replace_captured_pointer(found->second.get());

@@ -48,7 +48,7 @@
 #include <type_traits> // std::integral_constant
 
 #include <darma/impl/meta/detection.h>
-#include <darma/impl/util/static_assertions.h>
+#include <darma/utility/static_assertions.h>
 
 namespace darma_runtime {
 namespace detail {

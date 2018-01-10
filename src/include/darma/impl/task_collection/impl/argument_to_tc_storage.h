@@ -60,7 +60,7 @@
 #include <darma/impl/index_range/index_range_traits.h>
 #include <darma/impl/index_range/mapping_traits.h>
 
-#include <darma/impl/util/static_assertions.h>
+#include <darma/utility/static_assertions.h>
 
 namespace darma_runtime {
 namespace detail {
@@ -456,7 +456,7 @@ struct _get_storage_arg_helper<
               tc_index_range_traits::mapping_to_dense(collection.collection_range_)
               //, collection.collection_range_
             ),
-            safe_static_cast< UnmappedUseCollection<handle_range_t> const* >(
+            utility::safe_static_cast< UnmappedUseCollection<handle_range_t> const* >(
               arg.collection.get_current_use()->use()->collection_.get()
             )
           )
@@ -547,7 +547,7 @@ struct _get_storage_arg_helper<
     std::enable_if_t<
       not std::is_void<TaskCollectionT>::value // should be always true
         and needs_mapping,
-      _not_a_type
+      utility::_not_a_type
     > = {}
   ) const {
 
@@ -585,7 +585,7 @@ struct _get_storage_arg_helper<
     std::enable_if_t<
       not std::is_void<TaskCollectionT>::value // should be always true
         and not needs_mapping,
-      _not_a_type
+      utility::_not_a_type
     > = { }
   ) const {
 

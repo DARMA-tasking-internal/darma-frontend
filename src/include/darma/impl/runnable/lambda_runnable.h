@@ -86,7 +86,7 @@ struct Runnable : public RunnableBase
       std::enable_if_t<
         std::is_void<_Ignored_SFINAE>::value // always true
           and is_callable_with_resource_pack,
-        _not_a_type_numbered<0>
+        utility::_not_a_type_numbered<0>
       > = { }
     ) {
       run_this_(std::move(*resource_pack_ptr_.release()));
@@ -98,7 +98,7 @@ struct Runnable : public RunnableBase
       std::enable_if_t<
         std::is_void<_Ignored_SFINAE>::value // always true
           and not is_callable_with_resource_pack,
-        _not_a_type_numbered<1>
+        utility::_not_a_type_numbered<1>
       > = { }
     ) {
       run_this_();

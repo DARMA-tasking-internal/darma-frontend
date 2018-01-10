@@ -48,7 +48,7 @@
 #include <cstdlib> // size_t
 
 #include <darma/impl/flow_handling.h>
-#include <darma/impl/keyword_arguments/parse.h>
+#include <darma/keyword_arguments/parse.h>
 #include <darma/impl/capture.h>
 
 // TODO move this to access_handle sub-directory when we're at a stable merge point

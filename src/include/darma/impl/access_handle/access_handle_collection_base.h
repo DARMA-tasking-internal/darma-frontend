@@ -109,7 +109,7 @@ class BasicAccessHandleCollection
     inline use_holder_t*
     get_current_use() const {
         assert(has_use_holder() || !"get_current_use() called when use holder was null");
-        return safe_static_cast<use_holder_t*>(current_use_base_.get());
+        return utility::safe_static_cast<use_holder_t*>(current_use_base_.get());
     }
 
     inline void

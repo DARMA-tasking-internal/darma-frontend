@@ -81,14 +81,14 @@ struct AccessHandleCaptureDescriptionBase
     }
 
     void replace_source_pointer(CapturedObjectBase const* new_src) override {
-      auto* new_src_cast = safe_static_cast<SourceAccessHandleT const*>(
+      auto* new_src_cast = utility::safe_static_cast<SourceAccessHandleT const*>(
         new_src
       );
       source_ = new_src_cast;
     }
 
     void replace_captured_pointer(CapturedObjectBase* new_capt) override {
-      auto* new_capt_cast = safe_static_cast<CapturedAccessHandleT*>(
+      auto* new_capt_cast = utility::safe_static_cast<CapturedAccessHandleT*>(
         new_capt
       );
       captured_ = new_capt_cast;
@@ -99,7 +99,7 @@ struct AccessHandleCaptureDescriptionBase
       // For now, assume that they have to have the same source type and a
       // generic captured type (this works with the patterns we have implemented
       // so far, but might be generalized in the future.
-      auto const* other_cast = safe_static_cast<AccessHandleCaptureDescriptionBase const*>(
+      auto const* other_cast = utility::safe_static_cast<AccessHandleCaptureDescriptionBase const*>(
         &other
       );
 
@@ -149,7 +149,7 @@ AccessHandle<T, Traits>::get_capture_description(
     detail::BasicAccessHandle
   >;
 
-  auto* captured_ptr = detail::safe_static_cast<detail::BasicAccessHandle*>(
+  auto* captured_ptr = utility::safe_static_cast<detail::BasicAccessHandle*>(
     &captured_in
   );
 

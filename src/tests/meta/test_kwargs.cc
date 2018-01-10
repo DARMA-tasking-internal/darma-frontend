@@ -43,11 +43,11 @@
 */
 
 
-#include <darma/impl/keyword_arguments/get_kwarg.h>
+#include <darma/keyword_arguments/get_kwarg.h>
 #include <darma/impl/meta/splat_tuple.h>
-#include <darma/impl/keyword_arguments/parse.h>
-#include <darma/impl/keyword_arguments/macros.h>
-#include <darma/impl/util/static_assertions.h>
+#include <darma/keyword_arguments/parse.h>
+#include <darma/keyword_arguments/macros.h>
+#include <darma/utility/static_assertions.h>
 
 #include "blabbermouth.h"
 

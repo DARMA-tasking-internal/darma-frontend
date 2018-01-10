@@ -518,7 +518,7 @@ PolymorphicSerializableObject<AbstractType>::unpack(char const*& buffer) {
   DARMA_ASSERT_MESSAGE(
     concrete_index != std::numeric_limits<size_t>::max(),
     "No registered unpacker found to unpack a concrete type as abstract type "
-      << darma_runtime::detail::try_demangle<AbstractType>::name()
+      << darma_runtime::utility::try_demangle<AbstractType>::name()
   );
 
   // Make sure we advance the buffer over all of the other base class entries

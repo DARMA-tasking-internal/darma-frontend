@@ -81,7 +81,7 @@ struct ConcurrentRegionContext {
     std::shared_ptr<abstract::backend::TaskCollectionContextHandle>
       context_handle_ = nullptr;
 
-    mutable detail::compressed_pair<IndexT, IndexMappingT> index_and_mapping_;
+    mutable utility::compressed_pair<IndexT, IndexMappingT> index_and_mapping_;
 
     mutable bool index_computed_ = false;
 

@@ -45,7 +45,7 @@
 #ifndef SRC_INCLUDE_DARMA_INTERFACE_APP_CREATE_WORK_H_
 #define SRC_INCLUDE_DARMA_INTERFACE_APP_CREATE_WORK_H_
 
-#include <darma/impl/config.h>
+#include <darma/utility/config.h>
 
 namespace darma_runtime {
 

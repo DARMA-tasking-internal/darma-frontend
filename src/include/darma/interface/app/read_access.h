@@ -54,7 +54,7 @@
 #include <darma/impl/handle_attorneys.h>
 #include <darma/impl/flow_handling.h>
 #include <darma/impl/compatibility.h>
-#include <darma/impl/keyword_arguments/check_allowed_kwargs.h>
+#include <darma/keyword_arguments/check_allowed_kwargs.h>
 
 
 namespace darma_runtime {

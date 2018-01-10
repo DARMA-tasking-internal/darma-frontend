@@ -48,7 +48,7 @@
 #include <type_traits>
 
 #include <vector>
-#include <darma/impl/util/optional_boolean.h>
+#include <darma/utility/optional_boolean.h>
 
 #include "mapping.h"
 

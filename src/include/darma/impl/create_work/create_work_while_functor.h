@@ -54,7 +54,7 @@
 
 #include <darma/impl/access_handle_base.h>
 
-#include <darma/impl/util/not_a_type.h>
+#include <darma/utility/not_a_type.h>
 
 #include <darma/impl/create_work/record_line_numbers.h>
 

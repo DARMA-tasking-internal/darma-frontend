@@ -47,8 +47,8 @@
 
 #include <darma/impl/create_work/create_work_fwd.h>
 
-#include <darma/impl/keyword_arguments/macros.h>
-#include <darma/impl/keyword_arguments/parse.h>
+#include <darma/keyword_arguments/macros.h>
+#include <darma/keyword_arguments/parse.h>
 
 #include <darma/impl/task/task_base.h>
 

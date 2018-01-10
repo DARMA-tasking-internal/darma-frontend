@@ -47,7 +47,7 @@
 
 #include <darma/impl/meta/detection.h>
 #include <tinympl/type_traits.hpp>
-#include <darma/impl/util/optional_boolean.h>
+#include <darma/utility/optional_boolean.h>
 
 namespace _darma__errors {
 

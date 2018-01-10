@@ -51,7 +51,7 @@
 #include <darma/serialization/pointer_reference_archive.h>
 #include <darma/serialization/pointer_reference_handler.h>
 
-#include <darma/impl/compatibility.h>
+#include <darma/utility/compatibility.h>
 
 namespace darma_runtime {
 
@@ -153,7 +153,7 @@ struct Serializer<AccessHandle<Args...>>
       std::enable_if_t<
         is_packable_with_archive<types::flow_t, ArchiveT>::value
         and is_packable_with_archive<types::anti_flow_t, ArchiveT>::value,
-        darma_runtime::detail::_not_a_type
+        darma_runtime::utility::_not_a_type
       > = { }
     ) {
       ar | val.var_handle_base_->get_key();
@@ -171,7 +171,7 @@ struct Serializer<AccessHandle<Args...>>
       std::enable_if_t<
         not is_packable_with_archive<types::flow_t, ConvertiblePackingArchive>::value
           or not is_packable_with_archive<types::anti_flow_t, ConvertiblePackingArchive>::value,
-        darma_runtime::detail::_not_a_type
+        darma_runtime::utility::_not_a_type
       > = { }
     )
     {
@@ -214,7 +214,7 @@ struct Serializer<AccessHandle<Args...>>
       std::enable_if_t<
         not is_unpackable_with_archive<types::flow_t, ConvertibleUnpackingArchive>::value
           or not is_unpackable_with_archive<types::anti_flow_t, ConvertibleUnpackingArchive>::value,
-        darma_runtime::detail::_not_a_type
+        darma_runtime::utility::_not_a_type
       > = { }
     )
     {

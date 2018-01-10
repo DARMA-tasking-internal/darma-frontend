@@ -46,7 +46,7 @@
 #define SRC_TESTS_FRONTEND_VALIDATION_TEST_MAKE_KEY_FUNCTOR_H_
 
 #include <darma/impl/make_key_functor.h>
-#include <darma/impl/keyword_arguments/parse.h>
+#include <darma/keyword_arguments/parse.h>
 
 namespace darma_runtime {
 

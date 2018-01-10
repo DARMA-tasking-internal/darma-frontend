@@ -47,7 +47,7 @@
 
 #include <tinympl/vector.hpp>
 
-#include <darma/impl/config.h>
+#include <darma/utility/config.h>
 
 #include <darma/impl/meta/detection.h>
 

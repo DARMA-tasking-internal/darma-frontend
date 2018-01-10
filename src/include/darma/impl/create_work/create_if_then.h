@@ -188,7 +188,7 @@ struct IfThenElseCaptureManager<
       HelperT&& helper,
       std::enable_if_t<
         std::decay_t<HelperT>::is_else_helper and ElseGiven,
-        _not_a_type
+        utility::_not_a_type
       > = { }
     ) : if_task_(std::make_unique<if_task_t>(
           std::forward<HelperT>(helper), this
@@ -207,7 +207,7 @@ struct IfThenElseCaptureManager<
       HelperT&& helper,
       std::enable_if_t<
         not std::decay_t<HelperT>::is_else_helper and not ElseGiven,
-        _not_a_type
+        utility::_not_a_type
       > = { }
     ) : if_task_(std::make_unique<if_task_t>(
           std::forward<HelperT>(helper), this
@@ -260,7 +260,7 @@ struct IfThenElseCaptureManager<
       std::enable_if_t<
         std::is_void<_SFINAE_only>::value // always true
           and ElseGiven,
-        _not_a_type
+        utility::_not_a_type
       > = { }
     ) {
       _execute_captures(else_captures_, else_task_);
@@ -275,7 +275,7 @@ struct IfThenElseCaptureManager<
       std::enable_if_t<
       std::is_void<_SFINAE_only>::value // always true
         and not ElseGiven,
-        _not_a_type
+        utility::_not_a_type
       > = { }
     ) {
       // do nothing, since no else block was given

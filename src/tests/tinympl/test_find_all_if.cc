@@ -52,7 +52,7 @@
 #include <tinympl/vector.hpp>
 #include <tinympl/string.hpp>
 
-#include <darma/impl/util/static_assertions.h>
+#include <darma/utility/static_assertions.h>
 
 using namespace tinympl;
 

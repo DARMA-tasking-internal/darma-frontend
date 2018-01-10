@@ -153,7 +153,7 @@ struct DeferredPermissionsModifications : DeferredPermissionsModificationsBase
       CallableT const& callable,
       std::enable_if_t<
         std::is_base_of<CapturedObjectBase, std::decay_t<CapturedObjectBaseT>>::value,
-        _not_a_type
+        utility::_not_a_type
       > /*unused*/ = { }
     ) {
       callable(std::forward<CapturedObjectBaseT>(obj));
@@ -173,7 +173,7 @@ struct DeferredPermissionsModifications : DeferredPermissionsModificationsBase
           DeferredPermissionsModificationsBase,
           std::decay_t<DeferredPermissionsModificationsT>
         >::value,
-        _not_a_type
+        utility::_not_a_type
       > /*unused*/ = { }
     ) {
       obj.apply_permissions_modifications(callable);

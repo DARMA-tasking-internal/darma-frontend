@@ -45,7 +45,7 @@
 #ifndef DARMAFRONTEND_SERIALIZATION_BUFFER_H
 #define DARMAFRONTEND_SERIALIZATION_BUFFER_H
 
-#include <darma/impl/util/compressed_pair.h>
+#include <darma/utility/compressed_pair.h>
 
 #include <memory>
 #ifndef DARMA_SERIALIZATION_NO_EXCEPTIONS
@@ -117,7 +117,7 @@ struct DynamicSerializationBuffer {
 
   private:
     // end_ must be first so that the allocator can be used to initialize begin_;
-    darma_runtime::detail::compressed_pair<char*, Allocator> end_ = nullptr;
+    darma_runtime::utility::compressed_pair<char*, Allocator> end_ = nullptr;
     char* begin_ = nullptr;
 };
 

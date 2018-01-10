@@ -45,7 +45,7 @@
 #ifndef META_TINYMPL_TEST_METATEST_HELPERS_H_
 #define META_TINYMPL_TEST_METATEST_HELPERS_H_
 
-#include <darma/impl/util/macros.h>
+#include <darma/utility/macros.h>
 
 #define meta_assert(...) \
   static_assert(__VA_ARGS__, \
@@ -81,6 +81,6 @@ struct never_evaluate_predicate
 
 }} // end namespace tinympl::test
 
-#include <darma/impl/util/static_assertions.h>
+#include <darma/utility/static_assertions.h>
 
 #endif /* META_TINYMPL_TEST_METATEST_HELPERS_H_ */

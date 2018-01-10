@@ -52,7 +52,7 @@
 #include <darma/interface/frontend/types/task_collection_task_t.h>
 
 #include <darma_types.h>
-#include <darma/impl/util/optional_boolean.h>
+#include <darma/utility/optional_boolean.h>
 
 
 namespace darma_runtime {

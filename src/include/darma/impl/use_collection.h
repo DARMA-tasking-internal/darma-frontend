@@ -389,7 +389,7 @@ class MappedUseCollection final /* final for now, at least */
     has_same_mapping_as(
       abstract::frontend::UseCollection const* other
     ) const override {
-      auto* other_cast = try_dynamic_cast<MappedUseCollection const*>(other);
+      auto* other_cast = utility::try_dynamic_cast<MappedUseCollection const*>(other);
       if(other_cast) {
         if(mapping_traits_t::known_same_mapping(
           mapping_fe_handle_to_be_task_, *other_cast
@@ -540,7 +540,7 @@ class BasicCollectionManagingUse final /* final for now, at least */
     BasicCollectionManagingUse(
       HandleUseBase&& arg
     ) : BasicCollectionManagingUse(
-          std::move(*safe_static_cast<BasicCollectionManagingUse*>(&arg))
+          std::move(*utility::safe_static_cast<BasicCollectionManagingUse*>(&arg))
         )
     { }
 

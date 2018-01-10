@@ -47,7 +47,7 @@
 
 #include <memory>
 
-#include <darma/impl/config.h>
+#include <darma/utility/config.h>
 #include <darma/impl/create_work/create_work_fwd.h>
 
 #include <darma/impl/create_work/permissions_downgrades.h>

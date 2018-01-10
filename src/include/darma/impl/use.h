@@ -84,7 +84,7 @@ class HandleUse
     // TODO put an unpack_ctor_tag or something here?!?
     HandleUse(
       HandleUseBase&& arg
-    ) : HandleUse(std::move(*safe_static_cast<HandleUse*>(&arg)))
+    ) : HandleUse(std::move(*utility::safe_static_cast<HandleUse*>(&arg)))
     { }
 
     /**

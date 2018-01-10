@@ -56,7 +56,7 @@
 #include "use_collection.h"
 #include "flow_relationship.h"
 
-#include <darma/impl/util/safe_static_cast.h>
+#include <darma/utility/safe_static_cast.h>
 
 namespace darma_runtime {
 namespace frontend {
@@ -486,7 +486,7 @@ ToUse
 use_cast(
   Use* from_use
 ) {
-  return darma_runtime::detail::safe_dynamic_cast<ToUse>(
+  return darma_runtime::utility::safe_dynamic_cast<ToUse>(
     from_use
   );
 }
@@ -496,7 +496,7 @@ ToUse
 use_cast(
   Use const* from_use
 ) {
-  return darma_runtime::detail::safe_dynamic_cast<ToUse>(
+  return darma_runtime::utility::safe_dynamic_cast<ToUse>(
     from_use
   );
 }

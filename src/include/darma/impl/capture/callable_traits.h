@@ -61,7 +61,7 @@
 
 #include <darma/impl/meta/detection.h>
 #include <darma/impl/util.h>
-#include <darma/impl/util/static_assertions.h>
+#include <darma/utility/static_assertions.h>
 
 #include "darma/impl/meta/any_convertible.h"
 #include "darma/impl/meta/is_callable.h"

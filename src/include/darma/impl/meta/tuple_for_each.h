@@ -49,7 +49,7 @@
 #include <utility>
 #include <type_traits>
 
-#include <darma/impl/compatibility.h>
+#include <darma/utility/compatibility.h>
 
 #include <tinympl/join.hpp>
 #include <tinympl/at.hpp>

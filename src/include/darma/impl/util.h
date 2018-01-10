@@ -57,14 +57,14 @@
 
 #include <tinympl/extract_template.hpp>
 
-#include <darma/impl/util/macros.h>
+#include <darma/utility/macros.h>
 
 #include <darma/impl/darma_assert.h>
-#include <darma/impl/util/not_a_type.h>
-#include <darma/impl/compatibility.h>
+#include <darma/utility/not_a_type.h>
+#include <darma/utility/compatibility.h>
 #include <darma/impl/meta/largest_aligned.h>
 #include <darma/interface/defaults/pointers.h>
-#include <darma/impl/util/safe_static_cast.h>
+#include <darma/utility/safe_static_cast.h>
 
 namespace darma_runtime {
 

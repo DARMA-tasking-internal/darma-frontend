@@ -44,11 +44,11 @@
 
 #include <gtest/gtest.h>
 
-#include <darma/impl/util/compressed_pair.h>
+#include <darma/utility/compressed_pair.h>
 
 #include "../metatest_helpers.h"
 
-using namespace darma_runtime::detail;
+using namespace darma_runtime::utility;
 
 struct Empty { };
 

@@ -47,7 +47,7 @@
 
 #include <cstdio> // size_t
 
-#include <darma/impl/util/optional_boolean.h>
+#include <darma/utility/optional_boolean.h>
 
 #include <darma/impl/task_collection/access_handle_collection_traits.h>
 

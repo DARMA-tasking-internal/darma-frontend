@@ -50,7 +50,7 @@
 #include <darma_types.h>
 
 #include <darma/impl/handle_use_base.h>
-#include <darma/impl/util/macros.h>
+#include <darma/utility/macros.h>
 
 #include <darma/impl/capture/semantics_macros.h>
 

@@ -207,7 +207,7 @@ AccessHandleCollection<T, IndexRange, Traits>::_setup_local_uses(
 
     auto old_key = this->var_handle_base_->get_key();
     auto new_handle = std::make_shared<detail::VariableHandle<T>>(
-      detail::safe_static_pointer_cast<detail::VariableHandle<T>>(
+      utility::safe_static_pointer_cast<detail::VariableHandle<T>>(
         this->var_handle_base_
       )->with_different_key(
         old_key.is_backend_generated() ?

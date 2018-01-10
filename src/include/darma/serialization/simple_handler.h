@@ -45,7 +45,7 @@
 #ifndef DARMAFRONTEND_SIMPLE_HANDLER_H
 #define DARMAFRONTEND_SIMPLE_HANDLER_H
 
-#include <darma/impl/util/not_a_type.h>
+#include <darma/utility/not_a_type.h>
 
 #include "simple_archive.h"
 #include "simple_handler_fwd.h"
@@ -145,7 +145,7 @@ struct SimpleSerializationHandler {
     //  CompatibleSizingArchive&& ar,
     //  std::enable_if_t<
     //    std::is_rvalue_reference<CompatibleSizingArchive&&>::value,
-    //    darma_runtime::detail::_not_a_type
+    //    darma_runtime::utility::_not_a_type
     //  > = { }
     //) {
     //  auto size = SimpleSerializationHandler::get_size(ar);
@@ -166,7 +166,7 @@ struct SimpleSerializationHandler {
       // Enforce move semantics on a forwarding reference template
       std::enable_if_t<
         std::is_rvalue_reference<SerializationBuffer&&>::value,
-        darma_runtime::detail::_not_a_type
+        darma_runtime::utility::_not_a_type
       > = { }
     ) {
       return SimplePackingArchive<std::decay_t<SerializationBuffer>>(std::move(buffer));
@@ -194,7 +194,7 @@ struct SimpleSerializationHandler {
       // Enforce move semantics on a forwarding reference template
       std::enable_if_t<
         std::is_rvalue_reference<CompatiblePackingArchive&&>::value,
-        darma_runtime::detail::_not_a_type
+        darma_runtime::utility::_not_a_type
       > = { }
     ) {
       ar._data_spot() = nullptr;  // As part of expiring the Archive

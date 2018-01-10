@@ -541,7 +541,7 @@ struct async_accessible_object_traits {
       std::enable_if_t<
         std::is_void<_Ignored>::value // always true
           and tinympl::is_detected<_has_get_value_archetype, _object_type_for_detection>::value,
-        detail::_not_a_type
+        utility::_not_a_type
       > = { }
     ) {
       return obj.get_value();
@@ -554,7 +554,7 @@ struct async_accessible_object_traits {
       std::enable_if_t<
         std::is_void<_Ignored>::value // always true
           and tinympl::is_detected<_adaptor_has_get_value_archetype, adaptor_type>::value,
-        detail::_not_a_type
+        utility::_not_a_type
       > = { }
     ) {
       return adaptor_type::get_value(obj);
@@ -567,7 +567,7 @@ struct async_accessible_object_traits {
       std::enable_if_t<
         std::is_void<_Ignored>::value // always true
           and tinympl::is_detected<_has_get_reference_archetype, _object_type_for_detection>::value,
-        detail::_not_a_type
+        utility::_not_a_type
       > = { }
     ) {
       return obj.get_reference();
@@ -580,7 +580,7 @@ struct async_accessible_object_traits {
       std::enable_if_t<
         std::is_void<_Ignored>::value // always true
           and tinympl::is_detected<_adaptor_has_get_reference_archetype, adaptor_type>::value,
-        detail::_not_a_type
+        utility::_not_a_type
       > = { }
     ) {
       return adaptor_type::get_reference(obj);

@@ -64,7 +64,7 @@
 #include <darma/impl/handle.h>
 #include <darma/impl/util/smart_pointers.h>
 
-#include <darma/impl/util/static_assertions.h>
+#include <darma/utility/static_assertions.h>
 
 #ifdef DARMA_OLD_CODE_DISABLED_REMOVE_THIS
 //==============================================================================

@@ -237,7 +237,7 @@ struct _create_work_then_helper<
         typename IfHelper::args_fwd_tuple_t,
         IfHelper::is_lambda_callable,
         callable_t, args_fwd_tuple_t, false,
-        _not_a_type, std::tuple<>, false, /* ElseGiven= */ false
+        utility::_not_a_type, std::tuple<>, false, /* ElseGiven= */ false
       >>(
         variadic_constructor_tag,
         std::move(*this)
