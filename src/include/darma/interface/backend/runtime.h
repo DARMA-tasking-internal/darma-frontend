@@ -422,11 +422,11 @@ class MemoryManager {
      *  returned pointer) must be valid until deallocated is called with the
      *  `rv` and the same `n_bytes` argument
      */
-    virtual void*
-    allocate(
-      size_t n_bytes,
-      frontend::MemoryRequirementDetails const& details
-    ) =0;
+    //virtual void*
+    //allocate(
+    //  size_t n_bytes,
+    //  frontend::MemoryRequirementDetails const& details
+    //) =0;
 
     /** @brief Release memory allocated by a previous call to
      *  `Runtime::allocate()`.
