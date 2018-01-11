@@ -14,10 +14,18 @@ set (DarmaFrontend_VERSION_MINOR 4)
 
 set (DARMA_FE_REPO_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR})
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${DARMA_FE_REPO_ROOT}/cmake-modules)
+
+
 option (DARMA_FE_ENABLE_TESTS "Enable build of frontend tests" Off)
 
 if (DARMA_FE_ENABLE_TESTS)
   message("DARMA frontend tests will be built.")
+  set(GTEST_ROOT ${GTEST_DIR})
+  set(GMOCK_ROOT ${GTEST_DIR})
+  find_package(GTest REQUIRED)
+  find_package(GMock REQUIRED)
   include(CTest)
   enable_testing()
 else()
@@ -36,8 +44,6 @@ option (DARMA_GENERATE_OO_MACRO_FILES
 option(DARMA_COVERAGE "Whether to setup coverage targets for tests" Off)
 
 if (DARMA_COVERAGE)
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR})
-set(CMAKE_MODULE_PATH ${DARMA_FE_REPO_ROOT}/cmake-modules)
 include(CodeCoverage)
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fprofile-arcs -ftest-coverage")
 endif()

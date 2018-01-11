@@ -60,6 +60,7 @@
 #include <darma/utility/macros.h>
 
 #include <darma/utility/darma_assert.h>
+#include <darma/utility/as_bytes.h>
 #include <darma/utility/not_a_type.h>
 #include <darma/utility/compatibility.h>
 #include <darma/utility/largest_aligned.h>

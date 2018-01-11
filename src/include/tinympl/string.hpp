@@ -207,15 +207,15 @@ struct basic_string
     template<std::size_t i,std::size_t count>
     using unguarded_substr = substr<i, (i+count <= size ? count : size - i)>;
 
-    template<class Str, int i, std::size_t s>
+    template<class Str, std::size_t i, std::size_t s>
     struct find_impl : std::conditional<
       unguarded_substr<i,Str::size>::type::template
       compare<Str>::value == 0,
-      std::integral_constant<int, i>,
+      std::integral_constant<std::size_t, i>,
       find_impl<Str,i+1,s>
     >::type {};
 
-    template<class Str, int s> struct find_impl<Str, s, s> : std::integral_constant<std::size_t, s> {};
+    template<class Str, std::size_t s> struct find_impl<Str, s, s> : std::integral_constant<std::size_t, s> {};
 
     template<class Str,int i>
     struct rfind_impl : std::conditional<
