@@ -107,18 +107,24 @@ struct try_demangle {
 
 #else // not defined DARMA_HAVE_CXXABI_H
 
+namespace darma_runtime {
+namespace utility {
+
 template <typename T>
 struct try_demangle {
   static std::string name() {
+    std::type_info const& info = typeid(T);
     std::stringstream sstr;
     sstr << "[failed demangling";
-    sstr << ": couldn't include file cxxabi.h."
+    sstr << ": couldn't include file cxxabi.h.";
     sstr << "  std::type_info::name() returned:" << info.name();
     sstr << "]";
     return sstr.str();
   }
 };
 
+} // end namespace utility
+} // end namespace darma_runtime
 
 #endif
 
