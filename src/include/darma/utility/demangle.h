@@ -47,14 +47,15 @@
 
 #include <darma/utility/config.h>
 
-#ifdef DARMA_HAVE_CXXABI_H
-
-#include <cxxabi.h>
 #include <string>
 #include <typeinfo>
 #include <cstdlib>
 #include <cassert>
 #include <sstream>
+
+#ifdef DARMA_HAVE_CXXABI_H
+
+#include <cxxabi.h>
 
 namespace darma_runtime {
 namespace utility {

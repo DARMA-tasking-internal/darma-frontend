@@ -114,7 +114,7 @@
 #define _darma_feature_disabled_by_default_unmanaged_data 1
 
 #define _darma_feature_date_darma_regions 20170919
-#define _darma_feature_disabled_by_default_darma_regions 1
+//#define _darma_feature_disabled_by_default_darma_regions 0
 
 // </editor-fold> end Feature Dates and Defaults }}}1
 //==============================================================================

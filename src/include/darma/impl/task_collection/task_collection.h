@@ -142,9 +142,11 @@ struct TaskCollectionImpl
     using dependencies_container_t = types::handle_container_template<
       abstract::frontend::DependencyUse*
     >;
-#if _darma_has_feature(task_collection_token)
+
+    #if _darma_has_feature(task_collection_token)
     types::task_collection_token_t token_ = { };
-#endif // _darma_has_feature(task_collection_token)
+    #endif // _darma_has_feature(task_collection_token)
+
     dependencies_container_t dependencies_;
     IndexRangeT collection_range_;
     args_tuple_t args_stored_;

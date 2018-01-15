@@ -200,7 +200,7 @@ class Task
 namespace frontend {
 
 std::unique_ptr<abstract::frontend::Task>
-make_running_task_to_return_when_unpacking();
+make_empty_running_task();
 
 } // end namespace frontend
 

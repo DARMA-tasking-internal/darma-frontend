@@ -46,6 +46,7 @@
 #define DARMAFRONTEND_DARMA_REGION_H
 
 #include <darma/impl/feature_testing_macros.h>
+#include <darma/interface/backend/darma_region.h>
 
 #if _darma_has_feature(darma_regions)
 
@@ -76,6 +77,40 @@ get_default_instance_token() {
 
 } // end namespace _impl
 
+
+/**
+ *
+ *  Keyword arguments to darma_region()
+ *
+ *    - `n_threads` (alias `n_workers`):  The number of threads or workers
+ *      to use when executing the region (default: all threads as set up
+ *      in `darma_initialize`, or all threads minus 1 if `blocking=false`
+ *    - `blocking`:  whether or not to completely execute all of the tasks
+ *      spawned by the region before returning.  If `false`, a `std::future<RT>`
+ *      will be returned, where `RT` is the return type of the `Callable`
+ *      (potentially unwrapped as `T` if an `AccessHandle<T>` is returned).
+ *      Note that `blocking=true` will also return a `std::future<RT>` that will
+ *      always be ready upon return and can be safely ignored.  To avoid generating
+ *      a `std::future<RT>` althogether (and instead get back a `RT` directly),
+ *      use `darma_region_blocking()`.  Default value is `false`
+ *    - `launch_from_parallel`:  If `true`, DARMA will expect `n_threads`
+ *      identical calls of `darma_region()`, with exactly one having `true`
+ *      as the value for `is_parallel_launch_master`.  This is used to transition
+ *      from a multi-threaded context to a multi-threaded use of DARMA without
+ *      launching new threads.  DARMA will use the threads calling in to
+ *      this function as workers, and the `Callable` argument will be run on
+ *      the thread calling with `is_parallel_launch_master=true` (or on any one of
+ *      the threads if that keyword is not given).  A `std::shared_future<RT>` will
+ *      be returned on each thread.
+ *    - `is_parallel_launch_master`:  Indicates which thread will run the `callable`
+ *      when running in `launch_from_parallel` mode.  Requires `launch_from_parallel=true`.
+ *
+ *  @TODO finish this
+ *
+ * @tparam Callable
+ * @param callable
+ * @return
+ */
 template <typename Callable>
 auto
 darma_region(Callable&& callable) {

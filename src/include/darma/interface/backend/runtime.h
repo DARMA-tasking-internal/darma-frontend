@@ -478,52 +478,6 @@ typedef Runtime runtime_t;
 
 } // end namespace abstract
 
-namespace backend {
-
-#if _darma_has_feature(darma_regions)
-
-void
-initialize_runtime_arguments(int& argc, char**& argv);
-
-types::runtime_instance_token_t
-initialize_runtime_instance();
-
-void
-register_runtime_instance_quiescence_callback(
-  types::runtime_instance_token_t& token,
-  std::function<void()> callback
-);
-
-//void
-//activate_runtime_instance(
-//  types::runtime_instance_token_t& token
-//);
-
-void
-with_active_runtime_instance(
-  types::runtime_instance_token_t& token,
-  std::function<void()> callback
-);
-
-//void
-//deactivate_runtime_instance(
-//  types::runtime_instance_token_t& token
-//);
-
-//void
-//await_runtime_instance_quiescence(
-//  types::runtime_instance_token_t& token
-//);
-
-//void
-//destroy_runtime_instance(
-//  types::runtime_instance_token_t& token
-//);
-
-#endif // _darma_has_feature(darma_regions)
-
-} // end namespace backend
-
 } // end namespace darma_runtime
 
 

@@ -565,10 +565,7 @@ class EmptyTask : public TaskBase {
     size_t get_packed_size() const override {
       assert(false); // not migratable
       return 0;
-    }
-
-    void pack(char*&) const override {
-      assert(false); // not migratable
+    } void pack(char*&) const override { assert(false); // not migratable
     }
 
     void run() override {
@@ -618,13 +615,7 @@ namespace frontend {
 
 inline
 std::unique_ptr<abstract::frontend::Task>
-make_running_task_to_return_when_unpacking() {
-  return std::make_unique<darma_runtime::detail::EmptyTask>();
-}
-
-inline
-std::unique_ptr<abstract::frontend::Task>
-make_running_task_to_return_with_top_level_runtime_instance() {
+make_empty_running_task() {
   return std::make_unique<darma_runtime::detail::EmptyTask>();
 }
 
