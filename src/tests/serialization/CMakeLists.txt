@@ -29,7 +29,7 @@ add_serialization_test(test_simple_array)
 
 add_executable(run_all_serialization_tests ${serializationtestfiles} gtest_main.cc)
 
-target_link_libraries(run_all_serialization_tests ${GTEST_LIBRARIES} ${GMOCK_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(run_all_serialization_tests ${GMOCK_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 if (DARMA_COVERAGE)
 setup_target_for_coverage(serialization_coverage run_all_serialization_tests coverage)
 endif()

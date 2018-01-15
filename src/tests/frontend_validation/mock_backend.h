@@ -184,7 +184,7 @@ class MockRuntime
       use_t*, publication_details_t*)
     );
 
-    MOCK_METHOD1(allocate, void*(size_t));
+    MOCK_METHOD1(allocate, void*(std::size_t));
     //MOCK_METHOD2(allocate, void*(size_t,
     //  darma_runtime::abstract::frontend::MemoryRequirementDetails const&));
     MOCK_METHOD2(deallocate, void(void*, size_t));

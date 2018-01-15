@@ -95,7 +95,7 @@ else()
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DDARMA_CANNOT_GENERATE_TAG_HEADERS=1")
 endif()
 
-target_link_libraries(run_all_frontend_tests ${DARMA_BACKEND_LIBNAME} ${GTEST_LIBRARIES} ${GMOCK_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(run_all_frontend_tests ${DARMA_BACKEND_LIBNAME} ${GMOCK_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 if (DARMA_COVERAGE)
 setup_target_for_coverage(frontend_coverage run_all_frontend_tests coverage)
 endif()
