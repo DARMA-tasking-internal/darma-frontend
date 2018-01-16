@@ -17,6 +17,7 @@ set(metatestfiles gtest_main.cc ../serialization/test_simple_std_map.cc ../seria
 function(add_unit_test test_name)
     set(metatestfiles "${metatestfiles};${test_name}.cc" PARENT_SCOPE)
     add_executable(${test_name} ${test_name}.cc gtest_main.cc)
+    # GMock links to GTest, so all we need is GMock
     target_link_libraries(${test_name} ${DARMA_BACKEND_LIBNAME} ${GMOCK_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
     add_test(${test_name} ${CMAKE_CURRENT_BINARY_DIR}/${test_name} "")
     set_tests_properties(${test_name} PROPERTIES TIMEOUT 30

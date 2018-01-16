@@ -9,13 +9,14 @@ find_package ( Threads REQUIRED )
 
 include_directories( ${DARMA_FE_REPO_ROOT}/src/tests/frontend_validation )
 function(add_unit_test test_name)
-set(frontendtestfiles "${frontendtestfiles};${test_name}.cc" PARENT_SCOPE)
-add_executable(${test_name} ${test_name}.cc gtest_main.cc)
-target_link_libraries(${test_name} ${DARMA_BACKEND_LIBNAME} ${GTEST_LIBRARIES} ${GMOCK_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
-add_test(${test_name} ${CMAKE_CURRENT_BINARY_DIR}/${test_name} "")
-set_tests_properties(${test_name} PROPERTIES TIMEOUT 30
-  FAIL_REGULAR_EXPRESSION "FAILED;should be deleted but never is"
-  PASS_REGULAR_EXPRESSION "PASSED")
+  set(frontendtestfiles "${frontendtestfiles};${test_name}.cc" PARENT_SCOPE)
+  add_executable(${test_name} ${test_name}.cc gtest_main.cc)
+  # GMock links to GTest, so all we need is GMock
+  target_link_libraries(${test_name} ${DARMA_BACKEND_LIBNAME} ${GMOCK_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+  add_test(${test_name} ${CMAKE_CURRENT_BINARY_DIR}/${test_name} "")
+  set_tests_properties(${test_name} PROPERTIES TIMEOUT 30
+    FAIL_REGULAR_EXPRESSION "FAILED;should be deleted but never is"
+    PASS_REGULAR_EXPRESSION "PASSED")
 endfunction()
 
 add_unit_test(test_read_access)

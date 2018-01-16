@@ -9,7 +9,6 @@ set(DARMA_KEY_HEADERS
   key.impl.h
   key_fwd.h
   raw_bytes.h
-  simple_key_fwd.h
 )
 
 install (FILES ${DARMA_KEY_HEADERS} DESTINATION include/darma/key)
