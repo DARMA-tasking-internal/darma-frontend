@@ -49,12 +49,18 @@
 
 namespace tinympl {
 
+// Workaround for ICC issue with default template template parameters
+namespace _impl {
+
+
+} // end namespace _impl
+
 template <
   typename ValueType,
   ValueType value,
   typename DefaultResult = void,
-  template <ValueType, ValueType> class value_equal
-    = make_value_equal<ValueType>::template apply
+  // metafunction class with apply taking two ValueType arguments
+  typename value_equal_mfc = tinympl::make_value_equal<ValueType>
 >
 struct static_value_switch {
   template <
@@ -68,7 +74,7 @@ struct static_value_switch {
       result_found,
       FoundResult,
       std::conditional_t<
-        value_equal<value, case_value>::type::value,
+        value_equal_mfc::template apply<value, case_value>::type::value,
         Result,
         DefaultResult
       >
@@ -80,7 +86,7 @@ struct static_value_switch {
     using case_ = _value_switch_case<
       next_value, NextResult,
       type,
-      result_found || value_equal<value, case_value>::type::value
+      result_found || value_equal_mfc::template apply<value, case_value>::type::value
     >;
     template <
       typename DefResult
@@ -107,8 +113,7 @@ template <
   typename ValueType,
   ValueType value,
   typename DefaultResult = void,
-  template <ValueType, ValueType> class value_equal
-    = make_value_equal<ValueType>::template apply
+  typename value_equal = tinympl::make_value_equal<ValueType>
 >
 using switch_value_ = static_value_switch<
   ValueType, value, DefaultResult, value_equal
