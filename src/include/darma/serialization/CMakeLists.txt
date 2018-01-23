@@ -6,6 +6,7 @@ set(DARMA_SERIALIZATION_HEADERS
   pointer_reference_handler.h
   pointer_reference_handler_fwd.h
   serialization_buffer.h
+  serialization_fwd.h
   serialization_traits.h
   serialization_traits.impl.h
   serialization_traits_fwd.h
