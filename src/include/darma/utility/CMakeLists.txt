@@ -1,18 +1,20 @@
 
 set(DARMA_UTILITY_HEADERS
+  as_bytes.h
   compatibility.h
   compressed_pair.h
   config.h
   constexpr_if.h
+  darma_assert.h
   demangle.h
+  largest_aligned.h
   macros.h
   managed_swap_storage.h
   not_a_type.h
+  optional_boolean.h
   safe_static_cast.h
   static_assertions.h
   tag_types.h
-  darma_assert.h
-  as_bytes.h
 )
 
 install (FILES ${DARMA_UTILITY_HEADERS} DESTINATION include/darma/utility)
