@@ -225,7 +225,7 @@ struct basic_string
       rfind_impl<Str,i-1>
     >::type {};
 
-    template<class Str, std::size_t s> struct find_impl< Str, -1, s> : std::integral_constant< std::size_t, s> {};
+    template<class Str, std::size_t s> struct find_impl< Str, (size_t)-1, s> : std::integral_constant< std::size_t, s> {};
 
   public:
 
