@@ -1,6 +1,6 @@
 ![DARMA](https://github.com/darma-tasking/darma-frontend/blob/devel/logo.png)
 
-# DARMA (Distributed, Asynchronous, Resilient Models for Applications) is a
+# DARMA (Distributed, Asynchronous, Resilient Models for Applications) 
 
 #### Copyright (c) 2017, Sandia National Laboratories
 Sandia National Laboratories is a multimission laboratory managed and operated
