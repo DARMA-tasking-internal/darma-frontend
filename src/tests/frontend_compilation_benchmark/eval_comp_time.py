@@ -2,47 +2,78 @@ import os
 import sys
 import subprocess
 import time
+import jinja2
 import json
+from random import choice
 
-def touch(fname, times=None):
-    with open(fname, 'a'):
-        os.utime(fname, times)
+#################################################
 
+# Call cmake command and measure 
+def call_cmake(command, source_dir, dir_path, target_name):
+   start_time = time.time()
+   subprocess.call([command,'--build', dir_path, '--target', target_name+'.measure'])
+   finis_time = time.time()
+   return finis_time - start_time
+
+
+#################################################
+
+# Store command line arguments
 target    = sys.argv[1]
 cmake_cmd = sys.argv[2]
-cmake_dir = sys.argv[3]
-darma_dir = sys.argv[4]
+darma_dir = sys.argv[3]
 
 # Evaluate path for include_var.h
 source_dir = os.path.dirname(os.path.abspath(os.path.dirname(__file__)))
 source_dir = os.path.join(source_dir,'frontend_compilation_benchmark')
-input_name = os.path.join(source_dir,'include_var.h')
 
-# Write include_var.h -> TESTON 0
-inc_file = open(input_name, "w")
-inc_file.write("#define TESTON 0")
-inc_file.close()
+print(source_dir)
 
-# Evaluate compile time without test section
-touch(os.path.join(source_dir,target+'.cc'), None)
-start_time_test_off = time.time()
-subprocess.call([cmake_cmd,'--build',darma_dir,'--target',target+'.measure'])
-finis_time_test_off = time.time()
+# Check if template exists. If so, evaluate template
+if os.path.isfile(os.path.join(source_dir,target+'.jin.cc')):
 
-# Sleep for one second
-time.sleep(1)
+   templateLD = jinja2.FileSystemLoader(searchpath=source_dir)
+   templateEV = jinja2.Environment(loader=templateLD)
 
-# Write include_var.h -> TESTON 1
-inc_file = open(input_name, "w")
-inc_file.write("#define TESTON 1")
-inc_file.close()
+   time_dict = {}
+   for i in range(1, 11, 5):
 
-# Evaluate compile time with test section
-touch(os.path.join(source_dir,target+'.cc'), None)
-start_time_test_on = time.time()
-subprocess.call([cmake_cmd,'--build',darma_dir,'--target',target+'.measure'])
-finis_time_test_on = time.time()
+      # Sleep for one second
+      time.sleep(1)
 
-time_elapsed = (finis_time_test_on - start_time_test_on) - (finis_time_test_off - start_time_test_off)
-file_object  = open(target+'.json', "w")
-file_object.write(json.dumps({'compilation time': time_elapsed}, ensure_ascii=False))
+      # Render template without test section
+      template = templateEV.get_template(target+'.jin.cc')
+      outputText = template.render(N=i,teston=0,choice=choice)
+
+      # Store source file
+      source_file = open(os.path.join(source_dir,target+'.cc'), 'w')
+      source_file.write(outputText)
+      source_file.close() 
+
+      # Evaluate compile time without test section
+      compile_time_off = call_cmake(cmake_cmd, source_dir, darma_dir, target)
+
+      # Sleep for one second
+      time.sleep(1)
+
+      # Render template with test section
+      outputText = template.render(N=i,teston=1,choice=choice)
+
+      # Store source file
+      source_file = open(os.path.join(source_dir,target+'.cc'), 'w')
+      source_file.write(outputText)
+      source_file.close()
+
+      # Evaluate compile time with test section
+      compile_time_on = call_cmake(cmake_cmd, source_dir, darma_dir, target)
+
+      # Save compile time in dictionary
+      time_dict['N='+str(i)] = compile_time_on - compile_time_off
+
+   file_object  = open(target+'.json', "w")
+   file_object.write(json.dumps({'compilation time': time_dict}, indent=4, sort_keys=True, ensure_ascii=False))
+
+else:
+
+   print('Error: jinja2 template file '+target+'.jin.cc is missing.')
+   sys.exit(errno.ENOENT)
