@@ -60,11 +60,13 @@ class IndexRange
   : public PolymorphicSerializableObject<IndexRange>
 {
   public:
-    /** @todo
+    /** 
      *
      * @return
      */
     virtual size_t size() const =0;
+
+    virtual ~IndexRange(){}
 
 };
 

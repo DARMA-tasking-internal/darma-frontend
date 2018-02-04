@@ -331,6 +331,7 @@ class CaptureDescriptionBase {
     { }
 
   public:
+    virtual ~CaptureDescriptionBase(){}
 
     virtual void
     replace_source_pointer(CapturedObjectBase const*) =0;

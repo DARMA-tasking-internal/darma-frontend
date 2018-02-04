@@ -57,6 +57,7 @@ namespace frontend {
 
 class ReduceOp : public PolymorphicSerializableObject<ReduceOp> {
   public:
+    virtual ~ReduceOp(){}
 
     virtual void
     reduce_unpacked_into_unpacked(

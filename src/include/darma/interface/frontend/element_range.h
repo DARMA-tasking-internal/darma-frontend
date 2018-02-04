@@ -61,6 +61,7 @@ namespace frontend {
  */
 class ElementRange {
   public:
+    virtual ~ElementRange(){}
 
     // TODO Figure out constness here?
     // TODO figure out if it's reasonable to make this a void*& to allow
