@@ -3,8 +3,7 @@ frontend headers, execute:
 
 $ cmake ${source} \
   -DCMAKE_INSTALL_PREFIX=${frontend_prefix} \
-  -DCMAKE_CXX_COMPILER=${cxxcompiler} \
-  -DCMAKE_C_COMPILER=${ccompiler}
+  -DCMAKE_CXX_COMPILER=${cxxcompiler} 
 $ make install
 
 where ${frontend_prefix} is the location you want the headers
