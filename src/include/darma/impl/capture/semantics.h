@@ -435,6 +435,36 @@ _darma_CAPTURE_CASE(
   false
 );
 
+
+//==============================================================================
+// Commutative
+//==============================================================================
+
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+// %   MN -> { MM } -> MN     %
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+_darma_CAPTURE_CASE(
+  /* ---------- pattern parameters ---------- */
+  Commutative,
+  /* Source Permissions */
+  Modify, None,
+  /* captured permissions */
+  Modify, Modify,
+  /* ---------- output for cases matching this pattern ----------*/
+  /* continuing permissions */
+  Modify, None,
+  /* captured flows */
+  same_flow(source_in), same_flow(source_out),
+  /* captured anti-flows */
+  same_anti_flow(source_anti_in), same_anti_flow(source_anti_out),
+  /* continuing flows */
+  same_flow(source_in), same_flow(source_out),
+  /* continuing anti-flows */
+  same_anti_flow(source_anti_in), same_anti_flow(source_anti_out),
+  /* could be alias: */
+  false
+);
+
 // and force instantiation of all capture cases so that the registry is created.
 static int _force_instantiate_capture_cases = capture_semantics::apply_with_capture_case(
   frontend::Permissions::None, frontend::Permissions::None,

@@ -437,6 +437,24 @@ unpack_impl(void* allocated, UnpackingArchive& ar) {
   >::type _failure;
 }
 
+template <typename T, typename UnpackingArchive>
+std::enable_if_t<
+  not darma_runtime::serialization::is_unpackable_with_archive<T, UnpackingArchive>::value
+    and not impl::get_serializer_style<T, UnpackingArchive>::unserializable
+>
+unpack_impl(void* allocated, UnpackingArchive& ar) {
+  struct ___serialization_failed_because_type___ { };
+  struct ___is_not_unpackable_with_archive_of_type___ { };
+  struct ___for_unknown_reason___ { };
+  typename _darma__static_failure<
+    _____________________________________________________________________,
+    ___serialization_failed_because_type___, T,
+    ___is_not_unpackable_with_archive_of_type___, UnpackingArchive,
+    ___for_unknown_reason___,
+    _____________________________________________________________________
+  >::type _failure;
+}
+
 // </editor-fold> end unpack() customization point default implementation }}}1
 //==============================================================================
 

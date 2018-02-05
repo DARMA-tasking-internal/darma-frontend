@@ -2,9 +2,9 @@
 //@HEADER
 // ************************************************************************
 //
-//                      all.h
+//                      c_string.h
 //                         DARMA
-//              Copyright (C) 2017 Sandia Corporation
+//              Copyright (C) 2018 Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -42,19 +42,50 @@
 //@HEADER
 */
 
-#ifndef DARMAFRONTEND_SERIALIZATION_SERIALIZERS_ALL_H
-#define DARMAFRONTEND_SERIALIZATION_SERIALIZERS_ALL_H
+#ifndef DARMAFRONTEND_SERIALIZATION_SERIALIZERS_C_STRING_H
+#define DARMAFRONTEND_SERIALIZATION_SERIALIZERS_C_STRING_H
 
-#include <darma/serialization/serializers/arithmetic_types.h>
-#include <darma/serialization/serializers/array.h>
-#include <darma/serialization/serializers/const.h>
-#include <darma/serialization/serializers/c_string.h>
+namespace darma_runtime {
+namespace serialization {
 
-#include <darma/serialization/serializers/standard_library/map.h>
-#include <darma/serialization/serializers/standard_library/set.h>
-#include <darma/serialization/serializers/standard_library/string.h>
-#include <darma/serialization/serializers/standard_library/vector.h>
-#include <darma/serialization/serializers/standard_library/pair.h>
-#include <darma/serialization/serializers/standard_library/tuple.h>
+#include <darma/serialization/nonintrusive.h>
+#include <darma/serialization/serialization_traits.h>
+#include <cstring>
+#include <type_traits>
 
-#endif //DARMAFRONTEND_SERIALIZATION_SERIALIZERS_ALL_H
+template <>
+struct is_directly_serializable<char const*> : std::false_type { };
+
+template <>
+struct Serializer<char const*>
+{
+  template <typename SizingArchive>
+  static void compute_size(char const* const& obj, SizingArchive& ar) {
+    const auto len = std::strlen(obj);
+    ar % len;
+    ar.add_to_size_raw(len);
+  }
+
+  template <typename PackingArchive>
+  static void pack(char const* const& obj, PackingArchive& ar) {
+    const auto len = std::strlen(obj);
+    ar << len;
+    for(int i = 0; i < len; ++i) {
+      ar << obj[i];
+    }
+  }
+
+  // TODO unpack for char const* ?!??!?
+  //template <typename UnpackingArchive>
+  //static void unpack(void* allocated, UnpackingArchive& ar) {
+  //  char* allocated_ptr = static_cast<char*>(allocated);
+  //  for(int64_t i = 0; i < N; ++i, allocated_ptr += sizeof(T)) {
+  //    ar.template unpack_next_item_at<T>(allocated_ptr);
+  //  }
+  //}
+};
+
+} // end namespace serialization
+} // end namespace darma_runtime
+
+#endif //DARMAFRONTEND_SERIALIZATION_SERIALIZERS_C_STRING_H
