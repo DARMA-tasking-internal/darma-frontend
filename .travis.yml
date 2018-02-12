@@ -1,0 +1,43 @@
+sudo: true
+dist: trusty
+language: cpp
+script: cmake
+matrix:
+  include:
+    - os: linux
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-7
+      env:
+        - MATRIX_EVAL="CC=gcc-7 && CXX=g++-7"
+addons:
+  apt:
+    sources:
+      - george-edison55-precise-backports
+    packages:
+      - cmake-data
+      - cmake
+      - libgtest-dev
+before_install:
+  - eval "${MATRIX_EVAL}"
+before_script:
+  - wget https://github.com/google/googletest/archive/release-1.8.0.tar.gz -O /tmp/gtest.tar.gz
+  - tar -xvf /tmp/gtest.tar.gz
+  - export GTEST=$PWD/googletest-release-1.8.0
+script:
+  - export SRCDIR=$PWD
+  - cd $GTEST
+  - mkdir build
+  - cd build
+  - cmake -DCMAKE_INSTALL_PREFIX=$GTEST/install ..
+  - make
+  - make install
+  - cd $SRCDIR
+  - mkdir build
+  - cd build
+  - cmake -DDARMA_FE_ENABLE_TESTS=On -DGTEST_DIR=$GTEST/install ..
+  - make
+  - make test
