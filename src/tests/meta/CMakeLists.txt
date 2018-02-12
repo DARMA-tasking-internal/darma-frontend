@@ -34,7 +34,7 @@ add_unit_test(test_is_contiguous)
 add_unit_test(test_is_iterator)
 add_unit_test(test_any_convertible)
 
-add_executable(run_all_meta_tests ${metatestfiles})
+add_executable(run_all_meta_tests ${metatestfiles} gtest_main.cc)
 target_link_libraries(run_all_meta_tests ${DARMA_BACKEND_LIBNAME} ${GMOCK_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 if (DARMA_COVERAGE)
     setup_target_for_coverage(meta_coverage run_all_meta_tests coverage)
