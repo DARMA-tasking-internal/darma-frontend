@@ -34,6 +34,7 @@ install:
   - make
   - make install
 script:
+  - cd $TRAVIS_BUILD_DIR
   - mkdir build
   - cd build
   - cmake -DDARMA_FE_ENABLE_TESTS=On -DGTEST_DIR=$GTEST/install ..
