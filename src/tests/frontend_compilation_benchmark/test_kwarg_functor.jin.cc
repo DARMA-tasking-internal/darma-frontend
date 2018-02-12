@@ -4,9 +4,9 @@
 //
 //                      helpers.h
 //                         DARMA
-//              Copyright (C) 2016 Sandia Corporation
+//              Copyright (C) 2017 NTESS, LLC
 //
-// Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
+// Under the terms of Contract DE-NA-0003525 with NTESS, LLC,
 // the U.S. Government retains certain rights in this software.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -36,42 +36,36 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Questions? Contact David S. Hollman (dshollm@sandia.gov)
+// Questions? Contact darma@sandia.gov
 //
 // ************************************************************************
 //@HEADER
 */
 
-#ifndef DARMA_TESTS_FRONTEND_VALIDATION_HELPERS_H
-#define DARMA_TESTS_FRONTEND_VALIDATION_HELPERS_H
+#include "test_kwarg_header.h"
 
-#include <darma/interface/frontend/use.h>
+{% if teston == 0 %}
+#define TESTON 0
+{% else %}
+#define TESTON 1
+{% endif %}
 
-#include <string>
-
-inline std::string
-permissions_to_string(testing::internal::AnythingMatcher) {
-  return "<any permissions>";
-}
-
-inline std::string
-permissions_to_string(int i) {
-  if(i == -1) return "<any permissions>";
-  else return "<unknown/invalid permissions specification>";
-}
+////////////////////////////////////////////////////////////////////////////////
 
 namespace darma_runtime {
-namespace frontend {
 
-inline std::ostream&
-operator<<(std::ostream& o, darma_runtime::frontend::Permissions per) {
-  o << permissions_to_string(per);
-  return o;
+void test_kwarg_functor() {
+
+#ifdef TESTON  
+
+   {% for i in range(0, N): %}foo_kwarg_functor_test_one({% for j in range(0,i): %}{{j+1}}, {% endfor %}{{i+1}});
+   {% endfor %}
+
+#endif 
+
 }
 
-} // end namespace frontend
 } // end namespace darma_runtime
 
+////////////////////////////////////////////////////////////////////////////////
 
-
-#endif //DARMA_TESTS_FRONTEND_VALIDATION_HELPERS_H

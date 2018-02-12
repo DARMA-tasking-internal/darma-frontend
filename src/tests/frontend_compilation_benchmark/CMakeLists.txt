@@ -12,6 +12,7 @@ endif()
 
 find_package ( Threads REQUIRED )
 find_package( PythonInterp )
+find_python_module( jinja2 REQUIRED )
 
 if( PYTHON_VERSION_STRING VERSION_LESS 2.7 )
    message(FATAL_ERROR "Can't generate OO headers for test_oo without Python2.7 or later")
@@ -31,21 +32,7 @@ endfunction(add_compilation_time_tests)
 # Add unit tests for compilation
 ##################################################
 
-add_compilation_time_tests(test_create_work)
-
-##################################################
-# Global target that depends on all unit tests
-##################################################
-
-add_custom_target(benchmarks ALL COMMENT "Generate all compilation benchmarks.")
-
-##################################################
-# Create empty include_var.h if needed
-##################################################
-
-if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/include_var.h")
-   file(WRITE "${CMAKE_CURRENT_SOURCE_DIR}/include_var.h" "")
-endif()
+add_compilation_time_tests(test_kwarg_functor)
 
 ##################################################
 # Loop over tests
@@ -53,21 +40,22 @@ endif()
 
 foreach(test_name IN LISTS UNIT_TESTS_NAMES)
 
-## Create target 
+## Set source file name
    set(test_files "${CMAKE_CURRENT_SOURCE_DIR}/${test_name}.cc")
-   add_library(${test_name}.measure OBJECT ${test_files})
+
+## Create empty source file if required
+   if (NOT EXISTS "${test_files}")
+   file(WRITE "${test_files}" "")
+   endif()
+
+## Create target 
+   add_library(${test_name}.measure EXCLUDE_FROM_ALL OBJECT ${test_files})
    
 ## Create custom command that will invoke the cmake test
-   set(output_file "${CMAKE_CURRENT_BINARY_DIR}/${test_name}.json")
-   add_custom_command(OUTPUT ${output_file} 
-      COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/eval_comp_time.py" ${test_name} ${CMAKE_COMMAND} ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CACHEFILE_DIR}
+   add_test("${test_name}.compile"
+      COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/eval_comp_time.py" ${test_name} ${CMAKE_COMMAND} ${CMAKE_BINARY_DIR}
       VERBATIM USES_TERMINAL
-      DEPENDS "${test_files}" "${CMAKE_CURRENT_SOURCE_DIR}/include_var.h"
-      COMMENT "Evaluating compilation time for ${test_name}"
+      DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/eval_comp_time.py" 
    )
-
-## Create a custom target and add it as a dependency of the benchmarks target
-   add_custom_target(${test_name}.compile DEPENDS ${output_file})
-   add_dependencies(benchmarks ${test_name}.compile)
 
 endforeach()

@@ -6,7 +6,7 @@
 //                         DARMA
 //              Copyright (C) 2017 Sandia Corporation
 //
-// Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
+// Under the terms of Contract DE-NA-0003525 with NTESS, LLC,
 // the U.S. Government retains certain rights in this software.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,7 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Questions? Contact David S. Hollman (dshollm@sandia.gov)
+// Questions? Contact darma@sandia.gov
 //
 // ************************************************************************
 //@HEADER
@@ -331,6 +331,7 @@ class CaptureDescriptionBase {
     { }
 
   public:
+    virtual ~CaptureDescriptionBase(){}
 
     virtual void
     replace_source_pointer(CapturedObjectBase const*) =0;
