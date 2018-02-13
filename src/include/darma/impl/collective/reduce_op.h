@@ -56,7 +56,7 @@
 #include <darma/impl/array/indexable.h>
 #include <darma/impl/array/concept.h>
 #include <darma/impl/meta/has_op.h>
-#include <darma/impl/polymorphic_serialization.h>
+#include <darma/serialization/polymorphic/polymorphic_serialization.h>
 
 #include <darma/serialization/serializers/standard_library/set.h>
 

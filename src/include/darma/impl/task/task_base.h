@@ -92,7 +92,7 @@
 #include <darma/impl/use.h>
 #include <darma/impl/util/smart_pointers.h>
 #include <darma/impl/capture.h>
-#include <darma/impl/polymorphic_serialization.h>
+#include <darma/serialization/polymorphic/polymorphic_serialization.h>
 #include <darma/keyword_arguments/parse.h>
 
 namespace darma_runtime {

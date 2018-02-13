@@ -46,7 +46,7 @@
 #define DARMA_IMPL_INDEX_RANGE_DENSE_RANGE_H
 
 #include <darma/interface/frontend/index_range.h>
-#include <darma/impl/polymorphic_serialization.h>
+#include <darma/serialization/polymorphic/polymorphic_serialization.h>
 
 namespace darma_runtime {
 namespace indexing {

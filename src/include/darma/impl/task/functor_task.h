@@ -51,7 +51,7 @@
 #include <darma/impl/util.h>
 #include <darma/impl/handle.h>
 #include <darma/impl/util/smart_pointers.h>
-#include <darma/impl/polymorphic_serialization.h>
+#include <darma/serialization/polymorphic/polymorphic_serialization.h>
 
 #include <darma/serialization/serializers/standard_library/tuple.h>
 

@@ -48,7 +48,7 @@
 #include <darma/impl/feature_testing_macros.h>
 
 #if _darma_has_feature(create_concurrent_work)
-#include <darma/impl/polymorphic_serialization.h>
+#include <darma/serialization/polymorphic/polymorphic_serialization.h>
 #include <darma/impl/handle.h>
 #include <darma/impl/task_collection/access_handle_collection.h>
 #include <darma/interface/frontend/task_collection.h>

@@ -48,7 +48,7 @@
 #include <cassert>
 #include <type_traits>
 
-#include <darma/impl/polymorphic_serialization.h>
+#include <darma/serialization/polymorphic/polymorphic_serialization.h>
 
 namespace darma_runtime {
 

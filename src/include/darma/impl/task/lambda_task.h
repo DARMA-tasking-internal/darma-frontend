@@ -45,7 +45,7 @@
 #ifndef DARMAFRONTEND_LAMBDA_TASK_H
 #define DARMAFRONTEND_LAMBDA_TASK_H
 
-#include <darma/impl/polymorphic_serialization.h>
+#include <darma/serialization/polymorphic/polymorphic_serialization.h>
 
 #include "task_base.h"
 #include "task_ctor_helper.h"

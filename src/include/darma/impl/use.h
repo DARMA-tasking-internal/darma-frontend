@@ -59,7 +59,7 @@
 #include <darma/impl/index_range/index_range_traits.h>
 #include <darma/impl/util/managing_ptr.h>
 #include <darma/impl/handle_use_base.h>
-#include "polymorphic_serialization.h"
+#include "darma/serialization/polymorphic/polymorphic_serialization.h"
 
 namespace darma_runtime {
 
