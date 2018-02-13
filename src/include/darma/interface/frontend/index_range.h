@@ -45,9 +45,9 @@
 #ifndef DARMA_INTERFACE_FRONTEND_INDEX_RANGE_H
 #define DARMA_INTERFACE_FRONTEND_INDEX_RANGE_H
 
-#include <cstdlib> // size_t
+#include <darma/serialization/polymorphic/polymorphic_serializable_object.h>
 
-#include "polymorphic_serializable_object.h"
+#include <cstdlib> // size_t
 
 namespace darma_runtime {
 namespace abstract {
@@ -57,7 +57,7 @@ namespace frontend {
  *
  */
 class IndexRange
-  : public PolymorphicSerializableObject<IndexRange>
+  : public serialization::PolymorphicSerializableObject<IndexRange>
 {
   public:
     /** 

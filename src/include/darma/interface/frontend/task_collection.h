@@ -47,7 +47,7 @@
 
 #include <darma/interface/frontend/types.h> // types::handle_container_template<>
 
-#include <darma/interface/frontend/polymorphic_serializable_object.h>
+#include <darma/serialization/polymorphic/polymorphic_serializable_object.h>
 
 #include <darma/interface/frontend/types/task_collection_task_t.h>
 
@@ -66,7 +66,7 @@ namespace frontend {
  */
 class TaskCollection
 #if _darma_has_feature(task_migration)
-  : public PolymorphicSerializableObject<TaskCollection>
+  : public serialization::PolymorphicSerializableObject<TaskCollection>
 #endif //_darma_has_feature(task_migration)
 {
   public:

@@ -46,16 +46,17 @@
 #define DARMA_IMPL_TOP_LEVEL_H
 
 
-#include <darma/interface/frontend/top_level.h>
 #include <darma/impl/task/task.h>
+#include <darma/impl/capture/semantics.h>
 
-#include <functional>
+#include <darma/interface/frontend/top_level.h>
 #include <darma/interface/frontend/top_level_task.h>
 
+#include <darma/serialization/polymorphic/polymorphic_serialization_adapter.h>
 #include <darma/serialization/serializers/standard_library/string.h> // for arguments
 #include <darma/serialization/serializers/standard_library/vector.h> // for arguments
 
-#include <darma/impl/capture/semantics.h>
+#include <functional>
 
 
 namespace darma_runtime {
@@ -105,7 +106,7 @@ struct TopLevelCallableRegistrar<ReturnType (*)(Args...)> {
 
 struct TopLevelTaskImpl
 #if _darma_has_feature(task_migration)
-  : PolymorphicSerializationAdapter<
+  : serialization::PolymorphicSerializationAdapter<
       TopLevelTaskImpl,
       abstract::frontend::Task,
       abstract::frontend::TopLevelTask<TaskBase>

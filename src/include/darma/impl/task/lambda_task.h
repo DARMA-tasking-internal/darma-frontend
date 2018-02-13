@@ -45,7 +45,7 @@
 #ifndef DARMAFRONTEND_LAMBDA_TASK_H
 #define DARMAFRONTEND_LAMBDA_TASK_H
 
-#include <darma/impl/polymorphic_serialization.h>
+#include <darma/serialization/polymorphic/polymorphic_serialization_adapter.h>
 
 #include "task_base.h"
 #include "task_ctor_helper.h"
@@ -245,7 +245,7 @@ constexpr struct no_double_copy_capture_tag_t {} no_double_copy_capture_tag = { 
 template <typename Lambda>
 struct LambdaTask
 #if _darma_has_feature(task_migration)
-  : PolymorphicSerializationAdapter<
+  : serialization::PolymorphicSerializationAdapter<
       LambdaTask<Lambda>,
       abstract::frontend::Task,
       TaskBase
@@ -264,7 +264,7 @@ struct LambdaTask
   using capturer_t = LambdaCapturer<Lambda>;
 
   #if _darma_has_feature(task_migration)
-  using base_t = PolymorphicSerializationAdapter<
+  using base_t = serialization::PolymorphicSerializationAdapter<
     LambdaTask<Lambda>,
     abstract::frontend::Task,
     TaskBase
