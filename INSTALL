@@ -1,60 +1,41 @@
-To build a DARMA program, you must do the following:
+By default, frontend tests are disabled.  To simply install the
+frontend headers, execute:
 
-1) Install the DARMA front-end header-only library
-2) Build a backend runtime library, pointing at the header install in #1
-3) Build an actual application, including the frontend/backend headers 
-   and linking to the library built in #2
+$ cmake ${source} \
+  -DCMAKE_INSTALL_PREFIX=${frontend_prefix} \
+  -DCMAKE_CXX_COMPILER=${cxxcompiler} 
+$ make install
 
-For debugging purposes, this repo includes the complete front-end
-as well as some very simple backends along with some simple examples.
+where ${frontend_prefix} is the location you want the headers
+installed, ${ccompiler} is the desired c compiler, and
+${cxxcompiler} is the desired C++ compiler.  If you omit the
+CMAKE_C_COMPILER and CMAKE_CXX_COMPILER options, ${CC} and ${CXX}
+will be assumed by cmake.
 
-===========================================================================
+Even though nothing is being built in this step, specifying the
+compilers is necessary so that compiler-requirements can be recorded
+as part of the header install.  If you omit the compilers here, the
+backend and/or example builds may fail later due to errors in the
+frontend headers.
 
-To do an all-in-one build of the frontend, the reference serial backend,
-and the examples, configure CMake with:
+To enable the frontend tests, do the following instead:
 
-cmake ${source} \
-  -DCMAKE_INSTALL_PREFIX=${prefix} \
-  -DSERIAL_BACKEND=On
+$ cmake ${source} \
+  -DCMAKE_INSTALL_PREFIX=${frontend_prefix} \
+  -DCMAKE_BUILD_TYPE=Debug \
+  -DCMAKE_CXX_COMPILER=${cxxcompiler} \
+  -DCMAKE_C_COMPILER=${ccompiler} \
+  -DDARMA_FE_ENABLE_TESTS:BOOL=ON \
+  -DGTEST_DIR=${gtest_install_prefix}
+$ make
+$ ctest
+$ make install
 
-===========================================================================
+Here, ${gtest_install_prefix} is the prefix of a previous googletest/
+googlemock install.
 
-If building components individually, do the following:
-
-1) To install the frontend (header-only):
-
-cmake ${source}/src/include \
-  -DCMAKE_INSTALL_PREFIX=${frontend_prefix}
-make install
-
-2) To build and install the reference serial backend:
-
-cmake ${source}/src/reference_backends \
-  -DCMAKE_INSTALL_PREFIX=${backend_prefix} \
-  -DSERIAL_BACKEND=On \
-  -DDARMA_FRONTEND_DIR=${frontend_prefix}
-make install
-
-3) To build the examples against some installed backend:
-
-If the backend provides a CMake package:
-
-cmake ${source}/examples \
-  -DDARMA_BACKEND_PKG=${backend_package_name} \
-  -D${backend_package_name}_DIR=${backend_prefix}/cmake
-
-For the serial backend, use backend_package_name=DarmaSerialBackend above.
-
-If the backend does not provide a CMake package:
-
-cmake ${source}/examples \
-  -DDARMA_FRONTEND_DIR=${frontend_prefix} \
-  -DDARMA_BACKEND_DIR=${backend_prefix} \
-  -DDARMA_BACKEND_LIBNAME=${backend_libname}
-
-===========================================================================
-
-The frontend and backend validation tests require the DEVELOPMENT version
-of googletest/googlemock.  Release 1.7.0 is NOT sufficient.  Specify the
-path to them to cmake using -DGTEST_DIR=.
+The frontend tests require the DEVELOPMENT version googletest/
+googlemock.  Release 1.7.0 is NOT sufficient.  If the install prefix
+is in the default location, you may able able to omit -DGTEST_DIR
+entirely.
 

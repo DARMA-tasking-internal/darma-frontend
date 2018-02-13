@@ -11,7 +11,7 @@
 //   Copyright (C) 2013, Ennio Barbaro.
 // See LEGAL.md for more information.
 //
-// Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
+// Under the terms of Contract DE-NA-0003525 with NTESS, LLC,
 // the U.S. Government retains certain rights in this software.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,7 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Questions? Contact David S. Hollman (dshollm@sandia.gov)
+// Questions? Contact darma@sandia.gov
 //
 // ************************************************************************
 //@HEADER
@@ -51,9 +51,12 @@
 #ifndef TINYMPL_AT_HPP
 #define TINYMPL_AT_HPP
 
+#include <utility>
+
 #include <tinympl/variadic/at.hpp>
 #include <tinympl/as_sequence.hpp>
 #include <tinympl/sequence.hpp>
+#include <tinympl/size.hpp>
 
 namespace tinympl {
 
@@ -65,10 +68,40 @@ namespace tinympl {
  * \param Seq The input sequence
 */
 template<std::size_t I, class Sequence>
-struct at : at <I, as_sequence_t<Sequence> > {};
+struct at : at<I, as_sequence_t<Sequence>> {};
 
-template<std::size_t I, class ... Args>
+template<std::size_t I, class... Args>
 struct at<I, sequence<Args...> > : variadic::at<I, Args...> {};
+
+template<std::size_t I, class Sequence>
+using at_t = typename at<I, as_sequence_t<Sequence> >::type;
+
+template <class Default, std::size_t I, class Sequence>
+struct at_or : at_or<Default, I, as_sequence_t<Sequence>> {};
+
+template <class Default, std::size_t I, class... Args>
+struct at_or<Default, I, sequence<Args...>>
+  : variadic::at_or<Default, I, Args...> {};
+
+template <class Default, std::size_t I, class... Args>
+using at_or_t = typename at_or<Default, I, Args...>::type;
+
+namespace types_only {
+
+template <typename WrappedSize, class Sequence>
+using at = tinympl::at<WrappedSize::value, Sequence>;
+
+} // end namespace types_only
+
+template <class Sequence>
+using front = at<0, Sequence>;
+template <class Sequence>
+using front_t = typename front<Sequence>::type;
+
+template <class Sequence>
+using back = at<size<Sequence>::value-1, Sequence>;
+template <class Sequence>
+using back_t = typename back<Sequence>::type;
 
 } // namespace tinympl
 

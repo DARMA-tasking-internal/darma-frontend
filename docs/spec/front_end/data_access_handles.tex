@@ -1,32 +1,51 @@
 %!TEX root = ../sandReportSpec.tex
-\lstMakeShortInline[style=CppCodeInlineStyle]{\|}
+
+
+%\lstMakeShortInline[style=CppCodeInlineStyle]{\|}
 \section{Data Access Handles}
 \label{sec:handles}
+\codetarget{AccessHandle<T>} objects are lightweight wrappers around the actual
+data structure of interest having type \inlinecode{T}. 
+The \glspl{handle} add a control block (metadata) that tracks uses of the \gls{handle} and enforces
+\gls{sequential semantics}, analogous to smart pointers that wrap pointer types and provide a reference counting control block.
+Critically, this interface is non-intrusive, wrapping any type \inlinecode{T} without requiring that type to be modified.
 
-% Removed todo for now
-%\todo[inline]{JB Question to David/Jeremy: do we need to introduce versions, or
-%is this no longer needed? DSH: Versions go with publish(), but some of it needs
-%to be here because e.g., read\_access<T>() needs to reference them.}
+Most critically, an \codetarget{AccessHandle} enables deferred access since \ahandle can exist in ready or pending states. 
+Ready and pending are not rigorously defined in the state table for \ahandle in
+Section~\ref{sec:handlerules}, but rather guiding concepts.
+Ready \glspl{handle} can be dereferenced (have their underlying values
+\gls{fetch}ed) and be used immediately to perform work.
+Pending \glspl{handle} cannot be dereferenced, but can still be used to \emph{schedule} or \emph{instantiate} work.
+Thus even if a \gls{handle} is carrying pending or unresolved data, execution can advance thereby unrolling more of the task graph.
 
-Transactions with the \gls{key-value store} are conducted using data handles 
-that are of different access types which differentiate the various transactions. 
-At the most basic level user code can declare 
+This \emph{lookahead} is the key element that enables runtime optimizations.
+Lookahead gives the \gls{runtime system} more complete knowledge of the task graph instead of locally executing step-by-step.
+By looking ahead, the \gls{runtime system} can reorder or migrate \glspl{task} to maximize data locality and improve load balance.
+The most critical conceptual change from standard \CC{} to \gls{DARMA} are
+pending variables that enable lookahead, unlike conventional \CC{} variables that must always be ``ready''.
+
+\Glspl{handle} can be created three different ways.
 \begin{enumerate}
-\item a handle to data that does not yet exist in the system
+  \item a \gls{handle} to data that does not yet exist in the system
 but needs to be created, or
-\item a handle to data that already exists and needs to
+\item a \gls{handle} to data produced by another process that needs to
 be read, or 
-\item a handle to data that it wants to overwrite or modify. 
-Note that this type of handle does not exist in the \specVersion\ version of the spec.
+\item a \gls{handle} to data produced by another process that needs to be overwritten or modified. 
+  Note that this type of \gls{handle} does not exist in the current version of
+  the specification.
 \end{enumerate}
 
-Type 1 is denoted as |initial_access| in DARMA, 
-which informs the runtime that the data with the 
-specified key does not yet exist, and the user intends to 
-create this data and (potentially) publish it.
-Hence, an |initial_access| data handle is usually 
-followed by a memory allocation, a value assignment and 
-finally a publish operation, as illustrated below: 
+Type 1 is denoted as \codelink{initial_access} in \gls{DARMA}, 
+which informs the \gls{runtime system} that the data with the 
+specified \codelink{key} does not yet exist, and the user intends to 
+create this data.% and (potentially) publish it.
+Hence, an \codelink{initial_access} data \gls{handle} is usually 
+followed by a memory allocation, and a value assignment. 
+Remark: Although we could explicitly write out \ahandleT in the code below,
+we \emph{strongly encourage} programmers to use the \CC{} \inlinecode{auto} keyword.
+It will greatly increase code portability for future (potentially
+backwards-incompatible) versions of \gls{DARMA},
+with the additional benefit of decreasing code verbosity.
 
 \begin{CppCode}
 auto float_handle = initial_access<float>("float_key");
@@ -34,20 +53,18 @@ create_work([=]{
   float_handle.set_value(3.14);
 });
 \end{CppCode}
-The second type of handle, requesting read-only access 
-to a piece of data, is via |read_access|. 
+As stated above, \gls{DARMA} provides two methods for expressing \gls{task}
+\glspl{precondition}: \gls{sequential semantics} and \gls{coordination
+semantics}.  \codelink{initial_access} is necessary in both methods.
+Once created, a \gls{handle} can be passed along to \glspl{subtask} within the same,
+sequential \gls{execution stream}.
+A \gls{handle} created by \codelink{initial_access} can also be \codelink{publish}ed,
+making it available to other \glspl{execution stream} via \gls{key-value store} coordination.
 
-%\todo[inline]{This needs to be revised or changed, since
-%``wait\_and\_get\_value()'' (or whatever we end up calling it) is an
-%advanced feature (and not part of the 0.2 spec).}
-%\begin{CppCode}
-%auto float_handle = read_access<float>("another_float_key");
-%{
-%  float val = float_handle.wait_and_get_value();
-%  std::cout << "Value read with key another_float_key is " << val;
-%}
-%\end{CppCode}
-%or, alternatively using deferred execution
+\Gls{handle} of Type 2 above request read-only access to data produced via
+external \glspl{execution stream} through \codelink{read_access} (which causes
+a \gls{fetch} to be performed). 
+As such, \codelink{read_acccess} is only relevant for applications that use coordination to express data flow.
 \begin{CppCode}
 auto float_handle = read_access<float>("another_float_key");
 create_work([=]{
@@ -55,98 +72,53 @@ create_work([=]{
   std::cout << "Value read with key another_float_key is " << val;  
 });
 \end{CppCode}
-%The runtime guarantees that |get_value| will wait until the value
-% exists and is ready locally.
-You can only call |get_value| in a context where you have read access
-to the data associated with the handle, either by capturing into a deferred
-context or by explicitly waiting on the value (though waiting on the value is
-not supported in the \specVersion\ spec).
-This might involve moving data if the |float| is on a remote node.
-In general, any calls to |get_value| should occur 
+
+Immediately following the \codelink{read_access} function, the \ahandle will be
+\emph{pending} instead of \emph{ready}.
+To enable \codelink{get_value} to be called (put the \gls{handle} in a
+ready state), the \gls{handle} must be used inside of a \codelink{create_work}.
+\cwork defers execution of the code block until the \gls{key-value store}
+resolves the value of \inlinecode{float_handle} and converts it to a
+ready state.  This might involve moving data if the \inlinecode{float} is on a remote node.
+Remark: future versions of \gls{DARMA} will enable \glspl{task} to begin
+optimistically with some \glspl{handle} still in a pending state, but
+this is not supported in the current version of the specification.
+
+In general, any calls to \codelink{get_value} should occur 
 within a scoped code block to avoid dangling references to stale physical memory locations.
-Even when it becomes possible to wait on the data associated with a handle (in
-later versions of the spec), best practice is to access data via deferred tasks
-inside a |create_work| block when possible.
-
-The third handle type, which informs the runtime that the data 
-with the specified key will be read and overwritten or modified, 
-is with the |read_write| handle, illustrated below. 
-%Again, we show an
-%example done within the same task and an example using a deferred task.
-%\begin{CppCode}
-%auto float_handle = read_write<float>("yet_another_float_key");
-%{
-%  std::cout << "Value read with key yet_another_float_key is " 
-%          << float_handle.get_value();
-%  float_handle.set_value(3.14*2.0);
-%}
-%\end{CppCode}
-\begin{CppCode}
-auto float_handle = read_write<float>("yet_another_float_key");
-create_work([=] {
-  std::cout << "Value read with key yet_another_float_key is " 
-          << float_handle.get_value();
-  float_handle.set_value(3.14*2.0);
-});
-\end{CppCode}
-This sort of access is not available in the \specVersion\ version of the spec, and in
-later versions this sort of usage will be conceptualized as ``ownership
-transfer'' of a data block, since exactly one |AccessHandle| with
-modification privileges on a block of data can exist at any given time.
-%As with |read_access|, value get/set should at least occur within a
-% scoped code block, and will likely perform better if placed in a deferred task block.
-
-Tasks should only ever request the privileges they need. 
-Over-requesting privileges will limit the amount of available parallelism in the code.
-It may occur that the task is using a read-write handle, but needs to create a
-task that only requires read access.
-
-\begin{CppCode}
-auto float_handle = read_write<float>("yet_another_float_key");
-create_work(reads(float_handle), [=] {
-  std::cout << "Value read with key yet_another_float_key is " 
-          << float_handle.get_value() << std::endl;
-})
-create_work(reads(float_handle), [=] {
-  float val = float_handle.get_value();
-  if (val > 0) std::out << "Value is positive" << std::end;
-})
-//read-write work down here
-\end{CppCode}
-In this case, subtasks are created that only need read access. 
-Without the |reads| qualifier, these tasks would conflict since they
-would by default request read-write privileges.
+%Even when it becomes possible to wait on the data associated with a handle (in
+%later versions of the spec), best practice is to access data via deferred tasks
+Calls to \inlinecode{get_value} should go inside a \inlinecode{create_work} block when possible 
+to guarantee availability of the data.
 
 \subsection{Publish}
 \label{subsec:publish}
-By default, unless explicitly published, data handles are visible only to tasks
-within the same scope (that is, tasks that have a copy of the actual
-|AccessHandle<T>| object, created as discussed in
-Section \ref{sec:handles}.
-For data to be globally visible in the global memory space (key-value store),
-the application developer must explicitly |publish| data.  Unpublished 
-data will be reclaimed once the last handle to it goes out of scope,
+By default, unless explicitly published, data \glspl{handle} are visible only
+to \glspl{task} within the same scope (\glspl{task} that have a copy of the actual
+\ahandleT object, created as discussed in Section~\ref{sec:handles}).
+For data to be globally visible in the global memory space (\gls{key-value store}),
+the application developer must explicitly \codelink{publish} data.  
+Unpublished data will be reclaimed once the last \gls{handle} referencing it goes out of scope (i.e refcount goes to zero),
 freeing the memory and resolving any anti-dependencies analogous to the
-destructor invocation in C++ when a class goes out of scope.  Unpublished data
-can leverage the sequential semantics of the application for garbage
-collection.  Published data, however, is globally visible to all workers and
-requires more ``permanence.''  In order to reclaim the data (garbage collect or
-resolve anti-dependence), publish data must know its access group.
-When all read handles within an access group have been deleted or released
-\emph{globally}, the published data can be reclaimed.
-The easiest way to declare an access group (and currently supported method) is
-to simply give the total number of additional read |AccessHandle<T>|
-objects that will be created referring to it.
-In future versions, hints will be supported about which specific tasks will need
-to read data.
-The publish/fetch mechanism replaces an analogous |MPI_Send/Recv| or
-even potentially an |MPI_Bcast|.
-In MPI, these function calls force an |MPI_Send| or
-|MPI_Wait| to block until the runtime guarantees that the data has
-been delivered.
-An access group in DARMA provides a similar guarantee.
-Until all readers in an access group have received or released their data, DARMA
-cannot reclaim (garbage collect, clear anti-dependencies).
+destructor invocation in \CC{} when a class goes out of scope.  
+
+Published data, however, is globally visible to all \glspl{execution stream} and requires more ``permanence.''  
+In order to resolve anti-dependencies associated with the publish or garbage collect the memory,
+published data must know its \gls{access group}.
+When all read \glspl{handle} within an \gls{access group} have been deleted or
+released \emph{globally}, the memory holding the published data can be reclaimed.
+The easiest way to declare an \gls{access group} (and currently the only supported method) is
+to simply give the total number of additional read \ahandleT objects that will
+be created referring to it (recall that read \ahandleT objects cause a
+\gls{fetch} to be performed).
+In future versions, hints will be supported about which specific \glspl{task} will need to read data.
+This \codelink{publish}/\gls{fetch} mechanism replaces an analogous
+\inlinecode{MPI_Send/Recv} or, for a publish with many readers, replaces an \inlinecode{MPI_Bcast}.
+In MPI, these function calls force an \inlinecode{MPI_Send} or
+\inlinecode{MPI_Wait} to block until the \gls{runtime system} guarantees that the data has been delivered.
+An \gls{access group} in \gls{DARMA} provides a similar guarantee.
+Until all readers in an \gls{access group} have received or released their
+data, \gls{DARMA} cannot garbage collect or clear anti-dependencies.
 
 \begin{CppCode}
 auto float_handle = initial_access<float>("float_key");
@@ -155,63 +127,85 @@ create_work([=]{
 });
 float_handle.publish(n_readers=1);
 \end{CppCode}
-The |n_readers| specification in the publish call is a keyword
-argument (see Section \ref{sec:keyword}) that informs the runtime that the data
-(associated with |float_key|) will only ever be read once, and hence
-can be safely garbage collected soon after.  This code is essentially a direct
-replacement of a send/recv.
+The \codelink{n_readers} specification in the \codelink{publish} call is a
+\gls{keyword argument} (see Section~\ref{sec:keyword}) that informs the
+\gls{runtime system} that the data
+(associated with \inlinecode{float_key}) will only ever be read once, and hence can be safely garbage collected soon after.  
+This code provides similar functionality to an MPI \inlinecode{send/receive}.
 
-Publish operations are treated as asynchronous read operations --- that is,
-|h.publish(/*...*/)| is treated like
-\verb| create_work(reads(h), [=]{/*...*/}); |. 
+As discussed above, \glspl{handle} can either be ready or pending. 
+In reality, the distinction is more subtle. 
+The ``readiness'' and ``pendingness'' can be different for read usages and write usages.
+Thus a handle can be read-ready, but modify-pending.
+This will be the case after \codelink{publish} operations.
+\codelink{publish} operations are treated as asynchronous read operations --- that is,
+\inlinecode{h.publish(...)} is equivalent to
+\begin{CppCode}
+create_work(reads(h), [=]{...});  
+\end{CppCode}
 This means that the same precautions should be taken as with asynchronous reads. 
-In particular, even if the handle was in a modifiable state before the 
-|publish|, it is no
-longer valid to call \lstinline!h.set_value()! after the publish, since the
-asynchronous read done by the publish may or may not have occurred yet.  In this
-scenario, one should use \verb|create_work([=]{ h.set_value(/*...*/); });|
-instead.
-
-
+In particular, even if the handle was ready for modifying before
+\codelink{publish}, it is no longer valid to call \inlinecode{h.set_value()}
+after the \codelink{publish}.
+The asynchronous read done by the \codelink{publish} may or may not have occurred yet.  
+In this scenario, one should use instead
+\begin{CppCode}
+create_work([=]{ h.set_value(...); });
+\end{CppCode}
+to force the \gls{handle} from a pending state to a ready state.
 
 \subsubsection{Publication Versions}
+If a \gls{handle} is going to be published multiple times (or, more specifically, if
+the \codelink{key} with which the \gls{handle} was created is going to be published multiple
+times), it needs to be published with a different \codelink{version} each time.  
+A \codelink{version} is just like a \codelink{key} --- an arbitrary \gls{tuple} of values (see Section~\ref{subsec:keys}).  
+For instance:
 
-If a handle is going to be published multiple times (or, more specifically, if
-the key with which the handle was created is going to be published multiple
-times), it needs to be published with a different version each time.  Versions
-are just like keys --- an arbitrary tuple of values (see Section
-\ref{subsec:keys}).  For instance:
-
+\begin{minipage}{0.5\textwidth}
 \begin{CppCode}
-auto float_handle = initial_access<float>("float_key");
-auto int_handle = initial_access<int>("int_key");
-/*...*/
-int_handle.publish(n_readers=3, version=77);
-// Use version() instead of version= for multi-part version keys
-float_handle.publish(n_readers=1, version("alpha",42));
-
-/* Elsewhere... (e.g., on a different rank) */
-auto my_int = read_access<int>("int_key", version=77);
-auto my_flt = read_access<float>("float_key", version("alpha",42));
-
+/** Execution stream 0 */
+auto float_h =
+  initial_access<float>("float_key");
+auto int_h =
+  initial_access<int>("int_key");
+/* Execution stream 1 */
+int_h.publish(n_readers=3, version=77);
+//Use version() for multiple parts
+float_ha.publish(n_readers=1, 
+    version("alpha",42));
 \end{CppCode}
+\end{minipage}
+\begin{minipage}{0.45\textwidth}
+\begin{CppCode}
+/* Execution stream 1*/
+auto my_int =  read_access<int>(
+  "int_key", version=77);
+auto my_float = read_access<float>(
+  "float_key", version("alpha",42));
+\end{CppCode}
+\end{minipage}
 
-% DSH took this out, since it's supposed to be in 0.3
-%\subsection{Subscribe}
-%\label{subsec:subscribe}
+A \codelink{version} has similarities with an MPI tag, as they both ensure the uniqueness of data.
+However, unlike MPI which uses a combination of message order and tag to
+uniquely identify messages and match \inlinecode{send/recv} pairs,
+the \gls{DARMA} asynchronous model does not allow implicit publication order to
+be used in matching \codelink{publish}/\gls{fetch} pairs.
+Instead, all publications must uniquely identify each publication with a
+specific \codelink{version}.
+
 
 \subsection{Keys}
 \label{subsec:keys}
-In the examples in this Section, the |key| to the
-|AccessHandle<T>| has always been a single string. 
-A |key| in DARMA 
+In the examples in this section, the \codetarget{key} to the
+\ahandleT has always been a single string. 
+A \codelink{key} in \gls{DARMA} 
 can be an arbitrary \gls{tuple} of values.  This 
 makes it very easy for the application developer to create an expressive
-and descriptive |key| for each piece of data.  Tuples can comprise
+and descriptive \codelink{key} for each piece of data.  \Glspl{tuple} can comprise
 different bit-wise copiable data types.  The example at the end of
-Section~\ref{sec:spmd} illustrates the use of the \gls{rank} within the handle
-|key|.  The following example shows the use of an
-aribitrary \gls{tuple} as a |key|:
+Section~\ref{sec:spmd} illustrates the use of the \gls{rank} within the
+\gls{handle} \codelink{key}.  The following example shows the use of an
+aribitrary \gls{tuple} as a \codelink{key}:
 \begin{CppCode}
   int neighbor_id
   double other_identifier;
@@ -223,96 +217,154 @@ aribitrary \gls{tuple} as a |key|:
                                             other_identifier);
 \end{CppCode}
 
-
 \subsection{Handle Usage Rules}
 \label{sec:handlerules}
-\todo[inline]{FR: can be moved some other place if more useful}
-
-Handles are assigned states, and these states change 
-based on the operations applied to them. In other words, 
-handles' states transition. However, not all states 
-are allowed at all times. The ``permissions'' on 
-what it is allowed changes based on the context. 
-Permissions fall under two main categories: 
+As alluded to above, \glspl{handle} are assigned states, and these states change 
+based on the operations applied to them.  
+The state of a \gls{handle} encompasses both its read/write permissions and its ``readiness."
+Pending \glspl{handle} can only be used for scheduling \glspl{task} while
+ready \glspl{handle} can be immediately used to do work.
+Here we more rigorously divide permissions into two main categories: 
 \begin{itemize}
-\item[a] {\it Scheduling}: permissions on a handle 
-within a |create_work| (more generally within a deferred work).
-\item[b] {\it Immediate}: permissions that apply immediately.
+  \item[a] {\it Scheduling}: Permissions a \gls{handle} may use when instantiating
+  tasks with \codelink{create_work}.
+  These permissions apply independent of \gls{handle} readiness (\gls{immediate
+  permissions}).  Generally, this will be Read (\gls{handle} may only used in read-only
+\glspl{task}) or Modify (\gls{handle} may be used in read-only or read-write
+\glspl{task}). 
+\item[b] {\it Immediate}: Permissions that apply immediately, indicating the
+  ``readiness'' of the \gls{handle}.  \Gls{immediate permissions} can never be
+  greater than \gls{scheduling permissions}.
+  A handle within a \gls{task} can never have greater permissions doing immediate work than it can for instantiating deferred work.
 \end{itemize}
 
-In the \specVersion\ spec, as described above, there are two main types 
-of handle supported:
+For the two methods of creating \glspl{handle}, we have the following initializations.
 \begin{itemize}
-\item |initial_access<T>|: when a handle of 
-this type is first created, it is assigned 
-``Modify/None'' permissions.
+\item \inlinecode{initial_access<T>}: Initialized with scheduling modify, immediate none. 
+  The \gls{handle} can be used in any mode when instantiating \gls{deferred work}.
+  However, the \gls{handle} is not necessarily initialized and as such cannot be used immediately for reads or writes.
 %
-\item |read_access<T>|: when a handle of 
-this type is first created, it is assigned 
-``Read/None'' permissions.
+\item \inlinecode{read_access<T>}: Initialized with scheduling read, immediate none.
+  The \gls{handle} can only be used for reads when instantiating \gls{deferred work}.
+  However, the \gls{handle} is not necessarily initialized and as such cannot be used immediately.
 \end{itemize}
 
+To clarify, consider the following code:
+\begin{CppCode}
+//Predecessor outer state
+create_work([=]{
+  //Capture (inner) state
+})
+//Continuing outer state
+\end{CppCode}
 
-\lstDeleteShortInline{\|}
+In the outer \gls{task}, a \gls{handle} will have an initial pair of
+scheduling/immediate permissions (predecessor state).
+After the call to \codelink{create_work}, the \gls{handle}'s state will have
+changed, potentially losing some \gls{immediate permissions} within the
+continuing outer state block.
+As specified currently, execution does not begin inside the \gls{captured work}
+block until the \glspl{handle} it uses becomes ready.
+Inside the \cwork (capture state), the \gls{handle}'s immediate and scheduling
+permisssions will therefore remain the same as they were in the predecessor outer
+state block.
 
+Table \ref{tab:immsimp} summarizes the state transitions involving these three
+\glspl{handle} following \cwork.
+
+To illustrate the importance of requesting the minimum permissions a \gls{task}
+requires, consider the following:
+\begin{CppCode}
+auto float_handle = initial_access<float>("yet_another_float_key");
+....
+create_work(reads(float_handle), [=] {
+  std::cout << "Value read with key yet_another_float_key is " 
+          << float_handle.get_value() << std::endl;
+})
+create_work(reads(float_handle), [=] {
+  float val = float_handle.get_value();
+  if (val > 0) std::out << "Value is positive" << std::end;
+})
+//read-write work down here
+\end{CppCode}
+In this case, \glspl{subtask} are created that only need read access. 
+Without the \codelink{reads} qualifier, these \glspl{task} could not run in parallel (or out-of-order) since they
+would by default request read-write permissions.
+\Gls{sequential semantics} would then require them to write in-order sequentially.
+This example highlights the importance that \glspl{task} only ever request the
+permissionsthey need. 
+Over-requesting permissions will limit the amount of available parallelism in the code.
+%A \gls{task} may be using a \gls{handle} with read-write permissions created by
+%\codelink{initial_access}
+%and then create a subtask that requires only read permissions.
+
+
+The distinction between \gls{immediate permissions} and \gls{scheduling permissions} is generally not explicit in the application.
+When a \gls{handle} is created with \inlinecode{initial_acces} or \inlinecode{read_acces},
+it is implicitly given \gls{immediate permissions} of None.
+When a \gls{handle} is used inside a \gls{task} instantiated in the application with \inlinecode{create_work},
+the \gls{back end} \gls{runtime system} (and \gls{translation layer}) implicitly guarantees immediate 
+permissions of Read or Write equal to the \gls{scheduling permissions}.
+For simple cases, the application developer only needs to think of a single permission (not distinguishing scheduling/immediate).
+More more advances uses of \gls{DARMA} (and features in future versions of the
+specification), an application developer will need to understand both
+\gls{scheduling permissions} and \gls{immediate permissions}.
 
 \begin{table}[!t]
 \begin{center}
 {\small
-\begin{tabular}{cc|cc|cc|cc}
+\begin{tabular}{cc|cc|cc}
  \hline
- \multicolumn{2}{c|}{|}|
- & \multicolumn{2}{c|}{|get_value()|} 
- & \multicolumn{2}{c|}
+ \multicolumn{2}{c|}{Predecessor State}
+ & \multicolumn{2}{c|}{\codelink{get_value}} 
+ & \multicolumn{2}{c}
  {
-    \specialcell{ |emplace_value()| \\ 
-                  |set_value()|\\
-                  |get_reference()|\\
+    \specialcell{ \codelink{emplace_value} \\ 
+                  \codelink{set_value}\\
+                  \codelink{get_reference}\\
                   } 
  } 
- & \multicolumn{2}{c}{|release()|} \\
+  \\
  \hline
  \specialcell{Scheduling\\ permissions} 
  & \specialcell{Immediate\\ permissions}  
  & { {\footnotesize Allowed? } } \hspace{-0.cm} & { {\footnotesize Continuing as}}
  & { {\footnotesize Allowed? } } \hspace{-0.cm} & { {\footnotesize Continuing as}}
- & { {\footnotesize Allowed? } } \hspace{-0cm} & { {\footnotesize Continuing as }}\\
+ \\
  \hline
  None & None
  & No & -
  & No & -
- & Yes${}^*$ & {\em None/None} \\
+ \\
  %
  Read & None
  & No & -
  & No & -
- & Yes & {\em None/None} \\
+ \\
  %
  Read & Read
  & Yes & {\em Read/Read}
  & No & -
- & Yes & {\em None/None}   \\
+  \\
  %
  Modify & None
  & No & -
  & No & -
- & Yes & {\em None/None}   \\
+ \\
  %
  Modify & Read
  & Yes & {\em Modify/Read}  
  & No & -
- & Yes & {\em None/None}   \\
+  \\
  %
  Modify & Modify
  & Yes & {\em Modify/Modify}  
  & Yes & {\em Modify/Modify}  
- & Yes & {\em None/None}   \\
+  \\
 \hline
 \end{tabular}
 }
-\caption{Operations on the various states. 
-Transitions marked with an asterisk (*) effectively
-represent no-ops and could generate warnings.}
+\caption{Operations on the various states}
 \label{tab:immsimp}
 \end{center}
 \end{table}
@@ -322,16 +374,16 @@ represent no-ops and could generate warnings.}
 {\small
 \begin{tabular}{cc|ccc|ccc}
  \hline
- \multicolumn{2}{c|}{} 
- & \multicolumn{3}{c|}{\em{read-only capture}} 
+ \multicolumn{2}{c|}{Predecessor State} 
+ & \multicolumn{3}{c|}{\em{read-only capture} and publish} 
  & \multicolumn{3}{c}{\em{modify capture}}  \\
  \hline
  \specialcell{Scheduling\\ permissions} 
  & \specialcell{Immediate\\ permissions}  
- & {\footnotesize Allowed? } & {\footnotesize Captured } 
- & {\footnotesize Continuing as} 
- & {\footnotesize Allowed? } & {\footnotesize Captured } 
- & {\footnotesize Continuing as} \\
+ & {\footnotesize Allowed? } &  \specialcell{\footnotesize Capture\\Handle} 
+ &  \specialcell{\footnotesize Continuing\\Handle} 
+ & {\footnotesize Allowed? } &  \specialcell{\footnotesize Capture\\Handle} 
+ &  \specialcell{\footnotesize Continuing\\Handle} \\
  \hline
  None & None & No & - & - & No & - & - \\
  %
@@ -381,14 +433,11 @@ represent no-ops and could generate warnings.}
 \end{center}
 \end{table}
 
-\lstMakeShortInline[style=CppCodeInlineStyle]{\|}
 
+To further illustrate, below is an \emph{incorrect} usage of modify permissions
 
-Example (1): 
-\hspace{-0.75cm}
-\begin{minipage}[t]{0.45\linewidth}%
-\centering
-WRONG
+\begin{minipage}[t]{0.45\linewidth}
+\centering WRONG
 \begin{vaspPseudo}
 initial_access<int> a
 //a is in Modify/None
@@ -396,10 +445,8 @@ a.set_value(1) $\no$
 a.get_value()  $\no$
 \end{vaspPseudo}
 \end{minipage}
-\hspace{0.55cm}
 \begin{minipage}[t]{0.45\linewidth}
-\centering
-CORRECT
+\centering CORRECT
 \begin{vaspPseudo}
 initial_access<int> a
 //a is in Modify/None
@@ -412,12 +459,11 @@ create_work([=]{ //modify capture
 \end{minipage}
 
 
+Additionally, we demonstrate an \emph{incorrect} usage of read permissions
 
-Example (2): 
-\hspace{-0.75cm}
-\begin{minipage}[t]{0.45\linewidth}%
+\begin{minipage}[t]{0.45\linewidth}
 \centering
-WRONG
+\centering WRONG
 \begin{vaspPseudo}
 read_access<int> b
 //b is in Read/None
@@ -428,10 +474,9 @@ create_work([=]{ //capture
 });
 \end{vaspPseudo}
 \end{minipage}
-\hspace{0.55cm}
 \begin{minipage}[t]{0.45\linewidth}
 \centering
-CORRECT
+\centering CORRECT
 \begin{vaspPseudo}
 read_access<int> b
 //b is in Read/None
@@ -441,4 +486,29 @@ create_work([=]{ // capture
 \end{vaspPseudo}
 \end{minipage}
 
-\lstDeleteShortInline{\|}
+\subsection{Access Handles with Compile-time Checking}
+\label{ssec:ahtraits}
+
+The \ahandleT class actually has a second template argument,
+\inlinecode{traits}, that the translation layer uses to propagate static
+information about permissions, so that it can do as many compile-time checks as
+possible.  The user should never directly specify \inlinecode{traits} for an
+\ahandleT.  Rather, DARMA returns a type with the correct compile-time traits
+from \codelink{initial_access} and \codelink{read_access}.  DARMA also uses
+traits to implement the \codetarget{ReadAccessHandle<T>} type alias
+used as a formal parameter to functors that need read-only permissions on a
+handle\footnote{Note that \codelink{ReadAccessHandle<T>} is {\it not} the same
+as the return value of \codelink{read_access}.  The former specifies {\it
+requirements} for a functor parameter, while the latter specifies bounds on
+the {\it available permissions} for a handle.  The \inlinecode{traits} template
+parameter is different for these two, though the latter can be cast to the former.} (see
+\S~\ref{sec:functor} for details of the DARMA functor interface).  DARMA can
+take advantage of this to, for instance, raise a compile-time error if the user
+attempts to call \codelink{set_value} on a handle returned by
+\codelink{read_access}.  Note that this will only work if the user gives
+the \inlinecode{auto} type specifier for the left-hand side of the assignment. 
+The type \ahandleT itself (i.e., with default \inlinecode{traits} template
+parameter) has completely unrestricted compile-time permissions, and thus
+implies no compile-time checking.  However, unlike its more restricted analogs,
+it can hold handles with any permissions.
+

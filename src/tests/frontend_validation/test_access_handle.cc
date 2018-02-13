@@ -4,9 +4,9 @@
 //
 //                          test_access_handle.h
 //                         dharma_new
-//              Copyright (C) 2016 Sandia Corporation
+//              Copyright (C) 2017 NTESS, LLC
 //
-// Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
+// Under the terms of Contract DE-NA-0003525 with NTESS, LLC,
 // the U.S. Government retains certain rights in this software.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,7 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Questions? Contact David S. Hollman (dshollm@sandia.gov)
+// Questions? Contact darma@sandia.gov
 //
 // ************************************************************************
 //@HEADER
@@ -66,6 +66,45 @@ class TestAccessHandle_publish_MM_Test;
 #include <darma/interface/app/create_work.h>
 #include <darma/interface/app/initial_access.h>
 #include <darma/interface/app/read_access.h>
+#include <darma/serialization/serializers/standard_library/string.h>
+
+#include <darma/utility/static_assertions.h>
+
+////////////////////////////////////////////////////////////////////////////////
+
+// Static traits tests
+using namespace darma_runtime;
+
+STATIC_ASSERT_TYPE_EQ(
+  AccessHandle<int, detail::make_access_handle_traits_t<int,
+    detail::copy_assignable_handle<true>
+  >>,
+  AccessHandle<int, detail::access_handle_traits<int,
+    detail::access_handle_permissions_traits<>,
+    detail::access_handle_collection_capture_traits<>,
+    detail::access_handle_semantic_traits<OptionalBoolean::KnownTrue>
+  >>
+);
+
+STATIC_ASSERT_TYPE_EQ(
+  AccessHandle<int, typename detail::make_access_handle_traits<int,
+    detail::copy_assignable_handle<true>
+  >::template from_traits<
+    detail::make_access_handle_traits_t<int,
+      detail::static_scheduling_permissions<detail::AccessHandlePermissions::Modify>,
+      detail::copy_assignable_handle<false>
+    >
+  >::type>,
+  AccessHandle<int, detail::access_handle_traits<int,
+    detail::access_handle_permissions_traits<
+      detail::AccessHandlePermissions::NotGiven,
+      detail::AccessHandlePermissions::NotGiven,
+      detail::AccessHandlePermissions::Modify
+    >,
+    detail::access_handle_collection_capture_traits<>,
+    detail::access_handle_semantic_traits<OptionalBoolean::KnownTrue>
+  >>
+);
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -87,8 +126,21 @@ class TestAccessHandle
     }
 };
 
-////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
 
+using namespace darma_runtime;
+void my_test_function(AccessHandle<int>& h) { }
+
+TEST_F(TestAccessHandle, function_call) {
+
+  auto tmp = initial_access<int>("hello");
+  my_test_function(tmp);
+
+}
+
+//////////////////////////////////////////////////////////////////////////////
+
+/*
 TEST_F(TestAccessHandle, get_reference) {
   using namespace ::testing;
   using namespace darma_runtime;
@@ -97,34 +149,46 @@ TEST_F(TestAccessHandle, get_reference) {
 
   mock_runtime->save_tasks = true;
 
-  handle_t* h0 = nullptr, *h1 = nullptr;
+  Sequence s_reg_captured, s_reg_continuing, s_reg_initial, s_release_initial;
 
-  EXPECT_CALL(*mock_runtime, register_handle(_))
-    .WillOnce(SaveArg<0>(&h0))
-    .WillOnce(SaveArg<0>(&h1));
+  MockFlow fl_in_1, fl_out_1;
+  MockFlow fl_in_2, fl_out_2;
+  MockFlow fl_in_3, fl_out_3;
+  use_t *use_1, *use_2, *use_3;
 
-  int data = 0;
-  MockDataBlock db;
-  EXPECT_CALL(db, get_data())
-    .Times(AnyNumber())
-    .WillRepeatedly(Return(&data));
+  expect_initial_access(fl_in_1, fl_out_1, use_1, make_key("hello"), s_reg_initial, s_release_initial);
+  expect_mod_capture_MN_or_MR(
+    fl_in_1, fl_out_1, use_1,
+    fl_in_2, fl_out_2, use_2,
+    fl_in_3, fl_out_3, use_3,
+    s_reg_captured, s_reg_continuing
+  );
 
-  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(AllOf(
-    handle_in_get_dependencies(h0), Not(needs_read_handle(h0)), needs_write_handle(h0)
-  )))
-    .WillOnce(InvokeWithoutArgs([&h0,&db]{ h0->satisfy_with_data_block(&db); }));
+  int data = 42;
+
+  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(UseInGetDependencies(ByRef(use_2))))
+    .Times(1).InSequence(s_reg_captured, s_release_initial)
+    .WillOnce(Invoke(
+      [&](auto* task) {
+        size_t i = 0;
+        for(auto&& u : task->get_dependencies()) {
+          u->get_data_pointer_reference() = (void*)(&data);
+          ++i;
+        }
+        ASSERT_EQ(i, 1);
+      }
+    ));
+
+  EXPECT_CALL(*mock_runtime, release_use(Eq(ByRef(use_3)))).InSequence(s_reg_continuing);
+  EXPECT_CALL(*mock_runtime, release_use(Eq(ByRef(use_2)))).InSequence(s_reg_captured, s_reg_continuing);
+
 
   {
     auto tmp = initial_access<int>("hello");
 
-    EXPECT_THAT(h0, NotNull());
-
-    create_work([=,&h0,&h1,&data]{
-      EXPECT_THAT(tmp.dep_handle_.get(), Eq(h0));
-      EXPECT_THAT(h1, NotNull());
-      EXPECT_THAT(&tmp.get_reference(), Eq(&data));
+    create_work([=,&data]{
+      EXPECT_THAT(&(tmp.get_reference()), Eq(&data));
     });
-    EXPECT_THAT(tmp.dep_handle_.get(), Eq(h1));
   }
 
   while(not mock_runtime->registered_tasks.empty()) {
@@ -134,164 +198,171 @@ TEST_F(TestAccessHandle, get_reference) {
 
 }
 
-////////////////////////////////////////////////////////////////////////////////
-
-TEST_F(TestAccessHandle, set_value) {
-  using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace mock_backend;
-  using namespace darma_runtime::keyword_arguments_for_publication;
-
-  mock_runtime->save_tasks = true;
-
-  handle_t* h0 = nullptr, *h1 = nullptr;
-
-  EXPECT_CALL(*mock_runtime, register_handle(_))
-    .WillOnce(SaveArg<0>(&h0))
-    .WillOnce(SaveArg<0>(&h1));
-
-  int data = 0;
-  MockDataBlock db;
-  EXPECT_CALL(db, get_data())
-    .Times(AnyNumber())
-    .WillRepeatedly(Return(&data));
-
-  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(AllOf(
-    handle_in_get_dependencies(h0), Not(needs_read_handle(h0)), needs_write_handle(h0)
-  )))
-    .WillOnce(InvokeWithoutArgs([&h0,&db]{ h0->satisfy_with_data_block(&db); }));
-
-  {
-    auto tmp = initial_access<int>("hello");
-
-    create_work([=,&h0,&h1,&data]{
-      tmp.set_value(42);
-    });
-
-  }
-
-  while(not mock_runtime->registered_tasks.empty()) {
-    mock_runtime->registered_tasks.front()->run();
-    mock_runtime->registered_tasks.pop_front();
-  }
-
-  EXPECT_THAT(data, Eq(42));
-
-}
+*/
 
 ////////////////////////////////////////////////////////////////////////////////
 
-TEST_F(TestAccessHandle, publish_MN) {
-  using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace mock_backend;
-  using namespace darma_runtime::keyword_arguments_for_publication;
-
-  mock_runtime->save_tasks = false;
-
-  handle_t* h0 = nullptr, *h1 = nullptr;
-  constexpr auto version_str = "hello";
-  key_t pub_version = make_key(version_str);
-
-  EXPECT_CALL(*mock_runtime, register_handle(_))
-    .WillOnce(SaveArg<0>(&h0))
-    .WillOnce(SaveArg<0>(&h1));
-
-  int data = 0;
-  NiceMock<MockDataBlock> db;
-  ON_CALL(db, get_data())
-    .WillByDefault(Return(&data));
-
-  ON_CALL(*mock_runtime, register_task_gmock_proxy(_))
-    .WillByDefault(InvokeWithoutArgs([&h0,&db]{ h0->satisfy_with_data_block(&db); }));
-
-  EXPECT_CALL(*mock_runtime, publish_handle(
-    Eq(ByRef(h1)), Eq(pub_version), Eq(1), _
-  ));
-
-  {
-    auto tmp = initial_access<int>("hello");
-
-    create_work([=]{
-      FAIL() << "should not be invoked in this test";
-      tmp.set_value(42);
-    });
-    ASSERT_EQ(tmp.state_, AccessHandle<int>::State::Modify_None);
-
-    tmp.publish(version=version_str);
-
-  }
-
-}
+// TODO tests for conversion and cast operators once we rethink the read_access return values, etc
 
 ////////////////////////////////////////////////////////////////////////////////
-
-TEST_F(TestAccessHandle, publish_MM) {
-  using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace mock_backend;
-  using namespace darma_runtime::keyword_arguments_for_publication;
-
-  mock_runtime->save_tasks = true;
-
-  handle_t* h0, *h1, *h2;
-  h0 = h1 = h2 = nullptr;
-  constexpr auto version_str = "hello";
-  key_t pub_version = make_key(version_str);
-  version_t v0, v1, v2;
-
-  EXPECT_CALL(*mock_runtime, register_handle(_))
-    .WillOnce(SaveArg<0>(&h0))
-    .WillOnce(SaveArg<0>(&h1))
-    .WillOnce(SaveArg<0>(&h2));
-
-  int data = 0;
-  NiceMock<MockDataBlock> db;
-  ON_CALL(db, get_data())
-    .WillByDefault(Return(&data));
-
-  ON_CALL(*mock_runtime, register_task_gmock_proxy(_))
-    .WillByDefault(InvokeWithoutArgs([&h0,&db]{ h0->satisfy_with_data_block(&db); }));
-
-  EXPECT_CALL(*mock_runtime, publish_handle(
-    Eq(ByRef(h2)), Eq(pub_version), Eq(1), _
-  ));
-
-  {
-    auto tmp = initial_access<int>("hello");
-
-    // tmp.dep_handle_ == h0
-    EXPECT_THAT(tmp.dep_handle_.get(), Eq(h0));
-    create_work([=,&h0,&h2,&h1,&v0,&v2]{
-      ASSERT_EQ(tmp.state_, AccessHandle<int>::State::Modify_Modify);
-      v0 = h0->get_version();
-      tmp.set_value(42);
-      tmp.publish(version=version_str);
-      EXPECT_THAT(tmp.dep_handle_.get(), Eq(h2));
-      v2 = h2->get_version();
-      ASSERT_EQ(tmp.state_, AccessHandle<int>::State::Modify_Read);
-    });
-    EXPECT_THAT(tmp.dep_handle_.get(), Eq(h1));
-    v1 = h1->get_version();
-  } // h1 deleted
-
-  while(not mock_runtime->registered_tasks.empty()) {
-    mock_runtime->registered_tasks.front()->run();
-    mock_runtime->registered_tasks.pop_front();
-  }
-
-  EXPECT_THAT(data, Eq(42));
-  ++v0;
-  EXPECT_EQ(v0, v2);
-  v2.pop_subversion();
-  ++v2;
-  EXPECT_EQ(v1, v2);
-
-
-}
-
+//
+//TEST_F(TestAccessHandle, set_value) {
+//  using namespace ::testing;
+//  using namespace darma_runtime;
+//  using namespace mock_backend;
+//  using namespace darma_runtime::keyword_arguments_for_publication;
+//
+//  mock_runtime->save_tasks = true;
+//
+//  handle_t* h0 = nullptr, *h1 = nullptr;
+//
+//  EXPECT_CALL(*mock_runtime, register_handle(_))
+//    .WillOnce(SaveArg<0>(&h0))
+//    .WillOnce(SaveArg<0>(&h1));
+//
+//  int data = 0;
+//  MockDataBlock db;
+//  EXPECT_CALL(db, get_data())
+//    .Times(AnyNumber())
+//    .WillRepeatedly(Return(&data));
+//
+//  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(AllOf(
+//    handle_in_get_dependencies(h0), Not(needs_read_handle(h0)), needs_write_handle(h0)
+//  )))
+//    .WillOnce(InvokeWithoutArgs([&h0,&db]{ h0->satisfy_with_data_block(&db); }));
+//
+//  {
+//    auto tmp = initial_access<int>("hello");
+//
+//    create_work([=,&h0,&h1,&data]{
+//      tmp.set_value(42);
+//    });
+//
+//  }
+//
+//  while(not mock_runtime->registered_tasks.empty()) {
+//    mock_runtime->registered_tasks.front()->run();
+//    mock_runtime->registered_tasks.pop_front();
+//  }
+//
+//  EXPECT_THAT(data, Eq(42));
+//
+//}
+//
+//////////////////////////////////////////////////////////////////////////////////
+//
+//TEST_F(TestAccessHandle, publish_MN) {
+//  using namespace ::testing;
+//  using namespace darma_runtime;
+//  using namespace mock_backend;
+//  using namespace darma_runtime::keyword_arguments_for_publication;
+//
+//  mock_runtime->save_tasks = false;
+//
+//  handle_t* h0 = nullptr, *h1 = nullptr;
+//  constexpr auto version_str = "hello";
+//  key_t pub_version = make_key(version_str);
+//
+//  EXPECT_CALL(*mock_runtime, register_handle(_))
+//    .WillOnce(SaveArg<0>(&h0))
+//    .WillOnce(SaveArg<0>(&h1));
+//
+//  int data = 0;
+//  NiceMock<MockDataBlock> db;
+//  ON_CALL(db, get_data())
+//    .WillByDefault(Return(&data));
+//
+//  ON_CALL(*mock_runtime, register_task_gmock_proxy(_))
+//    .WillByDefault(InvokeWithoutArgs([&h0,&db]{ h0->satisfy_with_data_block(&db); }));
+//
+//  EXPECT_CALL(*mock_runtime, publish_handle(
+//    Eq(ByRef(h1)), Eq(pub_version), Eq(1), _
+//  ));
+//
+//  {
+//    auto tmp = initial_access<int>("hello");
+//
+//    create_work([=]{
+//      FAIL() << "should not be invoked in this test";
+//      tmp.set_value(42);
+//    });
+//    ASSERT_EQ(tmp.state_, AccessHandle<int>::State::Modify_None);
+//
+//    tmp.publish(version=version_str);
+//
+//  }
+//
+//}
+//
+//////////////////////////////////////////////////////////////////////////////////
+//
+//TEST_F(TestAccessHandle, publish_MM) {
+//  using namespace ::testing;
+//  using namespace darma_runtime;
+//  using namespace mock_backend;
+//  using namespace darma_runtime::keyword_arguments_for_publication;
+//
+//  mock_runtime->save_tasks = true;
+//
+//  handle_t* h0, *h1, *h2;
+//  h0 = h1 = h2 = nullptr;
+//  constexpr auto version_str = "hello";
+//  key_t pub_version = make_key(version_str);
+//  version_t v0, v1, v2;
+//
+//  EXPECT_CALL(*mock_runtime, register_handle(_))
+//    .WillOnce(SaveArg<0>(&h0))
+//    .WillOnce(SaveArg<0>(&h1))
+//    .WillOnce(SaveArg<0>(&h2));
+//
+//  int data = 0;
+//  NiceMock<MockDataBlock> db;
+//  ON_CALL(db, get_data())
+//    .WillByDefault(Return(&data));
+//
+//  ON_CALL(*mock_runtime, register_task_gmock_proxy(_))
+//    .WillByDefault(InvokeWithoutArgs([&h0,&db]{ h0->satisfy_with_data_block(&db); }));
+//
+//  EXPECT_CALL(*mock_runtime, publish_handle(
+//    Eq(ByRef(h2)), Eq(pub_version), Eq(1), _
+//  ));
+//
+//  {
+//    auto tmp = initial_access<int>("hello");
+//
+//    // tmp.dep_handle_ == h0
+//    EXPECT_THAT(tmp.dep_handle_.get(), Eq(h0));
+//    create_work([=,&h0,&h2,&h1,&v0,&v2]{
+//      ASSERT_EQ(tmp.state_, AccessHandle<int>::State::Modify_Modify);
+//      v0 = h0->get_version();
+//      tmp.set_value(42);
+//      tmp.publish(version=version_str);
+//      EXPECT_THAT(tmp.dep_handle_.get(), Eq(h2));
+//      v2 = h2->get_version();
+//      ASSERT_EQ(tmp.state_, AccessHandle<int>::State::Modify_Read);
+//    });
+//    EXPECT_THAT(tmp.dep_handle_.get(), Eq(h1));
+//    v1 = h1->get_version();
+//  } // h1 deleted
+//
+//  while(not mock_runtime->registered_tasks.empty()) {
+//    mock_runtime->registered_tasks.front()->run();
+//    mock_runtime->registered_tasks.pop_front();
+//  }
+//
+//  EXPECT_THAT(data, Eq(42));
+//  ++v0;
+//  EXPECT_EQ(v0, v2);
+//  v2.pop_subversion();
+//  ++v2;
+//  EXPECT_EQ(v1, v2);
+//
+//
+//}
+//
 ////////////////////////////////////////////////////////////////////////////////
 
+#if defined(DEBUG) || !defined(NDEBUG)
 TEST_F(TestAccessHandle, death_capture_released) {
   using namespace ::testing;
   using namespace darma_runtime;
@@ -312,13 +383,15 @@ TEST_F(TestAccessHandle, death_capture_released) {
       });
 
     },
-    "[Hh]andle used after release"
+    "[Cc]an't capture handle after it was released"
   );
 
 }
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 
+#if defined(DEBUG) || !defined(NDEBUG)
 TEST_F(TestAccessHandle, death_publish_released) {
   using namespace ::testing;
   using namespace darma_runtime;
@@ -336,13 +409,15 @@ TEST_F(TestAccessHandle, death_publish_released) {
       tmp.publish();
 
     },
-    "publish\\(\\) called on handle after release"
+    "Invalid operation `publish\\(\\)`"
   );
 
 }
+#endif
 
-////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
 
+#if defined(DEBUG) || !defined(NDEBUG)
 TEST_F(TestAccessHandle, death_get_value) {
   using namespace ::testing;
   using namespace darma_runtime;
@@ -356,13 +431,15 @@ TEST_F(TestAccessHandle, death_get_value) {
       auto tmp = initial_access<int>("hello");
       tmp.get_value();
     },
-    "get_value\\(\\) called on handle not in immediately readable state.*"
+    "Invalid operation `get_value\\(\\)`"
   );
 
 }
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 
+#if defined(DEBUG) || !defined(NDEBUG)
 TEST_F(TestAccessHandle, death_set_value) {
   using namespace ::testing;
   using namespace darma_runtime;
@@ -376,13 +453,15 @@ TEST_F(TestAccessHandle, death_set_value) {
       auto tmp = initial_access<int>("hello");
       tmp.set_value(10);
     },
-    "set_value\\(\\) called on handle not in immediately modifiable state.*"
+    "Invalid operation `set_value\\(\\)`"
   );
 
 }
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 
+#if defined(DEBUG) || !defined(NDEBUG)
 TEST_F(TestAccessHandle, death_get_reference) {
   using namespace ::testing;
   using namespace darma_runtime;
@@ -396,13 +475,15 @@ TEST_F(TestAccessHandle, death_get_reference) {
       auto tmp = initial_access<int>("hello");
       tmp.get_reference();
     },
-    "get_reference\\(\\) called on handle not in immediately modifiable state.*"
+    "Invalid operation `get_reference\\(\\)`"
   );
 
 }
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 
+#if defined(DEBUG) || !defined(NDEBUG)
 TEST_F(TestAccessHandle, death_set_value_2) {
   using namespace ::testing;
   using namespace darma_runtime;
@@ -420,13 +501,15 @@ TEST_F(TestAccessHandle, death_set_value_2) {
 
       run_all_tasks();
     },
-    "set_value\\(\\) called on handle not in immediately modifiable state.*"
+    "Invalid operation `set_value\\(\\)`"
   );
 
 }
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 
+#if defined(DEBUG) || !defined(NDEBUG)
 TEST_F(TestAccessHandle, death_get_value_after_release) {
   using namespace ::testing;
   using namespace darma_runtime;
@@ -446,13 +529,15 @@ TEST_F(TestAccessHandle, death_get_value_after_release) {
 
       run_all_tasks();
     },
-    "get_value\\(\\) called on handle after release"
+    "Invalid operation `get_value\\(\\)`"
   );
 
 }
+#endif
 
-////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
 
+#if defined(DEBUG) || !defined(NDEBUG)
 TEST_F(TestAccessHandle, death_emplace_value_after_release) {
   using namespace ::testing;
   using namespace darma_runtime;
@@ -472,13 +557,15 @@ TEST_F(TestAccessHandle, death_emplace_value_after_release) {
 
       run_all_tasks();
     },
-    "emplace_value\\(\\) called on handle after release"
+    "Invalid operation `emplace_value\\(\\)`"
   );
 
 }
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 
+#if defined(DEBUG) || !defined(NDEBUG)
 TEST_F(TestAccessHandle, death_dereference) {
   using namespace ::testing;
   using namespace darma_runtime;
@@ -493,13 +580,15 @@ TEST_F(TestAccessHandle, death_dereference) {
       *tmp = 5;
       std::cout << *tmp;
     },
-    "handle dereferenced in state without immediate access to data"
+    "Invalid operation `operator\\*\\(\\)`"
   );
 
 }
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 
+#if defined(DEBUG) || !defined(NDEBUG)
 TEST_F(TestAccessHandle, death_dereference_arrow) {
   using namespace ::testing;
   using namespace darma_runtime;
@@ -513,73 +602,10 @@ TEST_F(TestAccessHandle, death_dereference_arrow) {
       auto tmp = initial_access<std::string>("hello");
       std::cout << tmp->size();
     },
-    "handle dereferenced in state without immediate access to data"
+    "Invalid operation `operator->\\(\\)`"
   );
 
 }
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
-
-TEST_F(TestAccessHandle, death_get_key_after_release) {
-  using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace mock_backend;
-  using namespace darma_runtime::keyword_arguments_for_publication;
-
-  mock_runtime->save_tasks = true;
-
-  EXPECT_DEATH(
-    {
-      auto tmp = initial_access<std::string>("hello");
-      tmp = 0;
-      tmp.get_key();
-    },
-    "get_key\\(\\) called on handle after release"
-  );
-
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-TEST_F(TestAccessHandle, death_release_read_only) {
-  using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace mock_backend;
-  using namespace darma_runtime::keyword_arguments_for_publication;
-
-  mock_runtime->save_tasks = true;
-
-  EXPECT_DEATH(
-    {
-      auto tmp = read_access<std::string>("hello", version="world");
-      create_work(reads(tmp), [=]{ tmp = 0; });
-      run_all_tasks();
-    },
-    "release\\(\\) called on handle without Modify-schedule privileges"
-  );
-
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-TEST_F(TestAccessHandle, death_release_read_only_2) {
-  using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace mock_backend;
-  using namespace darma_runtime::keyword_arguments_for_publication;
-
-  mock_runtime->save_tasks = true;
-
-  EXPECT_DEATH(
-    {
-      auto tmp = initial_access<std::string>("hello");
-      create_work(reads(tmp), [=]{ tmp = 0; });
-      run_all_tasks();
-    },
-    "release\\(\\) called on handle without Modify-schedule privileges"
-  );
-
-}
-
-////////////////////////////////////////////////////////////////////////////////
-

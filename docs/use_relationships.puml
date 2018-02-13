@@ -1,0 +1,73 @@
+@startuml
+
+
+
+class AccessHandleBase
+class "AccessHandle<T>" as AccessHandle
+AccessHandleBase --|> AccessHandle : << base of >>
+
+AccessHandle : - managed_ptr<shared_ptr<GenericUseHolder<HandleUse>>, UseHolderBase*> current_use_
+object current_use_
+AccessHandle --* current_use_ : << private member >>
+
+
+current_use_ : - shared_ptr<GenericUseHolder<HandleUse>> smart_ptr_
+current_use_ : - UseHolderBase*& managed_ptr_
+object "smart_ptr_" as sp1 << pointer >>
+object "managed_ptr_" as mp1 << reference >>
+current_use_ --* sp1 : << private member >>
+current_use_ --* mp1 : << private member >>
+sp1 : (pointer to a GenericUseHolder<HandleUse>)
+mp1 : (reference to a UseHolderBase*)
+
+class UseHolderBase
+class GenericUseHolder <UnderlyingUse> {
+  <i>calls Runtime::register_use() in constructor</i>
+  <i>calls Runtime::release_use() in destructor or in replace_use()</i>
+  ..
+  replace_use(UnderlyingUse&&)
+  --
+}
+UseHolderBase --|> GenericUseHolder : << base of >>
+AccessHandleBase : UseHolderBase* current_use_base_
+mp1 ...> AccessHandleBase : << reference to member >> \n current_use_base_
+
+sp1 --o GenericUseHolder : << instance of >>
+GenericUseHolder : + managed_ptr<unique_ptr<UnderlyingUse>, HandleUseBase*> use
+object use
+GenericUseHolder --* use : << public member >>
+object "smart_ptr_" as sp2 << pointer >>
+object "managed_ptr_" as mp2 << reference >>
+use : - shared_ptr<GenericUseHolder<HandleUse>> smart_ptr_
+use : - HandleUse*& managed_ptr_
+use --* sp2 : << private member >>
+use --* mp2 : << private member >>
+sp2 : (pointer to a HandleUse)
+mp2 : (reference to a HandleUseBase*)
+mp2 ...> UseHolderBase : << reference to member >> \n use_base
+UseHolderBase : + HandleUseBase* use_base
+class HandleUse
+class HandleUseBase {
++ types::flow_t in_flow_
++ types::flow_t out_flow_
++ types::anti_flow_t anti_in_flow_
++ types::anti_flow_t anti_out_flow_
++ bool is_dependency_
++ bool is_antidependency_
++ permissions_t immediate_permissions_
++ permissions_t scheduling_permissions_
++ coherence_mode_t coherence_mode_
++ void* data_
+}
+class "abstract::frontend::Use" as Use
+Use --|> HandleUseBase : << base of >>
+HandleUseBase --|> HandleUse : << base of >>
+object use_base << pointer >>
+UseHolderBase --* use_base : << public member >>
+use_base : (pointer to a HandleUseBase*)
+use_base --o HandleUseBase : << instance of >>
+sp2 --o HandleUse : << instance of >>
+
+
+
+@enduml

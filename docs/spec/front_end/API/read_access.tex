@@ -3,14 +3,16 @@
 \label{ssec:api_fe_read_access}
 
 \paragraph{Summary}\mbox{}\\
-Creates a handle with \text{read-only} access to data that has been or will be
+\codetarget{read_access<T>} creates a \gls{handle} with \text{read-only} access to data that has been or will be
 published elsewhere in the system.
+
 
 \paragraph{Syntax}\mbox{}\\
 \begin{CppCode}
 /* unspecified, convertible to AccessHandle<T> */
 darma_runtime::read_access<T>(KeyParts..., version=KeyExpression);
 \end{CppCode}
+
 
 \paragraph{Positional Arguments}\mbox{}\\
 \begin{itemize}
@@ -20,31 +22,30 @@ darma_runtime::read_access<T>(KeyParts..., version=KeyExpression);
 
 \paragraph{Keyword Arguments}\mbox{}\\
 \begin{itemize}
-  \item |version=KeyExpression| or |version(KeyParts...) (optional) A
-  |KeyExpression| corresponding to the key given as the |version| when
-  |publish()| was invoked on a handle with the same name key.  See
-  \S~\ref{ssec:api_fe_publish} for more details.
+  \item |version=KeyExpression| (or |version(KeyExpression...)|,
+see \S~\ref{sec:keyword} for multiple-right-hand-side keyword argument usage):
+the version used to publish the data to be accessed.
+The value can be an arbitrary |KeyExpression|.
 \end{itemize}
 
 
 \paragraph{Return}\mbox{}\\
-An object of unspecified type that may be treated as an |AccessHandle<T>|
+An object of unspecified type that may be treated as an \codelink{AccessHandle<T>}
 with the key given by the arguments.
 
 \paragraph{Details}\mbox{}\\
-This function creates a handle to data that already exists and 
+This function creates a \gls{handle} to data that already exists and 
 needs to be accessed with read-only privileges. 
-It takes as input the tuple of values uniquely 
-identifying the data that needs to be read.  \todo{finish this, talking about
-how corresponding publish has to happen at some point Read/None permissions }
+It takes as input the \gls{tuple} of values uniquely 
+identifying the data that needs to be read.
+Immediately following this function, the \gls{handle} will have Read
+\gls{scheduling permissions} and None \gls{immediate permissions}.
+The \codelink{key}-\codelink{version} requested must eventually match that of a
+\codelink{key}-\codelink{version} that was \codelink{publish}ed.
 
-In general, it is used to access data that is migratable, i.e. data 
-that potentially is stored off node.
-\todo{anything missing? details?}
-
+In general, \codetarget{read_access} data is migratable and potentially stored off-node.
 
 \paragraph{Code Snippet}\mbox{}\\
-\begin{figure}[!h]
 \begin{CppCodeNumb}
 /* on one rank: */
 auto my_handle1 = initial_access<double>("key_1");
@@ -55,17 +56,26 @@ my_handle1.publish(n_readers=1, version="final");
 
 //...
 
-/* on another rank: */
+/* potentially on another rank: */
 auto readHandle = read_access<double>("key_1", version="final");
 create_work([=]{
   std::cout << readHandle.get_value() << std::endl;
 });
 \end{CppCodeNumb}
-\label{fig:fe_api_readaccess}
-\caption{Basic usage of \texttt{read\_access}.}
-\end{figure}
 
-\todo{pitfalls: talk about how unspecified type may provide compile-time
-checking that e.g. set\_value() wasn't called in the future}
+\paragraph{Restrictions and Pitfalls}\mbox{}\\ 
+\begin{itemize}
+  \item Because the actual type returned by |read_access<T>| is
+  unspecified, you should generally use |auto| instead of naming the type on 
+  the left hand side of the assignment (this is generally a good idea in modern
+  \CC{}). In other words,
+  \begin{CppCode}
+	// $\yes$ good, preferred
+	auto my_handle1 = read_access<double>("good", version=17); 
 
-
+	// $\no$ still compiles, but not preferred (may miss out
+	//  on some future optimizations and compile-time checks)
+	AccessHandle<double> my_handle1 = read_access<double>("bad", version="oops"); 
+  \end{CppCode}
+  For more, see \S~\ref{ssec:ahtraits}.
+\end{itemize}

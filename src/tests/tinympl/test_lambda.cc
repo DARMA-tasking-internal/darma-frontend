@@ -4,9 +4,9 @@
 //
 //                          test_lambda.hpp
 //                         darma_new
-//              Copyright (C) 2016 Sandia Corporation
+//              Copyright (C) 2017 NTESS, LLC
 //
-// Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
+// Under the terms of Contract DE-NA-0003525 with NTESS, LLC,
 // the U.S. Government retains certain rights in this software.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,7 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Questions? Contact David S. Hollman (dshollm@sandia.gov)
+// Questions? Contact darma@sandia.gov
 //
 // ************************************************************************
 //@HEADER
@@ -51,6 +51,7 @@
 
 #include <tinympl/vector.hpp>
 #include <tinympl/delay.hpp>
+#include <tinympl/logical_not.hpp>
 
 #include <string>
 #include <vector>
@@ -89,6 +90,10 @@ meta_assert(
   >::value
 );
 
+meta_assert(lambda<
+    not_<std::is_const<_1>>
+  >::template apply_value<int>::value
+);
 
 //meta_assert(
 //  undelay<

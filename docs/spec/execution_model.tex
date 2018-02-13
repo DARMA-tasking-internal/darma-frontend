@@ -1,30 +1,39 @@
 %!TEX root = sandReportSpec.tex
 
-\section{Compatible Execution Models}
+
+\section{Execution Models}
 \label{sec:exec_model}
+The main focus of \gls{DARMA} is the \gls{programming model} and corresponding
+\gls{translation layer} that maps a program expressed via a combination of
+\gls{CSP} semantics, \gls{coordination semantics}, and additional \CC{}-embedded task annotations into a generic data-flow based
+description of an algorithm based on \glspl{deferred task}.
+\gls{DARMA} therefore prescribes very little about execution.
+For example, \gls{DARMA} prescribes nothing about the scheduling of \glspl{task} nor the implementation 
+of the data structures (e.g., \gls{key-value store}, \gls{tuple space}) required to support \gls{coordination semantics}.
+A \gls{back end} \gls{runtime system} scheduler is therefore free to use, for example,
+either depth-first or breadth-first priorities in deferred tasks (as captured
+in a \gls{CDAG}).
+Similarly, a scheduler may use \glspl{thread pool} with work queues to manage
+tasks or it may use a \gls{fork-join} model that creates new threads for each task.
+In this way, \gls{DARMA} codes are \gls{execution model}-agnostic, only
+requiring that a \gls{back end} \gls{runtime system} preserve the
+\glspl{data-flow dependency} expressed in the application and derived by the
+\gls{translation layer}.
 
-As was mentioned earlier, DARMA is intended to support a range of execution
-models.  An initial \gls{spmd} launch of an algorithm must be supported, and if
-no imbalances are present, the runtime implementation should maintain this
-optimal initial decomposition. In addition to the coarse-grained distributed
-parallelism specified by the \gls{spmd} launch, additional task- and
-pipeline-parallelism is introduced via the \CC-embedded task annotations.
+\gls{DARMA} furthermore prescribes nothing about the internals of each \gls{task}.
+\gls{DARMA} is fully compatible with parallel \glspl{elastic task} - \gls{task}
+with flexible fine-grained parallelism, usually \gls{data parallelism}.
+For example, depending on dynamic conditions, more or fewer threads may be requested for a GPU kernel.
+Although the \gls{DARMA} \gls{front end} \gls{API} currently only allows expressing task granularity and task data-flow,
+we plan for the \gls{API} to also express \gls{task elasticity} in future versions.
 
-Although not yet supported in version \specVersion\ of the specification, several
-important features will play a role in the DARMA execution model:
-\begin{compactdesc}
-\item{\bf Fine-grained \gls{fork-join} parallelism}
-Syntax to express both task-parallel and data-parallel code will be provided.
-Furthermore, the user will be able to express the \gls{execution space} on
-which it would like the code to be run, along with the fraction of the resources within
-that space it would like to consume (e.g., number of threads on a CPU).
-\todo[inline]{add detail re type of fork-join parallelism supported here: Is
-  this terminally strict?, fully strict?}
-%JJW 02/15/2016 I don't think we'll ever support the actor model
-%The question is to what degree we will support C++ member functions as tasks
-\item{\bf Field slicing in classes and class member functions as tasks:}\todo[inline]{elaborate on
-  this}
-\end{compactdesc}
+\gls{DARMA}-compliant \gls{back end} \glspl{runtime system} are required to enable an efficient
+\gls{spmd} launch of their program, similar to an MPI launch.
+This is based off application developer feedback, which has indicated that 
+two of the most critical challenges for scientific applications with massive
+\gls{data parallelism} in a task-based model
+include initial problem decomposition and distribution.
+\gls{DARMA}'s efficient \gls{spmd} runtime-based launch requirement 
+will be modified if solutions are developed to support massive \gls{spmd} launches
+through compiler-based transformations.
 
-\todo[inline]{refer back to execution spaces (already mentioned in programming
-    model section). discuss how this feature impacts execution model}

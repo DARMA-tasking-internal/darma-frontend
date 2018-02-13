@@ -11,7 +11,7 @@
 //   Copyright (C) 2013, Ennio Barbaro.
 // See LEGAL.md for more information.
 //
-// Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
+// Under the terms of Contract DE-NA-0003525 with NTESS, LLC,
 // the U.S. Government retains certain rights in this software.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,7 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Questions? Contact David S. Hollman (dshollm@sandia.gov)
+// Questions? Contact darma@sandia.gov
 //
 // ************************************************************************
 //@HEADER
@@ -75,13 +75,13 @@ transposed
  * \param OutInner The type of the inner output sequence
  */
 template < class SequenceOfSequences,
-           template<class ...> class OutOuter =
-                as_sequence<SequenceOfSequences>::template rebind,
-           template<class ...> class OutInner =
-                as_sequence<typename at<0,SequenceOfSequences>::type>::
-                    template rebind >
+  template<class ...> class OutOuter =
+    as_sequence<SequenceOfSequences>::template rebind,
+  template<class ...> class OutInner =
+    as_sequence<typename at<0,SequenceOfSequences>::type>::template rebind
+>
 struct transpose :
-    transpose< as_sequence_t<SequenceOfSequences>, OutOuter, OutInner > {};
+  transpose< as_sequence_t<SequenceOfSequences>, OutOuter, OutInner > {};
 
 template< class ... Sequences,
           template<class ...> class OutOuter,
@@ -99,7 +99,7 @@ class transpose< sequence<Sequences...>, OutOuter, OutInner> {
     static_assert( variadic::all_of <
                    bind < equal_to, int_<size>,
                    bind<tinympl::size, arg1> >::
-                       template eval, Sequences...>::value,
+                       template eval_value, Sequences...>::value,
                    "transpose: all the sequences must have the same size" );
 
     template<std::size_t i, class ... Bound>

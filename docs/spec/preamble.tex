@@ -2,6 +2,7 @@
 
 \PassOptionsToPackage{table}{xcolor}
 \usepackage[table]{xcolor} 
+\usepackage{float}
 \usepackage{tikz}
 \usepackage{xspace}
 \usepackage{amsmath}
@@ -32,10 +33,10 @@
 % From the C++ FAQ.
 \newcommand{\CC}{C\nolinebreak\hspace{-.05em}\raisebox{.3ex}{+}\nolinebreak\hspace{-.10em}\raisebox{.3ex}{+}\xspace}
 \newcommand{\Charm}{Charm\nolinebreak\hspace{-.05em}\raisebox{.2ex}{+}\nolinebreak\hspace{-.10em}\raisebox{.2ex}{+}}
-\newcommand{\specVersion}{0.2}
+\newcommand{\specVersion}{0.4.0-prealpha}
 
-\usepackage[nonumberlist, acronym, toc]{glossaries}
-\newglossary[plg]{glossary}{pgi}{pgo}{Glossary}
+%\usepackage[nonumberlist, acronym, toc]{glossaries}
+%\newglossary[plg]{glossary}{pgi}{pgo}{Glossary}
 %\newglossary[mlg]{machine_model}{mgi}{mgo}{Machine Model Terminology}
 %\newglossary[dlg]{data}{dgi}{dgo}{Data Terminology}
 %\newglossary[tlg]{tasking}{tgi}{tgo}{Tasking Terminology}
@@ -83,14 +84,14 @@
 \newcommand{\no}{\text{\ding{55}}}
 
 
-\usepackage{draftwatermark}
-\SetWatermarkScale{1}
-\SetWatermarkLightness{0.9}
+%\usepackage{draftwatermark}
+%\SetWatermarkScale{1}
+%\SetWatermarkLightness{0.9}
 
 \usepackage{import}
 % Packages required by doxygen
 \usepackage{./doxygen-backend/latex/doxygen}
-\usepackage{fixltx2e}
+%\usepackage{fixltx2e}
 \usepackage{calc}
 \usepackage[export]{adjustbox} % also loads graphicx
 \usepackage[utf8]{inputenc}
@@ -154,6 +155,7 @@
 %    \markright{\thesection\ #1}%
 %}
 
+\definecolor{nearlyblack}{rgb}{0.1, 0.1, 0.1}
 
 % Hyperlinks (required, but should be loaded last)
 \usepackage{ifpdf}
@@ -164,8 +166,8 @@
 \fi
 \hypersetup{%
   colorlinks=true,%
-  linkcolor=blue,%
-  citecolor=blue,%
+  linkcolor=nearlyblack,%
+  citecolor=nearlyblack,%
   unicode%
 }
 
@@ -177,7 +179,22 @@
 \usepackage{caption}
 \captionsetup{labelsep=space,justification=centering,font={bf},singlelinecheck=off,skip=4pt,position=top}
 
+\usepackage[nosuper, nonumberlist, acronym, toc]{glossaries}
+\newglossary[plg]{glossary}{pgi}{pgo}{Glossary}
+%\newglossary[mlg]{machine_model}{mgi}{mgo}{Machine Model Terminology}
+%\newglossary[dlg]{data}{dgi}{dgo}{Data Terminology}
+%\newglossary[tlg]{tasking}{tgi}{tgo}{Tasking Terminology}
+%\newglossary[clg]{collectives}{cgi}{cgo}{Collective Terminology}
+
 \makeglossaries
+
+\newcommand{\codetarget}[1]{\hypertarget{#1}{\inlinecode{#1}}}
+\newcommand{\codelink}[1]{\hyperlink{#1}{\inlinecode{#1}}}
+\newcommand{\ahandle}{\codelink{AccessHandle} }
+\newcommand{\ahandleT}{\codelink{AccessHandle<T>} }
+\newcommand{\cwork}{\codelink{create_work}\xspace}
+
+\newcommand{\compilerReqs}{(gcc $>= 4.9$, clang $>= 3.5$, icc $>=16$)}
 
 \input{glsentries}
 

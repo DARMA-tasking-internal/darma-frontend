@@ -11,7 +11,7 @@
 //   Copyright (C) 2013, Ennio Barbaro.
 // See LEGAL.md for more information.
 //
-// Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
+// Under the terms of Contract DE-NA-0003525 with NTESS, LLC,
 // the U.S. Government retains certain rights in this software.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,7 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Questions? Contact David S. Hollman (dshollm@sandia.gov)
+// Questions? Contact darma@sandia.gov
 //
 // ************************************************************************
 //@HEADER
@@ -71,6 +71,9 @@ struct left_fold : left_fold< as_sequence_t<Sequence>, F> {};
 
 template<class ... Ts, template<class ...> class F>
 struct left_fold<sequence<Ts...>, F> : variadic::left_fold<F, Ts...> {};
+
+template <class Sequence, template <class...> class F>
+using left_fold_t = typename left_fold<Sequence, F>::type;
 
 } // namespace tinympl
 

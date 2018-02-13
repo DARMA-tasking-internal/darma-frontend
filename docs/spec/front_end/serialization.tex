@@ -1,0 +1,475 @@
+%!TEX root = ../sandReportSpec.tex
+
+\section{Serialization and Layout Description}
+\label{sec:serialization}
+
+\lstMakeShortInline[style=CppCodeInlineStyle]{\|}
+
+Any data that is migrated or moved across the network bewteen \glspl{memory space} must be
+first be serialized.
+The \gls{DARMA} \gls{front end} \gls{programming model} provides an extremely flexible and
+extensible interface for describing serialization and/or layout of \CC{} types. 
+In spite of this flexibility, the vast majority of use cases only require the
+understanding and use of one or two very basic abstractions.  However, the
+\gls{DARMA} serialization interface provides a wide variety of features to handle complex
+and corner cases, as well as features to tune and optimize performance-critical
+cases.  The following section describes the \gls{DARMA} serialization interface,
+beginning with abstractions that handle the vast majority of use cases and
+expanding to progressively more niche features later in the section.
+
+Note that this section is entitled ``Serialization and Layout Description''
+rather than just ``Serialization'' because the interface provides ways to
+specify movement of data in ways that aren't traditionally considered
+serialization, such as describing a type as a series of \gls{RDMA} pointers with
+associated sizes.  More details to follow.
+
+\subsection{Basic Intrusive Interface}
+\label{ssec:serbasic}
+
+The most basic and straightforward way to specify serialization of a user type
+in \gls{DARMA}, and the method that should be used in the vast majority of cases
+(with, perhaps, one simple extension discussed below), is providing a publicly
+accessible\footnote{later versions of the specification may allow private
+implementations with a \inlinecode{friend} specification} |serialize| method
+in the user class.  The |serialize| method provided for this purpose should be
+non-|const| and should take a single argument, which in the simplest case will
+be an lvalue reference to a
+|darma_runtime::serialization::SimplePackUnpackArchive| object.  For instance,
+consider the following (somewhat contrived) user-defined class:
+%
+\begin{CppCodeNumb}
+class MyClass {
+  private:
+    double a_, b_;
+    std::string label_;
+    double prod_sqrt_;
+  public:
+    static constexpr const char unlabeled_string[] = "<unlabeled>";
+    MyClass(int a, int b)
+      : MyClass(unlabeled_string, a, b)
+    { }
+    MyClass(std::string const& label, int a, int b)
+      : a_(a), b_(b), label_(label),
+        prod_sqrt_(a_ == b_ ? a_ : std::sqrt(a_*b_))
+    { }
+};
+\end{CppCodeNumb}
+%
+The simplest way to allow \gls{DARMA} to interact with |MyClass| is to provide
+a |serialize| method in the class definition:
+\begin{CppCodeNumb}
+using Archive = darma_runtime::serialization::SimplePackUnpackArchive;
+class MyClass {
+  public:
+    /* ... */
+    void serialize(Archive& ar) {
+      ar | a_ | b_ | label_ | prod_sqrt_;
+    }
+};
+\end{CppCodeNumb}
+As you can see, the type |SimplePackUnpackArchive| has an overload for
+\inlinecode{operator|()}, takes a serializable type, and returns itself (more
+on what constitues a ``serializable type'' later).
+
+\subsection{\texttt{SimplePackUnpackArchive}}
+
+\gls{DARMA} encapsulates advanced serialization behaviors in the \gls{archive}
+\gls{concept}.  The only \gls{archive} type fully implemented in the current
+specification is |SimplePackUnpackArchive|, which performs serialization in the
+most basic and traditional way.  On the sender side, \gls{DARMA} performs
+two serialization passes: one in sizing mode and one in packing mode.  The receiver
+only requires one pass: unpacking.  These modes can be queried using the archive
+object methods |is_sizing()|, |is_packing()|, and |is_unpacking()|, only
+one of which will return true at any given time.  All \gls{archive} types
+implement these methods.
+
+\subsection{Generic Archive Serialization}
+
+As \gls{DARMA} evolves and as more performance considerations are addressed,
+the \gls{DARMA} team and our collaborators plan to provide other \gls{archive} types which
+take more advanced serialization strategies, such as enabling \gls{RDMA}
+access to pieces of a type.  In order to write code that can take advantage of
+these features when they become available, the vast majority of user types can
+simply provide a templated |serialize| method:
+\begin{CppCodeNumb}
+class MyClass {
+  public:
+    /* ... */
+    template <typename Archive>
+    void serialize(Archive& ar) {
+      ar | a_ | b_ | label_ | prod_sqrt_;
+    }
+};
+\end{CppCodeNumb}
+
+\subsection{Different Behaviors in Different Modes}
+
+Consider again the |MyClass| example above.  Since |prod_sqrt_| can be
+recomputed on the fly, it may be desirable to avoid including it in the data to
+be moved and instead just recompute it on the receiving side.  To do this, however,
+we need the |serialize| method to perform different actions in unpacking mode
+than in the other modes.  The |is_unpacking()| method makes this easy:
+%
+\begin{CppCodeNumb}
+class MyClass {
+  public:
+    /* ... */
+    template <typename Archive>
+    void serialize(Archive& ar) {
+      ar | a_ | b_ | label_;
+      if(ar.is_unpacking())
+        prod_sqrt_ = a_ == b_ ? a_ : std::sqrt(a_*b_);
+    }
+};
+\end{CppCodeNumb}
+%
+Notice also that the |label_| field of |MyClass| has the same static value if a
+label is ungiven every time.  If |MyClass| often does not have a |label_|, it
+may be advantagous to pack a boolean indicating whether the label exists,
+followed by the label itself only if the label is given.  We can do this using
+the same approach:
+\begin{CppCodeNumb}
+class MyClass {
+  public:
+    /* ... */
+    template <typename Archive>
+    void serialize(Archive& ar) {
+      ar | a_ | b_;
+      bool has_label;
+      if(!ar.is_unpacking()) {
+        has_label = label_ != unlabeled_string;
+        ar | has_label;
+        if(has_label) ar | label_;
+      }
+      else { // ar.is_unpacking()
+        ar | has_label;
+        if(has_label) ar | label_;
+        else label_ = unlabeled_string;    
+        // From before:
+        prod_sqrt_ = a_ == b_ ? a_ : std::sqrt(a_*b_);
+      }
+    }
+};
+\end{CppCodeNumb}
+
+\subsection{Seperate Methods for Seperate Modes}
+If the logic for packing is significantly different from the logic for unpacking,
+the serialization of a |MyClass| object may involve a significant
+number of if statements. For this and other reasons, \gls{DARMA} allows the user to specify
+seperate |pack|, |unpack|, and |compute_size| methods as needed.  Each takes an
+\gls{archive} object as an argument, and the |pack| and |compute_size| methods must
+be |const|.  The first example that recomputes |prod_sqrt_| could then be
+rewritten as:
+\begin{CppCodeNumb}
+class MyClass {
+  public:
+    /* ... */
+    template <typename Archive>
+    void serialize(Archive& ar) {
+      ar | a_ | b_ | label_;
+    }
+    template <typename Archive>
+    void unpack(Archive& ar) {
+      ar | a_ | b_ | label_;
+      prod_sqrt_ = a_ == b_ ? a_ : std::sqrt(a_*b_);
+    }
+};
+\end{CppCodeNumb}
+The more specialized |pack|, |unpack|, and |compute_size| methods always have
+higher priority than |serialize|, so in this case \gls{DARMA} will invoke |unpack|
+during the unpacking pass while still calling |serialize| in the sizing and
+packing passes.
+
+The performance-concious reader may have further noticed that since
+the \inlinecode{operator|()} implementation must function in all three modes,
+there will be branches or switches based on the mode.  Thus, in a
+performance-critical context, the user may want operators that are specific to the phase in question.
+This could also be accomplished (and may be in the future) by passing in different types
+for the sizing, packing, and unpacking phases, which is yet another reason to
+use the templated versions of these methods instead. This can also be done using
+|operator<<()| for packing, |operator>>()| for unpacking, and |operator%| for
+sizing.  The final |serialize| with both the |prod_sqrt_| and |label_|
+optimizations could then be rewritten as:
+%
+\begin{CppCodeNumb}
+class MyClass {
+  public:
+    /* ... */
+    template <typename Archive>
+    void compute_size(Archive& ar) const {
+      ar % a_ % b_;
+      if(label_ == unlabeled_string) ar % false;
+      else ar % true % label_;
+    }
+    template <typename Archive>
+    void pack(Archive& ar) const {
+      ar << a_ << b_;
+      if(label_ == unlabeled_string) ar << false;
+      else ar << true << label_;
+    }
+    template <typename Archive>
+    void unpack(Archive& ar) {
+      ar >> a_ >> b_;
+      bool has_label;
+      ar >> has_label;
+      if(has_label) ar >> label_;
+      else label_ = unlabeled_string;
+      prod_sqrt_ = a_ == b_ ? a : std::sqrt(a_*b_);
+    }
+};
+\end{CppCodeNumb}
+Unless absolutely performance critical, these optimizations should be avoided.
+Besides being significantly more verbose, these optimizations
+affect code maintainability.  
+If another member variable |c_| were added to |MyClass|, the serialization implementation in the
+final example would have to be modified in {\it three} places, whereas the
+earlier examples, while potentially less performant, only have to be updated in
+one place.  Also, failure to ensure that the order of member variable
+serialization is identical in multiple places can lead to hard-to-detect bugs. 
+Thus, we recommend using the single |serialize| method except in
+performance-critical, inner-loop-like code.
+
+\subsection{Serializing Pointers and Ranges}
+
+\gls{DARMA} also provides a convenient way to serialize iterables of serializable
+objects using |darma_runtime::serialization::range|.  As a simple example:
+\begin{CppCodeNumb}
+template <typename T>
+class MyData {
+  private:
+    T* data_;
+    size_t n_items;
+  public:
+    MyData(T const* copy_from, size_t n)
+      : n_items(n) {
+      data_ = new T[n];
+      std::copy(copy_from, copy_from+n, data_);
+    }
+    ~MyData() { delete[] data_; }
+};
+\end{CppCodeNumb}
+If we restrict ourselves to only making |MyData<T>| instances that hold
+serializable types |T|, we can write the |serialize| method for this class as
+\begin{CppCodeNumb}
+using darma_runtime::serialization::range;
+template <typename T>
+class MyData {
+  public:
+    /* ... */
+    template <typename Archive>
+    void serialize(Archive& ar) {
+      ar | range(data_, data_ + n_items);
+    }
+};
+\end{CppCodeNumb}
+
+\subsection{Non-intrusive Interface}
+
+Classes for which the user cannot define an intrusive |serialize| method (or
+any of the other intrusive methods), for one reason or another, can still be
+made serializable by defining a specialization (partial or full) of the class
+|darma_runtime::serialization::Serializer<T>| for the type in
+question.\footnote{Generic implementations requiring partial specialization
+  with an \inlinecode{enable_if} clause should use
+\inlinecode{darma_runtime::serialization::detail::Serializer_enabled_if<T, Enable>}.  Consult source code for more details.}  Like the intrusive interface,
+these classes can define a |serialize| method; individual |compute_size|,
+|pack|, and |unpack| methods; or some combination of these, with the specific
+versions having higher priority.  All of these methods must be |const| (the
+Serializer object itself isn't allowed to have state anyway; it's just a
+convenient mechanism for grouping functions for a class non-intrusively).  Their
+signatures are a bit different from the intrusive analogues.  Consider a
+slightly different version of |MyClass| from above, the public
+interface of which is specified as:
+\begin{CppCodeNumb}
+class YourClass {
+  public:
+    double get_a() const;
+    void set_a(double val);
+    double get_b() const;
+    void set_b(double val);
+    std::string const& get_label() const;
+    void set_label(std::string const& val);
+    double get_product_sqrt() const;
+};
+\end{CppCodeNumb}
+Assuming |YourClass| is default constructible, a way to specify a serialization
+for |YourClass| non-intrusively is:
+\begin{CppCodeNumb}
+namespace darma_runtime { namespace serialization {
+template <>
+struct Serializer<YourClass> {
+  template <typename Archive>
+  void serialize(YourClass& yc, Archive& ar) const {
+    if(!ar.is_unpacking()) {
+      double a = yc.get_a();
+      double b = yc.get_b();
+      std::string label = yc.get_label();
+      ar | a | b | label;
+    }
+    else {
+      double a, b;
+      std::string label;
+      ar | a | b | label;
+      yc.set_a(a);
+      yc.set_b(b);
+      yc.set_label(label);
+    }
+  }
+};
+}} // end namespace darma_runtime::serialization
+\end{CppCodeNumb}
+As before, we can split this into |serialize| and |unpack| methods.  However,
+the |unpack| method requires a slightly different signature:
+\begin{CppCodeNumb}
+template <typename Archive>
+darma_runtime::serialization::Serializer<YourClass>::unpack(
+  void* allocated, Archive& ar
+) const;
+\end{CppCodeNumb}
+Rather than being a reference to an instance of the class itself, the first
+argument to the non-intrusive |unpack| method is a pointer to the beginning of a
+chunk of memory of size |sizeof(YourClass)| allocated by the backend, but not
+constructed.  This allows for the unpacking of non-default-constructible
+classes.  The |unpack| method must construct the object at that memory
+location using the \CC{} placement new.  The syntax of placement new might be a
+little strange if you've never seen it before, but once you see it, its use is
+pretty straightforward.  The non-intrusive |Serializer| for |YourClass| can then
+be written as:
+\begin{CppCodeNumb}
+namespace darma_runtime { namespace serialization {
+template <>
+struct Serializer<YourClass> {
+  template <typename Archive>
+  void serialize(YourClass& yc, Archive& ar) const {
+    assert(!ar.is_unpacking()) // just in case
+    double a = yc.get_a();
+    double b = yc.get_b();
+    std::string label = yc.get_label();
+    ar | a | b | label;
+  }
+  template <typename Archive>
+  void unpack(void* allocated, Archive& ar) const {
+    double a, b;
+    std::string label;
+    ar | a | b | label;
+    // Since YourClass is default-constructible, the placement new
+    // that we want looks like this:
+    YourClass* yc = new (allocated) YourClass();
+    yc->set_a(a);
+    yc->set_b(b);
+    yc->set_label(label);
+  }
+};
+}} // end namespace darma_runtime::serialization
+\end{CppCodeNumb}
+The non-intrusive interface versions of |pack| and |compute_size| have similar
+signatures to that of |serialize|, except they take a |const| lvalue reference
+as their first argument:
+\begin{CppCodeNumb}
+template <typename Archive>
+darma_runtime::serialization::Serializer<YourClass>::compute_size(
+  YourClass const& val, Archive& ar
+) const;
+template <typename Archive>
+darma_runtime::serialization::Serializer<YourClass>::pack(
+  YourClass const& val, Archive& ar
+) const;
+\end{CppCodeNumb}
+
+The non-intrusive serialization interface has higher priority than the intrusive
+one, but in general the user should not define both or mixed intrusive and
+non-intrusive serializations.
+
+\subsection{Definition of ``Serializable''}
+
+Having introduced the \gls{archive} \gls{concept}, the intrusive interface, and the
+non-intrusive interface, we're finally ready to formally define ``serializable''
+as \gls{DARMA} sees it.  \gls{DARMA} views the serializability of a given type as a property
+associated with that type and a given \gls{archive} type --- a type
+\inlinecode{T} can be described
+as ``serializable with \gls{archive} type A''.  We've been sloppy about this up to
+this point because it's usually clear from context which \gls{archive} type we're
+referring to (or if we're referring to a generic \gls{archive} type given as a
+template parameter).  This allows for the development of \gls{archive} types that, for
+instance, only handle performance sensative types, but do so very efficiently.
+
+\subsection{Implementations for Builtin and Standard Library Types}
+
+The \gls{DARMA} \gls{translation layer} has default |Serializer| implementations for many
+builtin and standard library types.  Currently this includes anything that meets
+the standard container \gls{concept} (for which the value types are also
+serializable), \gls{POD} types, |std::pair| of serializable types, and
+compile-time sized arrays of serializable types.  Many of the implementations in
+the current backend are with respect to a generic \gls{archive} type, but since
+|SimplePackUnpackArchive| is the only \gls{archive} type currently implemented,
+the code is only tested with this \gls{archive} thus far.
+
+You can define a serialization for any bitwise copyable, \gls{POD} type simply by
+specializing |darma_runtime::serialization::serialize_as_pod<T>| to inherit from
+|std::true_type|:
+\begin{CppCodeNumb}
+class MyPlainOldData {
+  int i, j, k;
+  double x, y, z; 
+};
+namespace darma_runtime { namespace serialization {
+template <>
+struct serialize_as_pod<MyPlainOldData> : std::true_type { };
+}} // end namespace darma_runtime::serialization
+\end{CppCodeNumb}
+
+\subsection{Polymorphism}
+
+Deserialization into polymorphic base class pointers is currently not supported
+by the \gls{DARMA} serialization interface.  If a type is to be used in a context that
+requires \gls{DARMA} to deserialize it (most importantly, as wrapped by an
+\codelink{AccessHandle<T>} or the type of an argument passed to a
+functor-style \codelink{create_work} that could be migrated), the concrete type must be
+known at compile time.  Support for this will be forthcoming, but will likely require an intrusive interface.  
+There are a number of other patterns in the programming
+literature that can be used to mimic run-time polymorphism, and we suggest the
+user consider these if necessary.
+
+\subsection{Serialization Pitfalls}
+
+\begin{itemize}
+  \item Because \gls{DARMA} detects the various intrusive and non-intrusive
+  |serialize|, |pack|, |unpack|, etc. methods, |const|-incorrectness or an
+  otherwise incorrect signature can cause these methods to go undetected and
+  lead to unexpected behavior.  For instance,
+\begin{CppCodeNumb}
+class MyClass {
+  public:
+    /* ... */
+    template <typename Archive>
+    void serialize(Archive& ar) {
+      ar | a_ | b_ | label_;
+    }
+    template <typename Archive>
+    void unpack(Archive ar) { // $\no$ missing lvalue reference in parameter!
+      ar | a_ | b_ | label_;
+      prod_sqrt_ = a_ == b_ ? a_ : std::sqrt(a_*b_);
+    }
+};
+\end{CppCodeNumb}
+would fail to ever define |prod_sqrt_| because the |unpack| method would not be
+detected and \gls{DARMA} would fall back on |serialize| for the unpacking process. 
+Most of the common mistakes we anticipate are checked with |static_assert|s, but
+it is impossible to check all possible mistakes.  Care should be taken when this
+issue could arise.  Note that if only |serialize| had been defined incorrectly,
+for instance:
+\begin{CppCodeNumb}
+class MyClass {
+  public:
+    /* ... */
+    template <typename Archive>
+    void serialize(Archive& ar) const { // $\no$ should not be const!
+      ar | a_ | b_ | label_ | prod_sqrt_;
+    }
+};
+\end{CppCodeNumb}
+then the code that uses |MyClass| would simply fail to compile, since |MyClass|
+isn't serializable with any archive types.
+\end{itemize}
+
+\lstDeleteShortInline{\|}

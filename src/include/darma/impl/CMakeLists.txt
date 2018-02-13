@@ -1,48 +1,60 @@
 
-set (impl_HEADERS
-compatibility.h
-create_work.h
-darma.h
-darma_assert.h
-handle.h
-handle_fwd.h
-handle_attorneys.h
-key_concept.h
-runtime.h
-serialization.h
-serialization_builtin.h
-spmd.h
-task.h
-task_fwd.h
-task_capture_impl.h
-util.h)
-
-set (impl_meta_HEADERS
-meta/detection.h
-meta/filter_types.h
-meta/indices_where.h
-meta/largest_aligned.h
-meta/member_detector.h
-meta/metaprogramming.h
-meta/move_if.h
-meta/sentinal_type.h
-meta/splat_tuple.h
-meta/tuple_for_each.h
-meta/void_t.h
-meta/wrap_with_template.h)
-
-set (impl_keyword_arguments_HEADERS
-keyword_arguments/check_allowed_kwargs.h
-keyword_arguments/get_kwarg.h
-keyword_arguments/keyword_argument_name.h
-keyword_arguments/keyword_arguments.h
-keyword_arguments/keyword_tag.h
-keyword_arguments/kwarg_expression.h
-keyword_arguments/kwarg_expression_fwd.h
-keyword_arguments/macros.h)
-
+FILE(GLOB impl_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/*.h")
+FILE(GLOB impl_access_handle_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/access_handle/*.h")
+FILE(GLOB impl_array_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/array/*.h")
+FILE(GLOB impl_async_accessible_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/async_accessible/*.h")
+FILE(GLOB impl_capture_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/capture/*.h")
+FILE(GLOB impl_collective_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/collective/*.h")
+FILE(GLOB impl_create_work_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/create_work/*.h")
+FILE(GLOB impl_index_range_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/index_range/*.h")
+FILE(GLOB impl_key_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/key/*.h")
+FILE(GLOB impl_keyword_arguments_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
+    "../keyword_arguments/*.h")
+FILE(GLOB impl_meta_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/meta/*.h")
+FILE(GLOB impl_oo_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/oo/*.h")
+FILE(GLOB impl_runnable_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/runnable/*.h")
+FILE(GLOB impl_serialization_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/serialization/*.h")
+FILE(GLOB impl_task_collection_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/task_collection/*.h")
+FILE(GLOB impl_task_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/task/*.h")
+FILE(GLOB impl_task_collection_impl_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/task_collection/impl/*.h")
+FILE(GLOB impl_use_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/use/*.h")
+FILE(GLOB impl_util_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/util/*.h")
 
 install (FILES ${impl_HEADERS} DESTINATION include/darma/impl)
+install (FILES ${impl_access_handle_HEADERS} DESTINATION include/darma/impl/access_handle)
+install (FILES ${impl_array_HEADERS} DESTINATION include/darma/impl/array)
+install (FILES ${impl_async_accessible_HEADERS} DESTINATION include/darma/impl/async_accessible)
+install (FILES ${impl_capture_HEADERS} DESTINATION include/darma/impl/capture)
+install (FILES ${impl_collective_HEADERS} DESTINATION include/darma/impl/collective)
+install (FILES ${impl_create_work_HEADERS} DESTINATION include/darma/impl/create_work)
+install (FILES ${impl_index_range_HEADERS} DESTINATION include/darma/impl/index_range)
+install (FILES ${impl_key_HEADERS} DESTINATION include/darma/impl/key)
+install (FILES ${impl_keyword_arguments_HEADERS} DESTINATION include/darma/keyword_arguments)
 install (FILES ${impl_meta_HEADERS} DESTINATION include/darma/impl/meta)
-install (FILES ${impl_keyword_arguments_HEADERS} DESTINATION include/darma/impl/keyword_arguments)
+install (FILES ${impl_oo_HEADERS} DESTINATION include/darma/impl/oo)
+install (FILES ${impl_runnable_HEADERS} DESTINATION include/darma/impl/runnable)
+install (FILES ${impl_serialization_HEADERS} DESTINATION include/darma/impl/serialization)
+install (FILES ${impl_task_HEADERS} DESTINATION include/darma/impl/task)
+install (FILES ${impl_task_collection_HEADERS} DESTINATION include/darma/impl/task_collection)
+install (FILES ${impl_task_collection_impl_HEADERS} DESTINATION include/darma/impl/task_collection/impl)
+install (FILES ${impl_use_HEADERS} DESTINATION include/darma/impl/use)
+install (FILES ${impl_util_HEADERS} DESTINATION include/darma/impl/util)
 

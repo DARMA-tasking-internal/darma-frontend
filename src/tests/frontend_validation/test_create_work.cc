@@ -4,9 +4,9 @@
 //
 //                          test_create_work.cc
 //                         dharma_new
-//              Copyright (C) 2016 Sandia Corporation
+//              Copyright (C) 2017 NTESS, LLC
 //
-// Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
+// Under the terms of Contract DE-NA-0003525 with NTESS, LLC,
 // the U.S. Government retains certain rights in this software.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -36,13 +36,16 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Questions? Contact David S. Hollman (dshollm@sandia.gov)
+// Questions? Contact darma@sandia.gov
 //
 // ************************************************************************
 //@HEADER
 */
 
 #include <gtest/gtest.h>
+
+class TestCreateWork_mod_capture_MM_Test;
+#define DARMA_TEST_FRONTEND_VALIDATION_CREATE_WORK 1
 
 #include "mock_backend.h"
 #include "test_frontend.h"
@@ -75,42 +78,54 @@ class TestCreateWork
 
 ////////////////////////////////////////////////////////////////////////////////
 
-TEST_F(TestCreateWork, capture_initial_access) {
+struct TestModCaptureMN
+  : TestCreateWork,
+    ::testing::WithParamInterface<bool>
+{ };
+
+TEST_P(TestModCaptureMN, mod_capture_MN) {
   using namespace ::testing;
   using namespace darma_runtime;
   using namespace darma_runtime::keyword_arguments_for_publication;
-
-  Sequence s1;
-
-  auto hm1 = make_same_handle_matcher();
-  auto hm2 = make_same_handle_matcher();
+  using namespace mock_backend;
 
   mock_runtime->save_tasks = true;
 
-  EXPECT_CALL(*mock_runtime, register_handle(Truly(hm1)))
-    .InSequence(s1);
+  const bool use_helper = GetParam();
 
-  // Release read-only usage should happen immedately for initial access,
-  // i.e., before running the next line of code that triggers the next register_handle
-  EXPECT_CALL(*mock_runtime, release_read_only_usage(Truly(hm1)))
-    .InSequence(s1);
+  DECLARE_MOCK_FLOWS(f_initial, f_null, f_task_out);
+  use_t* task_use = nullptr;
+  use_t* use_initial = nullptr;
+  use_t* use_cont = nullptr;
 
-  EXPECT_CALL(*mock_runtime, register_handle(AllOf(Truly(hm2), Not(Eq(hm1.handle)))))
-    .InSequence(s1);
+  EXPECT_INITIAL_ACCESS(f_initial, f_null, use_initial, make_key("hello"));
 
-  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(AllOf(
-      in_get_dependencies(hm1),
-      needs_write_of(hm1),
-      Not(needs_read_of(hm1))
-    ))).InSequence(s1);
+  if(use_helper) {
+    EXPECT_MOD_CAPTURE_MN_OR_MR(f_initial, f_task_out, task_use, f_null, use_cont);
+  }
+  else {
+    EXPECT_CALL(*mock_runtime, make_next_flow(f_initial))
+      .WillOnce(Return(f_task_out));
 
-  EXPECT_CALL(*mock_runtime, release_read_only_usage(Truly(hm2)))
-    .InSequence(s1);
+    EXPECT_REGISTER_USE(task_use, f_initial, f_task_out, Modify, Modify);
 
-  EXPECT_CALL(*mock_runtime, release_handle(Truly(hm2)))
-    .Times(Exactly(1))
-    .InSequence(s1);
+    EXPECT_REGISTER_USE(use_cont, f_task_out, f_null, Modify, None);
+  }
 
+  {
+    InSequence rel_before_reg;
+
+    EXPECT_RELEASE_USE(use_initial);
+
+    EXPECT_REGISTER_TASK(task_use);
+
+    EXPECT_FLOW_ALIAS(f_task_out, f_null);
+
+    EXPECT_RELEASE_USE(use_cont);
+  }
+
+  //============================================================================
+  // Actual code being tested
   {
     auto tmp = initial_access<int>("hello");
 
@@ -121,65 +136,56 @@ TEST_F(TestCreateWork, capture_initial_access) {
     });
 
   } // tmp deleted
+  //============================================================================
 
-  // We expect the captured handle won't be released until the task is deleted, which we'll do here
-  EXPECT_CALL(*mock_runtime, release_handle(Truly(hm1)))
-    .Times(Exactly(1))
-    .InSequence(s1);
+  EXPECT_RELEASE_USE(task_use);
 
   mock_runtime->registered_tasks.clear();
 
 }
 
+INSTANTIATE_TEST_CASE_P(
+  WithAndWithoutHelper,
+  TestModCaptureMN,
+  ::testing::Bool()
+);
+
+
 ////////////////////////////////////////////////////////////////////////////////
 
-TEST_F(TestCreateWork, capture_initial_access_vector) {
+TEST_F(TestCreateWork, mod_capture_MN_vector) {
   using namespace ::testing;
   using namespace darma_runtime;
   using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace mock_backend;
 
-  Sequence s1, s2, s3;
+  DECLARE_MOCK_FLOWS(finit1, finit2, fnull1, fnull2, fout1, fout2);
+  use_t *use_1, *use_2, *init_use_1, *init_use_2, *cont_use_1, *cont_use_2;
 
-  auto hm1_1 = make_same_handle_matcher();
-  auto hm2_1 = make_same_handle_matcher();
-  auto hm1_2 = make_same_handle_matcher();
-  auto hm2_2 = make_same_handle_matcher();
+  EXPECT_INITIAL_ACCESS(finit1, fnull1, init_use_1, make_key("hello"));
+  EXPECT_INITIAL_ACCESS(finit2, fnull2, init_use_2, make_key("world"));
 
-  mock_runtime->save_tasks = true;
+  EXPECT_MOD_CAPTURE_MN_OR_MR(finit1, fout1, use_1, fnull1, cont_use_1);
 
-  EXPECT_CALL(*mock_runtime, register_handle(Truly(hm1_1)))
-    .InSequence(s1);
-  EXPECT_CALL(*mock_runtime, release_read_only_usage(Truly(hm1_1)))
-    .InSequence(s1);
+  EXPECT_RELEASE_USE(init_use_1);
 
-  EXPECT_CALL(*mock_runtime, register_handle(AllOf(Truly(hm2_1), Not(Eq(hm1_1.handle)))))
-    .InSequence(s1);
-  EXPECT_CALL(*mock_runtime, release_read_only_usage(Truly(hm2_1)))
-    .InSequence(s1, s2);
+  EXPECT_MOD_CAPTURE_MN_OR_MR(finit2, fout2, use_2, fnull2, cont_use_2);
 
-  // Expect continuing context registrations.  Order not specified
-  EXPECT_CALL(*mock_runtime, register_handle(AllOf(Truly(hm1_2), Not(Eq(hm1_1.handle)))))
-    .InSequence(s1);
-  EXPECT_CALL(*mock_runtime, register_handle(AllOf(Truly(hm2_2), Not(Eq(hm2_1.handle)))))
-    .InSequence(s2);
+  EXPECT_RELEASE_USE(init_use_2);
 
-  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(AllOf(
-      in_get_dependencies(hm1_1), needs_write_of(hm1_1), Not(needs_read_of(hm1_1)),
-      in_get_dependencies(hm2_1), needs_write_of(hm2_1), Not(needs_read_of(hm2_1))
-  ))).InSequence(s1, s2, s3);
+  EXPECT_REGISTER_TASK(use_1, use_2);
 
-  EXPECT_CALL(*mock_runtime, release_read_only_usage(Truly(hm1_2)))
-    .InSequence(s1);
-  EXPECT_CALL(*mock_runtime, release_read_only_usage(Truly(hm2_2)))
-    .InSequence(s3);
+  EXPECT_FLOW_ALIAS(fout1, fnull1);
 
-  EXPECT_CALL(*mock_runtime, release_handle(Truly(hm1_2)))
-    .Times(Exactly(1))
-    .InSequence(s1, s2);
-  EXPECT_CALL(*mock_runtime, release_handle(Truly(hm2_2)))
-    .Times(Exactly(1))
-    .InSequence(s3);
+  EXPECT_RELEASE_USE(cont_use_1);
 
+  EXPECT_FLOW_ALIAS(fout2, fnull2);
+
+  EXPECT_RELEASE_USE(cont_use_2);
+
+
+  //============================================================================
+  // Actual code being tested
   {
     std::vector<AccessHandle<int>> handles;
 
@@ -192,41 +198,328 @@ TEST_F(TestCreateWork, capture_initial_access_vector) {
     });
 
   } // handles deleted
+  //============================================================================
 
-  EXPECT_CALL(*mock_runtime, release_handle(Truly(hm1_1)))
-    .Times(Exactly(1))
-    .InSequence(s1);
-  EXPECT_CALL(*mock_runtime, release_handle(Truly(hm2_1)))
-    .Times(Exactly(1))
-    .InSequence(s3);
+  EXPECT_RELEASE_USE(use_1);
+
+  EXPECT_RELEASE_USE(use_2);
 
   mock_runtime->registered_tasks.clear();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-TEST_F(TestCreateWork, ro_capture_RN) {
+#if 0 // Arbitrary Publish-Fetch deprecated
+
+struct TestRoCaptureRN
+  : TestCreateWork,
+    ::testing::WithParamInterface<bool>
+{ };
+
+TEST_P(TestRoCaptureRN, ro_capture_RN) {
   using namespace ::testing;
   using namespace darma_runtime;
   using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace mock_backend;
 
   mock_runtime->save_tasks = true;
 
-  Sequence s_hm1;
-  auto hm1 = make_same_handle_matcher();
-  expect_handle_life_cycle(hm1, s_hm1, true);
+  Sequence s1, s_release_read;
 
-  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(AllOf(
-    in_get_dependencies(hm1), Not(needs_write_of(hm1)), needs_read_of(hm1)
-  )));
+  DECLARE_MOCK_FLOWS(f_fetch, f_null);
+  use_t* read_use = nullptr;
+  EXPECT_READ_ACCESS(f_fetch, f_null, make_key("hello"), make_key("world"));
+
+  bool use_helper = GetParam();
+
+  if(use_helper) {
+    EXPECT_RO_CAPTURE_RN_RR_MN_OR_MR(f_fetch, read_use);
+  }
+  else {
+
+    // ro-capture of RN
+    EXPECT_CALL(*mock_runtime, register_use(IsUseWithFlows(
+      &f_fetch, &f_fetch, darma_runtime::frontend::Permissions::Read, darma_runtime::frontend::Permissions::Read
+    ))).WillOnce(SaveArg<0>(&read_use));
+
+  }
+
+  EXPECT_REGISTER_TASK(read_use);
 
   {
+
     auto tmp = read_access<int>("hello", version="world");
     create_work([=]{
       std::cout << tmp.get_value();
       FAIL() << "This code block shouldn't be running in this example";
     });
+
+    Expectation fa1 = EXPECT_FLOW_ALIAS(f_fetch, f_null);
+    EXPECT_RELEASE_FLOW(f_null).After(fa1);
+
   }
+
+  Expectation rel_read = EXPECT_RELEASE_USE(read_use);
+
+  EXPECT_RELEASE_FLOW(f_fetch).After(rel_read);
+
+  mock_runtime->registered_tasks.clear();
+
+}
+
+INSTANTIATE_TEST_CASE_P(
+  WithAndWithoutHelper,
+  TestRoCaptureRN,
+  ::testing::Bool()
+);
+
+#endif
+
+////////////////////////////////////////////////////////////////////////////////
+
+struct TestCaptureMM
+  : TestCreateWork,
+    ::testing::WithParamInterface<std::tuple<bool, bool>>
+{ };
+
+TEST_P(TestCaptureMM, capture_MM) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace mock_backend;
+
+  bool ro_capture = std::get<0>(GetParam());
+  bool use_vector = std::get<1>(GetParam());
+
+  mock_runtime->save_tasks = true;
+
+  DECLARE_MOCK_FLOWS(
+    finit, fnull, f_outer_out, f_forwarded, f_inner_out
+  );
+  use_t* use_outer, *use_inner, *use_continuing, *use_outer_cont, *use_initial;
+  use_outer = use_inner = use_continuing = nullptr;
+
+  EXPECT_INITIAL_ACCESS(finit, fnull, use_initial, make_key("hello"));
+
+  EXPECT_MOD_CAPTURE_MN_OR_MR(finit, f_outer_out, use_outer, fnull, use_outer_cont);
+
+  EXPECT_RELEASE_USE(use_initial);
+
+  task_t* outer;
+  int value = 0;
+
+  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(UseInGetDependencies(ByRef(use_outer))))
+    .WillOnce(Invoke([&](auto* task) {
+      for(auto&& dep : task->get_dependencies()) {
+        dep->get_data_pointer_reference() = (void*)(&value);
+      }
+      outer = task;
+    }));
+
+  EXPECT_FLOW_ALIAS(f_outer_out, fnull);
+
+  EXPECT_RELEASE_USE(use_outer_cont);
+
+  //============================================================================
+  // Actual code being tested
+  if(use_vector) {
+
+    std::vector<AccessHandle<int>> tmp;
+    tmp.push_back(initial_access<int>("hello"));
+
+    create_work([=]{
+      tmp[0].set_value(42);
+      if(not ro_capture) {
+        create_work([=]{
+          ASSERT_THAT(tmp[0].get_value(), Eq(42));
+        });
+      }
+      else {
+        create_work(reads(tmp[0]), [=]{
+          ASSERT_THAT(tmp[0].get_value(), Eq(42));
+        });
+        // State is MR, should work...
+        ASSERT_THAT(tmp[0].get_value(), Eq(42));
+      }
+    });
+
+  }
+
+  //----------------------------------------------------------------------------
+
+  else {
+
+    auto tmp = initial_access<int>("hello");
+
+    create_work([=]{
+      tmp.set_value(42);
+      if(not ro_capture) {
+        create_work([=]{
+          ASSERT_THAT(tmp.get_value(), Eq(42));
+        });
+      }
+      else {
+        create_work(reads(tmp), [=]{
+          ASSERT_THAT(tmp.get_value(), Eq(42));
+        });
+        // State is MR, should work...
+        ASSERT_THAT(tmp.get_value(), Eq(42));
+      }
+    });
+
+  }
+  //============================================================================
+
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
+  ON_CALL(*mock_runtime, get_running_task())
+    .WillByDefault(Return(ByRef(outer)));
+
+  EXPECT_CALL(*mock_runtime, make_forwarding_flow(finit))
+    .WillOnce(Return(f_forwarded));
+
+  if(not ro_capture) {
+    //InSequence seq;
+
+    EXPECT_CALL(*mock_runtime, make_next_flow(f_forwarded))
+      .WillOnce(Return(f_inner_out));
+
+    EXPECT_REGISTER_USE_AND_SET_BUFFER(use_inner, f_forwarded, f_inner_out, Modify, Modify, value);
+
+    // Doesn't really need to be sequenced w.r.t. prev register
+    EXPECT_REGISTER_USE(use_continuing, f_inner_out, f_outer_out, Modify, None);
+
+    EXPECT_RELEASE_USE(use_outer);
+
+  }
+
+  else {
+
+    InSequence seq;
+
+    EXPECT_CALL(*mock_runtime, legacy_register_use(IsUseWithFlows(
+#if _darma_has_feature(anti_flows)
+      f_forwarded, nullptr, darma_runtime::frontend::Permissions::Read, darma_runtime::frontend::Permissions::Read
+#else
+      f_forwarded, f_forwarded, darma_runtime::frontend::Permissions::Read, darma_runtime::frontend::Permissions::Read
+#endif // _darma_has_feature(anti_flows)
+    ))).WillOnce(Invoke([&](auto&& use){
+        use->get_data_pointer_reference() = (void*)(&value);
+        use_inner = use;
+      }));
+    // Expect the continuing context use to be registered after the captured context
+    EXPECT_CALL(*mock_runtime, legacy_register_use(IsUseWithFlows(
+      f_forwarded, f_outer_out, darma_runtime::frontend::Permissions::Modify, darma_runtime::frontend::Permissions::Read
+    ))).WillOnce(Invoke([&](auto&& use){
+      // Shouldn't be necessary
+      // use->get_data_pointer_reference() = (void*)(&value);
+      use_continuing = use;
+    }));
+
+    EXPECT_RELEASE_USE(use_outer);
+  }
+
+  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(UseInGetDependencies(ByRef(use_inner))));
+
+  if(not ro_capture) {
+    EXPECT_FLOW_ALIAS(f_inner_out, f_outer_out);
+  }
+  else{
+    // Note: Currently there is no ordering requirement on these two
+    EXPECT_FLOW_ALIAS(f_forwarded, f_outer_out);
+  }
+
+  EXPECT_RELEASE_USE(use_continuing);
+
+  EXPECT_RELEASE_USE(use_inner);
+  //EXPECT_CALL(*mock_runtime, release_use(Eq(ByRef(use_inner))))
+  //  .WillOnce(Assign(&use_inner, nullptr));
+
+  run_all_tasks();
+
+}
+
+INSTANTIATE_TEST_CASE_P(
+  ReadOrModWithAndWithoutVector,
+  TestCaptureMM,
+  ::testing::Combine(
+    ::testing::Bool(),
+    ::testing::Bool()
+  )
+);
+
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestCreateWork, named_task) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace darma_runtime::keyword_arguments_for_task_creation;
+  using namespace mock_backend;
+
+  EXPECT_CALL(*mock_runtime,
+    register_task_gmock_proxy(HasName(make_key("hello_task", "world", 42)))
+  );
+
+  {
+    create_work( name("hello_task", "world", 42),
+      [=] {
+        // This code doesn't run in this example
+        FAIL() << "This code block shouldn't be running in this example";
+      }
+    );
+  }
+
+  mock_runtime->registered_tasks.clear();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+
+TEST_F(TestCreateWork, handle_aliasing) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace darma_runtime::keyword_arguments_for_task_creation;
+  using namespace mock_backend;
+
+  mock_runtime->save_tasks = true;
+
+  DECLARE_MOCK_FLOWS(finit, fnull, fcapt);
+  use_t* use_capt, *use_init, *use_cont;
+
+  EXPECT_INITIAL_ACCESS(finit, fnull, use_init, make_key("hello"));
+
+  EXPECT_MOD_CAPTURE_MN_OR_MR(finit, fcapt, use_capt, fnull, use_cont);
+
+  EXPECT_RELEASE_USE(use_init);
+
+  EXPECT_REGISTER_TASK(use_capt);
+
+  EXPECT_FLOW_ALIAS(fcapt, fnull);
+
+  EXPECT_RELEASE_USE(use_cont);
+
+  //============================================================================
+  // actual code being tested
+  {
+    auto call_me = [](AccessHandle<int>& a, AccessHandle<int>& b) {
+      create_work(allow_aliasing=true, [=]{
+        std::cout << (a.get_value() * b.get_value()) << std::endl;
+      });
+    };
+
+    auto tmp = initial_access<int>("hello");
+
+    call_me(tmp, tmp);
+
+  }
+  //============================================================================
+
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
+  EXPECT_RELEASE_USE(use_capt);
 
   mock_runtime->registered_tasks.clear();
 
@@ -234,279 +527,607 @@ TEST_F(TestCreateWork, ro_capture_RN) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-TEST_F(TestCreateWork, death_ro_capture_unused) {
+struct TestScheduleOnly
+  : TestCreateWork,
+    ::testing::WithParamInterface<bool>
+{ };
+
+TEST_P(TestScheduleOnly, schedule_only) {
   using namespace ::testing;
   using namespace darma_runtime;
   using namespace darma_runtime::keyword_arguments_for_publication;
-
-  EXPECT_DEATH(
-    {
-      mock_runtime->save_tasks = false;
-      auto tmp = initial_access<int>("hello");
-      create_work([=]{
-        std::cout << tmp.get_value();
-        FAIL() << "This code block shouldn't be running in this example";
-      });
-      { create_work(reads(tmp), [=]{ }); }
-    },
-    "handle with key .* declared as read usage, but was actually unused"
-  );
-
-  //mock_runtime->registered_tasks.clear();
-
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-TEST_F(TestCreateWork, death_ro_capture_MM_unused) {
-  using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_publication;
-
-  {
-    EXPECT_DEATH(
-      {
-        mock_runtime->save_tasks = true;
-        auto tmp = initial_access<int>("hello");
-        create_work([=] {
-          create_work(reads(tmp), [=] { });
-        });
-        run_all_tasks();
-      },
-      "handle with key .* declared as read usage, but was actually unused"
-    );
-  }
-
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-TEST_F(TestCreateWork, capture_read_access_2) {
-  using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_publication;
-  using darma_runtime::detail::create_work_attorneys::for_AccessHandle;
+  using namespace darma_runtime::keyword_arguments_for_task_creation;
+  using namespace mock_backend;
 
   mock_runtime->save_tasks = true;
 
-  Sequence s_hm1;
-  auto hm1 = make_same_handle_matcher();
-  expect_handle_life_cycle(hm1, s_hm1, true);
+  DECLARE_MOCK_FLOWS(finit, fnull, fcapt, f_sched_out, f_immed_out);
+  use_t *use_immed_capt, *use_sched_capt, *use_read_capt, *use_sched_contin,
+    *use_ro_sched, *use_init, *use_cont;
+  use_read_capt = use_immed_capt = use_sched_capt = nullptr;
+  use_ro_sched = nullptr;
 
-  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(AllOf(
-    in_get_dependencies(hm1), Not(needs_write_of(hm1)), needs_read_of(hm1)
-  ))).Times(Exactly(2));
+  int value = 0;
 
-  {
-    auto tmp = read_access<int>("hello", version="world");
-    create_work([=,&hm1]{
-      ASSERT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(hm1.handle));
-    });
-    ASSERT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(hm1.handle));
-    create_work([=,&hm1]{
-      ASSERT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(hm1.handle));
-    });
-    ASSERT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(hm1.handle));
+  bool sched_capture_read = GetParam();
+
+  EXPECT_INITIAL_ACCESS(finit, fnull, use_init, make_key("hello"));
+
+  // First, expect the task that does a schedule-only capture
+
+  // Expect a schedule-only mod capture
+  EXPECT_CALL(*mock_runtime, make_next_flow(finit))
+    .WillOnce(Return(f_sched_out));
+  Expectation reg_sched =
+    EXPECT_REGISTER_USE(use_sched_capt, finit, f_sched_out, Modify, None);
+
+  EXPECT_RELEASE_USE(use_init);
+
+  EXPECT_REGISTER_USE(use_sched_contin, f_sched_out, fnull, Modify, None);
+
+  EXPECT_REGISTER_TASK(use_sched_capt).After(reg_sched);
+
+  if(not sched_capture_read) {
+    // Then expect the task that does a read-only capture
+    EXPECT_RO_CAPTURE_RN_RR_MN_OR_MR_AND_SET_BUFFER(f_sched_out, use_read_capt, value);
+    EXPECT_REGISTER_TASK(use_read_capt);
   }
+  else {
+    // Expect a schedule-only ro capture
+    EXPECT_REGISTER_USE(use_ro_sched, f_sched_out, nullptr, Read, None);
+    EXPECT_REGISTER_TASK(use_ro_sched);
+  }
+
+  EXPECT_FLOW_ALIAS(f_sched_out, fnull);
+
+  EXPECT_RELEASE_USE(use_sched_contin);
+
+  //============================================================================
+  // actual code being tested
+  {
+
+    auto tmp = initial_access<int>("hello");
+
+    create_work(schedule_only(tmp), [=]{
+      create_work([=]{
+        tmp.set_value(42);
+      });
+    });
+
+    if(not sched_capture_read) {
+      create_work(reads(tmp), [=] {
+        EXPECT_THAT(tmp.get_value(), Eq(42));
+      });
+    }
+    else {
+      create_work(schedule_only(reads(tmp)), [=] {
+        create_work(reads(tmp), [=] {
+          EXPECT_THAT(tmp.get_value(), Eq(42));
+        });
+      });
+
+    }
+
+  }
+  //============================================================================
+
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
+  // Now expect the mod-immediate task to be registered once the first task is run
+  // TODO technically I should change the return value of get_running_task here...
+
+  EXPECT_MOD_CAPTURE_MN_OR_MR_AND_SET_BUFFER(finit, f_immed_out, use_immed_capt,
+    f_sched_out, use_sched_contin, value);
+
+  EXPECT_REGISTER_TASK(use_immed_capt);
+
+  EXPECT_FLOW_ALIAS(f_immed_out, f_sched_out);
+  EXPECT_RELEASE_USE(use_sched_contin);
+
+  EXPECT_RELEASE_USE(use_sched_capt);
+
+  mock_runtime->registered_tasks.front()->run();
+  mock_runtime->registered_tasks.pop_front();
+
+  EXPECT_RELEASE_USE(use_immed_capt);
+
+  // now the inner task should be on the back, so run it next
+  mock_runtime->registered_tasks.back()->run();
+  mock_runtime->registered_tasks.pop_back();
+
+
+  if(sched_capture_read) {
+    // The outer task will be on the front now
+    EXPECT_RO_CAPTURE_RN_RR_MN_OR_MR_AND_SET_BUFFER(f_sched_out, use_read_capt, value);
+    EXPECT_REGISTER_TASK(use_read_capt);
+
+    EXPECT_RELEASE_USE(use_ro_sched);
+
+    mock_runtime->registered_tasks.front()->run();
+    mock_runtime->registered_tasks.pop_front();
+  }
+
+  EXPECT_RELEASE_USE(use_read_capt);
+
+  // and finally the read task
+  mock_runtime->registered_tasks.front()->run();
+  mock_runtime->registered_tasks.pop_front();
+  EXPECT_TRUE(mock_runtime->registered_tasks.empty());
+
+}
+
+INSTANTIATE_TEST_CASE_P(
+  schedule_only,
+  TestScheduleOnly,
+  ::testing::Bool()
+);
+
+
+////////////////////////////////////////////////////////////////////////////////
+
+#if defined(DEBUG) || !defined(NDEBUG)
+TEST_F(TestCreateWork, death_schedule_only) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace mock_backend;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+
+  MockFlow finit, fnull, f_sched_out;
+  use_t* use_sched_capt = nullptr;
+  use_t* use_sched_cont = nullptr;
+  use_t* use_init = nullptr;
+
+  mock_runtime->save_tasks = true;
+
+  EXPECT_INITIAL_ACCESS(finit, fnull, use_init, make_key("hello"));
+
+  // Expect a schedule-only mod capture
+  EXPECT_CALL(*mock_runtime, make_next_flow(finit))
+    .WillOnce(Return(f_sched_out));
+  EXPECT_REGISTER_USE(use_sched_capt, finit, f_sched_out, Modify, None);
+  EXPECT_REGISTER_USE(use_sched_cont, f_sched_out, fnull, Modify, None);
+  EXPECT_RELEASE_USE(use_init);
+  EXPECT_REGISTER_TASK(use_sched_capt);
+
+  EXPECT_RELEASE_USE(use_sched_cont);
+
+  //============================================================================
+  // actual code being tested (that should fail when run)
+  {
+    auto tmp = initial_access<int>("hello");
+
+    create_work(schedule_only(tmp), [=] {
+      EXPECT_DEATH(
+        {
+          tmp.set_value(42);
+        },
+        "`set_value\\(\\)` performed on AccessHandle"
+      );
+    });
+
+  }
+  //============================================================================
+
+  EXPECT_RELEASE_USE(use_sched_capt);
 
   run_all_tasks();
 
 }
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 
-TEST_F(TestCreateWork, mod_capture_MN) {
+// Test disabled because arbitrary publish-fetch is no longer supported
+#if 0
+TEST_F(TestCreateWork, mod_capture_MN_nested_MR) {
   using namespace ::testing;
   using namespace darma_runtime;
-  using darma_runtime::detail::create_work_attorneys::for_AccessHandle;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace mock_backend;
 
   mock_runtime->save_tasks = true;
 
-  // Reverse order of expected usage because of the way expectations work
-  handle_t* h0, *h1, *h2;
-  h0 = h1 = h2 = nullptr;
-  EXPECT_CALL(*mock_runtime, register_handle(_))
-    .Times(Exactly(3))
-    .WillOnce(SaveArg<0>(&h0))
-    .WillOnce(SaveArg<0>(&h1))
-    .WillOnce(SaveArg<0>(&h2));
+  DECLARE_MOCK_FLOWS(finit, fnull, ftask_out, fforw, finner_out);
+  use_t* use_task, *use_pub, *use_pub_cont, *use_inner,
+    *use_init, *use_outer_cont, *use_mod_cont;
+  use_task = use_pub = use_pub_cont = use_inner = nullptr;
+
+  EXPECT_INITIAL_ACCESS(finit, fnull, use_init, make_key("hello"));
+
+  EXPECT_MOD_CAPTURE_MN_OR_MR(finit, ftask_out, use_task, fnull, use_outer_cont);
+
+  {
+    InSequence rel_before_task;
+
+    EXPECT_RELEASE_USE(use_init);
+
+    EXPECT_REGISTER_TASK(use_task);
+  }
+
+  EXPECT_FLOW_ALIAS(ftask_out, fnull);
+
+  EXPECT_RELEASE_USE(use_outer_cont);
+
+  //============================================================================
+  // actual code being tested
+  {
+    auto tmp = initial_access<int>("hello");
+
+    create_work([=]{
+
+      tmp.publish();
+
+      create_work([=]{
+        tmp.set_value(42);
+      });
+
+    });
+
+  }
+  //
+  //============================================================================
+
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
+  // Inside of outer task:
+
+  EXPECT_CALL(*mock_runtime, make_forwarding_flow(finit))
+    .WillOnce(Return(fforw));
+
+#if _darma_has_feature(anti_flows)
+  EXPECT_REGISTER_USE(use_pub, fforw, nullptr, None, Read);
+#else
+  EXPECT_REGISTER_USE(use_pub, fforw, fforw, None, Read);
+#endif // _darma_has_feature(anti_flows)
 
   {
     InSequence s;
-    EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(AllOf(
-      handle_in_get_dependencies(h0), needs_write_handle(h0), Not(needs_read_handle(h0))
-    )));
-    EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(AllOf(
-      handle_in_get_dependencies(h1), needs_write_handle(h1), needs_read_handle(h1)
-    )));
+
+    EXPECT_REGISTER_USE(use_pub_cont, fforw, ftask_out, Modify, Read);
+
+    EXPECT_RELEASE_USE(use_task);
+
+    EXPECT_CALL(*mock_runtime, publish_use_gmock_proxy(Eq(ByRef(use_pub)), _));
+
   }
+
+
+  int value = 0;
 
   {
-    auto tmp = initial_access<int>("hello");
-    create_work([=,&h0]{
-      ASSERT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(h0));
-    });
-    ASSERT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(h1));
-    create_work([=,&h1]{
-      ASSERT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(h1));
-    });
-    ASSERT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(h2));
+    InSequence s;
+
+    EXPECT_MOD_CAPTURE_MN_OR_MR_AND_SET_BUFFER(
+      fforw, finner_out, use_inner, ftask_out, use_mod_cont, value
+    );
+
+    EXPECT_RELEASE_USE(use_pub_cont);
   }
 
-  run_all_tasks();
+  EXPECT_REGISTER_TASK(use_inner);
+
+  EXPECT_FLOW_ALIAS(finner_out, ftask_out);
+
+  EXPECT_RELEASE_USE(use_mod_cont);
+
+  run_one_task();
+
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
+  // Inside of inner task
+
+  EXPECT_RELEASE_USE(use_inner);
+
+  run_one_task();
+
+  EXPECT_THAT(value, Eq(42));
+
+  mock_runtime->backend_owned_uses.clear();
 
 }
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 
-TEST_F(TestCreateWork, mod_capture_MM) {
+#if 0
+#if _darma_has_feature(commutative_access_handles)
+TEST_F_WITH_PARAMS(TestCreateWork, comm_capture_cc_from_mn,
+  ::testing::Values(0, 1, 2, 3, 4, 5, 6), int
+) {
   using namespace ::testing;
   using namespace darma_runtime;
   using namespace darma_runtime::keyword_arguments_for_publication;
-  using darma_runtime::detail::create_work_attorneys::for_AccessHandle;
+  using namespace darma_runtime::keyword_arguments_for_commutative_access;
+  using namespace mock_backend;
 
   mock_runtime->save_tasks = true;
 
-  // Reverse order of expected usage because of the way expectations work
-  Sequence s_hm5;
-  auto hm5 = make_same_handle_matcher();
-  expect_handle_life_cycle(hm5, s_hm5);
-  Sequence s_hm4;
-  auto hm4 = make_same_handle_matcher();
-  expect_handle_life_cycle(hm4, s_hm4);
-  Sequence s_hm3;
-  auto hm3 = make_same_handle_matcher();
-  expect_handle_life_cycle(hm3, s_hm3);
-  Sequence s_hm2;
-  auto hm2 = make_same_handle_matcher();
-  expect_handle_life_cycle(hm2, s_hm2, /*read_only=*/false);
-  Sequence s_hm1;
-  auto hm1 = make_same_handle_matcher();
-  expect_handle_life_cycle(hm1, s_hm1);
+  DECLARE_MOCK_FLOWS(finit, fcomm_out, fnull);
+  use_t* comm_use_1, *comm_use_2, *use_init, *last_use, *outer_comm_use;
+  int value = 0;
 
-  Sequence s;
-  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(AllOf(
-    in_get_dependencies(hm1), needs_write_of(hm1), Not(needs_read_of(hm1))
-  ))).InSequence(s);
-  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(AllOf(
-    in_get_dependencies(hm2), needs_write_of(hm2), needs_read_of(hm2)
-  ))).InSequence(s);
+  int semantic_mode = GetParam();
+
+  EXPECT_INITIAL_ACCESS(finit, fnull, use_init, make_key("hello"));
+
+  EXPECT_CALL(*mock_runtime, make_next_flow(finit))
+    .WillOnce(Return(fcomm_out));
 
   {
-    auto tmp = initial_access<int>("hello");
-    create_work([=]{
-      // tmp.handle == hm1
-      ASSERT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(hm1.handle));
-    });
-    // tmp.handle == hm2
-    ASSERT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(hm2.handle));
-    create_work([=]{
-      // tmp.handle == hm2
-      ASSERT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(hm2.handle));
-      EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(_)).InSequence(s);
-      // Note that last at version depth shouldn't be called for hm2
-      create_work([=]{
-        // tmp.handle == hm4
-        ASSERT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(hm4.handle));
-      });
-      ASSERT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(hm5.handle));
-      // tmp.handle == hm5
-    });
-    // tmp.handle == hm3
-    ASSERT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(hm3.handle));
+    InSequence s;
+
+    EXPECT_REGISTER_USE(outer_comm_use, finit, fcomm_out, Commutative, None);
+
+    EXPECT_RELEASE_USE(use_init);
   }
 
+  {
+    InSequence s1;
+
+    EXPECT_REGISTER_USE_AND_SET_BUFFER(comm_use_1, finit, fcomm_out,
+      Commutative, Commutative, value);
+
+    EXPECT_REGISTER_TASK(comm_use_1);
+
+    EXPECT_CALL(*sequence_marker, mark_sequence("in between create_work calls"));
+
+    EXPECT_REGISTER_USE_AND_SET_BUFFER(comm_use_2, finit, fcomm_out,
+      Commutative, Commutative, value);
+
+    EXPECT_REGISTER_TASK(comm_use_2);
+  }
+
+  {
+    InSequence s1;
+    EXPECT_CALL(*mock_runtime, legacy_register_use(Truly(
+      [&](abstract::frontend::DependencyUse* use) {
+        return use->get_in_flow() == fcomm_out
+          && use->get_out_flow() == fnull
+          && use->immediate_permissions() == darma_runtime::frontend::Permissions::None
+          && (
+            // The ones that don't do explicit releases will have "None" scheduling
+            // permissions on the last use
+            ((semantic_mode == 0 || semantic_mode > 3)
+              && use->scheduling_permissions() == darma_runtime::frontend::Permissions::Modify)
+            || ((semantic_mode == 1 || semantic_mode == 2 || semantic_mode == 3)
+              && use->scheduling_permissions() == darma_runtime::frontend::Permissions::None)
+          );
+      }
+    ))).WillOnce(SaveArg<0>(&last_use));
+
+    EXPECT_RELEASE_USE(outer_comm_use);
+
+    EXPECT_FLOW_ALIAS(fcomm_out, fnull);
+
+    EXPECT_RELEASE_USE(last_use);
+  }
+
+  //============================================================================
+  // actual code being tested
+  {
+    // All three of these should be equivalent
+
+    //--------------------------------------------------------------------------
+    if(semantic_mode == 0) {
+      auto tmp = initial_access<int>("hello");
+
+      tmp.begin_commutative_usage();
+
+      create_work([=] { tmp.set_value(tmp.get_value() + 5); });
+
+      sequence_marker->mark_sequence("in between create_work calls");
+
+      create_work([=] { tmp.set_value(tmp.get_value() + 7); });
+
+      tmp.end_commutative_usage();
+    }
+    //--------------------------------------------------------------------------
+    else if(semantic_mode == 1) {
+      auto tmp2 = initial_access<int>("hello");
+      auto tmp = commutative_access(to_handle=std::move(tmp2));
+
+      create_work([=] { tmp.set_value(tmp.get_value() + 5); });
+
+      sequence_marker->mark_sequence("in between create_work calls");
+
+      create_work([=] { tmp.set_value(tmp.get_value() + 7); });
+    }
+    //--------------------------------------------------------------------------
+    else if(semantic_mode == 2) {
+      auto tmp = commutative_access<int>("hello");
+
+      create_work([=] { tmp.set_value(tmp.get_value() + 5); });
+
+      sequence_marker->mark_sequence("in between create_work calls");
+
+      create_work([=] { tmp.set_value(tmp.get_value() + 7); });
+    }
+    //--------------------------------------------------------------------------
+    else if(semantic_mode == 3) {
+      auto tmp2 = initial_access<int>("hello");
+      auto tmp = commutative_access_to_handle(std::move(tmp2));
+
+      create_work([=] { tmp.set_value(tmp.get_value() + 5); });
+
+      sequence_marker->mark_sequence("in between create_work calls");
+
+      create_work([=] { tmp.set_value(tmp.get_value() + 7); });
+
+    }
+    //--------------------------------------------------------------------------
+    else if(semantic_mode == 4) {
+      auto tmp = commutative_access<int>("hello");
+
+      create_work([=] { tmp.set_value(tmp.get_value() + 5); });
+
+      sequence_marker->mark_sequence("in between create_work calls");
+
+      create_work([=] { tmp.set_value(tmp.get_value() + 7); });
+
+      auto tmp2 = noncommutative_access_to_handle(std::move(tmp));
+    }
+    //--------------------------------------------------------------------------
+    else if(semantic_mode == 5) {
+      auto tmp2 = initial_access<int>("hello");
+      auto tmp = commutative_access(to_handle=std::move(tmp2));
+
+      create_work([=] { tmp.set_value(tmp.get_value() + 5); });
+
+      sequence_marker->mark_sequence("in between create_work calls");
+
+      create_work([=] { tmp.set_value(tmp.get_value() + 7); });
+
+      auto tmp3 = noncommutative_access_to_handle(std::move(tmp));
+    }
+    //--------------------------------------------------------------------------
+    else if(semantic_mode == 6) {
+      auto tmp2 = initial_access<int>("hello");
+      auto tmp = commutative_access(to_handle=std::move(tmp2));
+
+      create_work([=] { tmp.set_value(tmp.get_value() + 5); });
+
+      sequence_marker->mark_sequence("in between create_work calls");
+
+      create_work([=] { tmp.set_value(tmp.get_value() + 7); });
+
+      tmp2 = noncommutative_access_to_handle(std::move(tmp));
+    }
+    //--------------------------------------------------------------------------
+    else {
+      FAIL() << "huh? unknown semantic mode " << semantic_mode;
+    }
+    //--------------------------------------------------------------------------
+
+  }
+  //
+  //============================================================================
+
+  Mock::VerifyAndClearExpectations(mock_runtime.get());
+
+  EXPECT_RELEASE_USE(comm_use_1);
+
+  EXPECT_RELEASE_USE(comm_use_2);
+
   run_all_tasks();
 
-  ASSERT_THAT(hm1.handle, Not(Eq(hm2.handle)));
-  ASSERT_THAT(hm2.handle, Not(Eq(hm3.handle)));
-  ASSERT_THAT(hm3.handle, Not(Eq(hm4.handle)));
-  ASSERT_THAT(hm4.handle, Not(Eq(hm5.handle)));
+  EXPECT_THAT(value, Eq(12));
 
 }
+#endif // _darma_has_feature(commutative_access_handles)
+#endif // 0
 
 ////////////////////////////////////////////////////////////////////////////////
 
-TEST_F(TestCreateWork, ro_capture_MM) {
+TEST_F(TestCreateWork, mod_capture_new) {
   using namespace ::testing;
   using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_publication;
-  using darma_runtime::detail::create_work_attorneys::for_AccessHandle;
+  using namespace mock_backend;
 
   mock_runtime->save_tasks = true;
 
-  handle_t* h0, *h1, *h2, *h3;
-  h0 = h1 = h2 = h3 = nullptr;
-  version_t v0, v1, v2, v3;
-
-  EXPECT_CALL(*mock_runtime, register_handle(_))
-    .Times(Exactly(4))
-    .WillOnce(SaveArg<0>(&h0))
-    .WillOnce(SaveArg<0>(&h1))
-    .WillOnce(SaveArg<0>(&h2))
-    .WillOnce(SaveArg<0>(&h3));
-
-  EXPECT_CALL(*mock_runtime, release_handle(Eq(ByRef(h0)))).WillOnce(Assign(&h0, nullptr));
-  EXPECT_CALL(*mock_runtime, release_handle(Eq(ByRef(h1)))).WillOnce(Assign(&h1, nullptr));
-  EXPECT_CALL(*mock_runtime, release_handle(Eq(ByRef(h2)))).WillOnce(Assign(&h2, nullptr));
-  EXPECT_CALL(*mock_runtime, release_handle(Eq(ByRef(h3)))).WillOnce(Assign(&h3, nullptr));
-
-  Sequence s;
-  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(AllOf(
-    handle_in_get_dependencies(h0), needs_write_handle(h0), Not(needs_read_handle(h0))
-  ))).InSequence(s);
-  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(AllOf(
-    handle_in_get_dependencies(h1), needs_write_handle(h1), needs_read_handle(h1)
-  ))).InSequence(s);
-  EXPECT_CALL(*mock_runtime, register_task_gmock_proxy(AllOf(
-    handle_in_get_dependencies(h3), Not(needs_write_handle(h3)), needs_read_handle(h3)
-  ))).InSequence(s);
+  DECLARE_MOCK_FLOWS(f_initial, f_null, f_task_out);
+  use_t* task_use = nullptr;
+  use_t* use_initial = nullptr;
+  use_t* use_cont = nullptr;
 
   {
+    InSequence s1;
+
+    EXPECT_NEW_INITIAL_ACCESS(f_initial, f_null, use_initial, make_key("hello"));
+
+    EXPECT_NEW_REGISTER_USE(task_use,
+      f_initial, Same, &f_initial,
+      f_task_out, Next, nullptr, true,
+      Modify, Modify, true
+    );
+
+    EXPECT_NEW_REGISTER_USE(use_cont,
+      f_task_out, Same, &f_task_out,
+      f_null, Same, &f_null, false,
+      Modify, None, false
+    );
+
+    EXPECT_NEW_RELEASE_USE(use_initial, false);
+
+    EXPECT_REGISTER_TASK(task_use);
+
+    EXPECT_NEW_RELEASE_USE(use_cont, true);
+  }
+
+  //============================================================================
+  // Actual code being tested
+  {
     auto tmp = initial_access<int>("hello");
-    create_work([=,&h0,&h1,&v0]{
-      // tmp.handle == h0
-      EXPECT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(h0));
-      v0 = h0->get_version();
-      EXPECT_THAT(h1, NotNull());
-      EXPECT_EQ(h0->get_key(), h1->get_key());
+
+    create_work([=]{
+      // This code doesn't run in this example
+      tmp.set_value(5);
+      FAIL() << "This code block shouldn't be running in this example";
     });
-    // tmp.handle == h1
-    EXPECT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(h1));
-    create_work([=,&h1,&h3,&v1,&v3]{
-      // tmp.handle == h1
-      EXPECT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(h1));
-      v1 = h1->get_version();
 
-      // Note that last at version depth shouldn't be called for hm2, but a
-      // new handle should be created
-      create_work(reads(tmp), [=,&h3,&v3]{
-        // tmp.handle == h3
-        EXPECT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(h3));
-        v3 = h3->get_version();
-      });
-      // tmp.handle == h3
-      EXPECT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(h3));
-      // Note: tmp should be in state Modify_Read
-    });
-    // tmp.handle == h2
-    EXPECT_THAT(for_AccessHandle::get_dep_handle(tmp), Eq(h2));
-    v2 = h2->get_version();
-    EXPECT_EQ(h1->get_key(), h2->get_key());
-  } // h2 should be released at this point
+  } // tmp deleted
+  //============================================================================
 
-  run_all_tasks();
+  EXPECT_NEW_RELEASE_USE(task_use, false);
 
-  // Assert that the version relationships match the chart
-  v0.pop_subversion();
-  ++v0;
-  ASSERT_EQ(v1, v0);
-  ++v1;
-  ASSERT_EQ(v3, v1);
-  v3.pop_subversion();
-  ++v3;
-  ASSERT_EQ(v3, v2);
+  mock_runtime->registered_tasks.clear();
 
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestCreateWork, mod_capture_new_track_same) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace mock_backend;
+
+  mock_runtime->save_tasks = true;
+
+  DECLARE_MOCK_FLOWS(finit1, finit2, fnull1, fnull2, ftaskout1, ftaskout2);
+  use_t* task_use = nullptr;
+  use_t* use_initial = nullptr;
+  use_t* use_cont = nullptr;
+
+  {
+    InSequence s1;
+
+    EXPECT_NEW_INITIAL_ACCESS(finit1, fnull1, use_initial, make_key("hello"));
+
+    EXPECT_NEW_REGISTER_USE(task_use,
+      finit2, Same, &finit1,
+      ftaskout1, Next, nullptr, true,
+      Modify, Modify, true
+    );
+
+    EXPECT_NEW_REGISTER_USE(use_cont,
+      ftaskout2, Same, &ftaskout1,
+      fnull2, Same, &fnull1, false,
+      Modify, None, false
+    );
+
+    EXPECT_NEW_RELEASE_USE(use_initial, false);
+
+    EXPECT_REGISTER_TASK(task_use);
+
+    EXPECT_NEW_RELEASE_USE(use_cont, true);
+  }
+
+  //============================================================================
+  // Actual code being tested
+  {
+    auto tmp = initial_access<int>("hello");
+
+    create_work([=]{
+      // This code doesn't run in this example
+      tmp.set_value(5);
+      FAIL() << "This code block shouldn't be running in this example";
+    });
+
+  } // tmp deleted
+  //============================================================================
+
+  EXPECT_NEW_RELEASE_USE(task_use, false);
+
+  mock_runtime->registered_tasks.clear();
+
+}

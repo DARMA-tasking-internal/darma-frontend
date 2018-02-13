@@ -1,44 +1,56 @@
-\lstMakeShortInline[style=CppCodeInlineStyle]{|}
+%\lstMakeShortInline[style=CppCodeInlineStyle]{|}
 \section{Deferred Work Creation}
 \label{sec:deferred}
-In DARMA, like other AMT runtime systems, the user creates blocks of work that
-are executed when the proper permissions on the data they use are available.
-Deferred work\footnote{``Deferred work'' is one generic term we use for work
-performed by code inside the capturing lambda passed to the
-\inlinecode{create_work()} construct (as well as other deferred constructs which
-may be added to future versions of the spec).  This does not necessarily imply
-that the continuing context (after the \inlinecode{create_work()}) will be
-executed before the captured work (note that ``captured work'' and ``captured
-context'' are two other generic terms we use for the same thing).  In other
-words, if all of the permissions for executing the ``deferred work'' are
-available at the time of its creation, the runtime may choose to execute it
-immediately.  It also may choose to block until the permissions are ready rather
-than executing the continuing context.  More details to follow.} is communicated
-to the runtime system via the |create_work()| function, which utilizes the C++
-lambda mechanism to yield the following syntax:
+In \gls{DARMA}, like other \gls{AMT} \glspl{runtime system}, 
+the application developer creates blocks of work (a \gls{task})and defines the
+\glspl{precondition} for the \gls{task} to begin executing.
+Rather than require application developers to explicitly define vertices and
+edges in a \gls{task-DAG} or use explicit \gls{fork-join} constructs,
+in \gls{DARMA}, \gls{task} \glspl{precondition} are implicit in either the sequential 
+order of \glspl{task} or the data-flow inherent in the \gls{key-value store}
+coordination (more below).
+\Gls{deferred work} is instantiated (but not necessarily executed) via the \codelink{create_work} function. 
+For inline \glspl{task} (as compared to functor-based \glspl{task}, more
+below), this utilizes the \CC{} \gls{lambda} \gls{capture} mechanism to yield the following syntax:
+
+\begin{CppCode}
+//outer task
+create_work([=]{
+  // <-- deferred work in captured context
+});
+//continuing context in outer task
+\end{CppCode}
+
+In \gls{DARMA}, \gls{deferred work} and \gls{task} are generic terms we use for work
+performed by code inside the capturing \gls{lambda}.
+This does not necessarily imply that the \gls{continuing context} (after the \codelink{create_work}) will be
+executed before the \gls{captured work} (note that ``\gls{captured work}'' and
+``\gls{captured context}'' are two other generic terms we use interchangeably
+with \gls{deferred work}).  
+We highlight here that \gls{deferred work} does not \emph{need} to be deferred.
+A more precise term may therefore be \emph{deferrable} work, but we use deferred to match previous literature.
+If a \gls{task}'s \glspl{precondition} are all satisfied (data is available with correct permissions),
+the \gls{runtime system} may execute it immediately.  
+In fact, the runtime may execute the outer continuing context, the inner deferred context, or another context entirely if there are pending tasks.
+
 % DSH merged [=]{ into one line for a couple of reasons; chief reason is we may
 % want to macro this at some point so that it can conditionally be compiled into
 % [=] __cuda_inline__ {  or something like that for GPU use.
-\begin{CppCode}
-  create_work([=]{
-    // work to do
-  });
-\end{CppCode}
 
-While this syntax leverages C++11 lambdas, the user does not need to
-completely understand C++11 standard features to use |create_work()|
-(this complexity is managed by DARMA's translation layer, as summarized in
-Chapter~\ref{chap:translation_layer}). All the work specified within a
-|create_work| is queued for deferred execution, and will be run when
-all of its \glspl{dependency} and \glspl{anti-dependency} are met.  
-These \glspl{dependency} are determined from the use of 
-|AccessHandle<T>| objects in the deferred context. 
-|AccessHandle<T>| objects are described in more detail below, in
-Section \ref{sec:handles}.  In a basic sense, handles help maintain
-\gls{sequential semantics} in the programming model.  For instance, the
-following code should print ``first: 42, second: 84'':
+While this syntax leverages \CC11 \glspl{lambda}, the user does not need to
+understand \CC11 standard features to use \codelink{create_work} (this
+complexity is managed by \gls{DARMA}'s \gls{translation layer}, as summarized in Chapter~\ref{chap:translation_layer}). 
+All the work specified within a \codelink{create_work} is queued for
+\gls{deferred execution}.  The \gls{task} does not need to execute immediately 
+and may be executed by the \gls{back end} \gls{runtime system} any time after
+all of its \glspl{precondition} are satisfied. 
+\Glspl{precondition} are either \gls{dependency} (waiting for data to be produced) or
+\gls{anti-dependency} (waiting for data to be released so it can be overwritten).   
+\Glspl{precondition} for a \gls{task} are never given explicitly, but are instead derived 
+implicitly based on sequential usage of \codelink{AccessHandle} objects, discussed in detail below.
+For example, to satisfy \gls{sequential semantics} the following code should print ``first: 42, second: 84'':
 \begin{CppCode}
-AccessHandle<int> my_handle = initial_access("some_data_key");
+auto my_handle = initial_access<int>("some_data_key");
 create_work([=]{
   my_handle.set_value(42);
 });
@@ -52,57 +64,67 @@ create_work([=]{
   cout << ", second: " << my_handle.get_value();
 });
 \end{CppCode}
-This intuitive way of coding is called \gls{sequential semantics}, 
-and its use is pivotal to the DARMA programming model.
+The code produces results equivalent to a \CC{} code in which \codelink{create_work} 
+is removed and \codelink{AccessHandle} is just replaced with the underlying type.
+These \gls{sequential semantics} are pivotal to the \gls{DARMA}
+\gls{programming model}.
 
-% DSH took this out for now
-% which manage the complexity necessary (within DARMA's
-%\gls{translation layer}) to 1) preserve \gls{sequential semantics} within a \gls{rank}, while performing work asynchronously, and 2) |publish| data visibly outside a \gls{rank}.
-%\Glspl{dependency} and \glspl{anti-dependency} for a 
-%|create_work| are inferred by the runtime via
-%\gls{introspection} (again, within the \gls{translation layer}). 
-%The following simple example illustrates how |handles| and
-%|create_work| can be used to gether in a simple ``hello world''
-%example:
-%\begin{CppCode}
-%#include <darma.h>
-%using namespace darma_runtime;
-%using namespace darma_runtime::keyword_arguments_for_publication;
-%
-%int main(int argc, char** argv) {
-%
-%  darma_init(argc, argv);
-%
-%  size_t me = darma_spmd_rank();
-%  size_t n_ranks = darma_spmd_size();
-%
-%  auto greetingMessage = initial_access<std::string>("myName", me);
-%
-%  create_work([=]
-%  {
-%    greetingMessage.set_value("hello world!");
-%  });
-%
-%  create_work([=]
-%  {
-%    std::cout << "DARMA rank " << me << " says " 
-%              << greetingMessage.get_value() << std::endl;
-%  });
-%
-%  darma_finalize();
-%
-%}
-%\end{CppCode}
-%In this example, 1) the DARMA environment is initialized, 2) each rank creates
-%% a task to store a greeting message into a string, and 3) each rank then creates a
-%task to print the message and its rank to standard output.
-%Note that, in this example, |publish| is not required as the
-%dependency |greeting_message| is createed for each rank individually
-%(i.e., none of the dependencies must be visible outside of its rank).
-%In order to guarantee \gls{sequential semantics} (i.e., to make sure the value
-%of |greetingMessage| is set before it is printed),
-%|greetingMessage| must be a |handle|.
+\Gls{sequential semantics} provide a simple and intuitive way of coding
+asynchronous work, by limiting programmer burden, avoiding deadlock,
+and enabling runtime optimizations.
+%The details of this are beyond the scope of the current work.
+However, in cases with massive \gls{spmd} parallelism across a distributed memory machine,
+it may be more scalable and natural to code in a \gls{CSP}-like framework
+involving parallel \glspl{execution stream}.
+Rather than coding as if only operating within a single \gls{execution stream}, 
+the programmer must be aware of multiple parallel \glspl{execution stream}.
 
+\gls{DARMA} uses coordination data between parallel \glspl{execution stream},
+rather than exchanging data through \inlinecode{send/recv} pairs. 
+Two \glspl{execution stream} never explicitly exchange data. Instead they
+\codelink{publish} and \gls{fetch} from a \gls{key-value store}.
+Coordinating (rather than communicating) abstracts physical data locations to
+better support \gls{task} migration.
+Additionally, it removes message-ordering requirements to better support
+\gls{asynchronous} data transfers.
+While the \gls{key-value store} appears to be a centralized, global data store that copies data in/out,
+the \gls{key-value store} can be implemented as a \gls{DHT} that supports
+\gls{zero-copy} transfers.
+Thus both \gls{sequential semantics} and \gls{coordination semantics} follow
+the same principle in \gls{DARMA}: intuitive \gls{programming model}
+concepts that simplify reasoning about algorithms are 
+transformed to a parallel, scalable execution by the \gls{translation layer}
+and \gls{back end} \gls{runtime system}.
 
+In the example here, variables are not passed down from a \gls{parent task} to
+\glspl{child task}.
+Instead, one \gls{execution stream} produces a value and publishes it to a
+\gls{key-value store}.
+Another \gls{execution stream} reads the value by \gls{fetch}ing it from a
+\gls{key-value store}.
+The processes coordinate with \inlinecode{publish/fetch} pairs similar to
+\inlinecode{send/recv} pairs in
+the \gls{CSP} model of MPI.
 
-\lstDeleteShortInline{|}
+\begin{minipage}{0.45\textwidth}
+Execution Stream 0:
+\begin{CppCode}
+auto sender = 
+   initial_access<int>("counter");
+sender.set_value(42);
+sender.publish(n_readers=1);
+\end{CppCode}
+\end{minipage}
+\begin{minipage}{0.45\textwidth}
+Execution Stream 1:
+\begin{CppCode}
+auto recver = 
+   read_access<int>("counter");
+\end{CppCode}
+\end{minipage}
+
+Instead of defining \gls{task} \glspl{precondition} implicitly via sequential order,
+\gls{task} \glspl{precondition} are specified more explicitly by requiring that
+a particular block of data be \gls{fetch}ed from the \gls{key-value store}.
+More on \gls{spmd} programs and parallel \glspl{execution stream} are given in
+Section~\ref{sec:spmd}.

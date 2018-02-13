@@ -1,0 +1,47 @@
+@startuml
+
+abstract class AccessHandleBase {
+    current_use_base_ : UseHolderBase*
+    ..
+}
+class AccessHandle <T> {
+    current_use_ : GenericUseHolder*
+    ..
+    <i>Note: actual type of the pointer member is</i>
+    managed_ptr<shared_ptr<GenericUseHolder<...>>, ...>
+}
+AccessHandleBase .down. AccessHandle : << base of >>
+
+AccessHandleBase -right-> UseHolderBase : <<points to>>
+abstract class UseHolderBase {
+    use_base : HandleUseBase*
+    ..
+}
+class GenericUseHolder <UnderlyingUse> {
+    use : UnderlyingUse*
+    ..
+    <i>In the case of AccessHandle:</i>
+    UnderlyingUse = HandleUse
+    ..
+    <i>Note: actual type of the pointer member is</i>
+    managed_ptr<unique_ptr<HandleUse>, ...>
+}
+UseHolderBase .down. GenericUseHolder : << base of >>
+AccessHandle -right-> GenericUseHolder
+
+class HandleUseBase {
+  <i>Implements most of the functionality for
+  darma_runtime::abstract::frontend::Use
+  ..
+}
+
+class HandleUse {
+  <i>A few specializations that distinguish this Use
+  <i>from a collection managing use
+  ..
+}
+HandleUseBase .down. HandleUse : << base of >>
+GenericUseHolder -right-> HandleUse
+UseHolderBase -right-> HandleUseBase : << points to >>
+
+@enduml

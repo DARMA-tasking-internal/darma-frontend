@@ -1,12 +1,20 @@
 %!TEX root = sandReportSpec.tex
 
-\section{Compatible Data Models}
+\section{Data Model}
 \label{sec:data_model}
-
-
-DARMA provides a flexible data model (DARMA is only aware of tuple or key identifiers for a coarse-grained data block).
-This leaves the application developer free to use arbitrary data structures, but puts more responsibility on application developer to define serialization, \gls{slicing}, and \glspl{interference test} 
-for data blocks. 
-\todo[inline]{add details here}
+\gls{DARMA} only implements a \gls{data model} through its \gls{serialization} interface.
+The notion of data structure, data layout, and data type only exist in the
+application and \gls{translation layer} (see Chapter~\ref{chap:translation_layer}).
+Thus, a \gls{runtime system} implementing the \gls{DARMA} specification is only
+aware of \gls{tuple} or \codelink{key} identifiers for a coarse-grained data block of a given size.
+To actually migrate data, a \gls{back end} \gls{runtime system} invokes
+\gls{serialization} hooks implemented by the application.
+In future versions, an \gls{API} similar to the \gls{serialization} interface will support the definition of data subsets and data slices.
+Again, the \gls{back end} \gls{runtime system} will only understand data and
+\gls{task} dependencies, requiring the type-aware application and \glspl{translation layer} to define
+  the details of subsetting and slicing operations.
+This leaves the application developer free to use arbitrary data structures,
+     but puts more responsibility on the application developer to articulate
+     the structure of the data.
 
 

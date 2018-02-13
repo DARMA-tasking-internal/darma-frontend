@@ -4,9 +4,9 @@
 //
 //                          splat.hpp
 //                         darma_new
-//              Copyright (C) 2016 Sandia Corporation
+//              Copyright (C) 2017 NTESS, LLC
 //
-// Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
+// Under the terms of Contract DE-NA-0003525 with NTESS, LLC,
 // the U.S. Government retains certain rights in this software.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,7 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Questions? Contact David S. Hollman (dshollm@sandia.gov)
+// Questions? Contact darma@sandia.gov
 //
 // ************************************************************************
 //@HEADER
@@ -57,6 +57,9 @@ struct splat_to : splat_to<as_sequence_t<Sequence>, F> { };
 template <template <class...> class F, class... Args>
 struct splat_to<sequence<Args...>, F>
   : variadic::splat_to<F, Args...> { };
+
+template <typename Sequence, template <class...> class F>
+using splat_to_t = typename splat_to<Sequence, F>::type;
 
 } // end namespace tinympl
 

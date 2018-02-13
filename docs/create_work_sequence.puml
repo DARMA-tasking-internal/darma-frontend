@@ -1,0 +1,81 @@
+@startuml
+
+title
+create_work call sequence
+end title
+
+
+"create_work()" -> "_create_work_impl()" : \
+forwards arguments to helper \n\
+specialized for lambda or functor \ntask creation.
+
+participant TaskBase as "TaskBase (implemented as\nFunctorTask or LambdaTask)"
+participant CaptureManager as "CaptureManager (implemented\nby TaskBase)"
+
+"_create_work_impl()" -> TaskBase : \
+creates Task object, stores pointer\n\
+to that object in \n\
+current_create_work_context_ field \n\
+of get_running_task()
+
+loop potential dependencies
+
+TaskBase -> CopyCapturedObject : \
+triggers copy ctor to detect potential dependency
+
+CopyCapturedObject --/o TaskBase : \
+get pointer to active CaptureManager object from \n\
+ get_running_task()->current_create_work_context_
+
+CopyCapturedObject -> AccessHandle : \
+calls report_capture() with \n\
+the active CaptureManager as \n\
+an argument
+AccessHandle -[#0000ff]> CaptureManager : \
+calls do_capture(*this, *source) where source is (essentially)\n\
+ a pointer to the argument of the copy constructor
+CaptureManager -[#0000ff]> AccessHandle : \
+CaptureManager::do_capture() determines the required\n\
+ permissions and calls call_make_captured_use_holder()
+
+AccessHandle -> "make_captured_use_holder()" : \
+calls make_captured_use_holder() \n\
+with the correct callbacks for Use \n\
+construction.
+
+"make_captured_use_holder()" -> GenericUseHolder : \
+constructs a UseHolder
+
+GenericUseHolder -> AccessHandle : \
+Constructor of GenericUseHolder calls \n\
+get_backend_runtime()->register_use(), return value is set \n\
+to the current_use_ field of AccessHandle
+
+AccessHandle -> CaptureManager : \
+returns from call_make_captured_use_holder(), still inside\n\
+CaptureManager::do_capture()
+
+CaptureManager -[#0000ff]> AccessHandle : \
+calls AccessHandleBase::call_add_dependency()
+
+AccessHandle -> TaskBase : \
+calls TaskBase::add_dependency()
+
+end
+
+
+TaskBase -> "_create_work_impl()" : \
+When all copy ctors of potential dependencies \n\
+have been triggered, TaskBase sets \n\
+get_running_task()->current_create_work_context_\n\
+to nullptr so that copy ctors no longer\n\
+perform captures, and returns from the \n\
+ Task ctor. _create_work_impl() calls \n\
+get_backend_runtime()->register_task() \n\
+with the newly constructed Task
+
+footer
+<font color=#0000ff>Blue</font> arrows indicate virtual method calls between frontend components.
+end footer
+
+@enduml

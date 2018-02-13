@@ -4,9 +4,9 @@
 //
 //                          types.h
 //                         darma_new
-//              Copyright (C) 2016 Sandia Corporation
+//              Copyright (C) 2017 NTESS, LLC
 //
-// Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
+// Under the terms of Contract DE-NA-0003525 with NTESS, LLC,
 // the U.S. Government retains certain rights in this software.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -36,27 +36,37 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Questions? Contact David S. Hollman (dshollm@sandia.gov)
+// Questions? Contact darma@sandia.gov
 //
 // ************************************************************************
 //@HEADER
 */
 
-#ifndef SRC_ABSTRACT_FRONTEND_TYPES_H_
-#define SRC_ABSTRACT_FRONTEND_TYPES_H_
+#ifndef DARMA_ABSTRACT_FRONTEND_TYPES_H_
+#define DARMA_ABSTRACT_FRONTEND_TYPES_H_
 
-#ifdef DARMA_FRONTEND_TYPES_INCLUDE
-#include DARMA_FRONTEND_TYPES_INCLUDE
+#ifdef DARMA_HAS_FRONTEND_TYPES_H
+#include <frontend_types.h>
 #endif
 
-#ifndef DARMA_BACKEND_CUSTOM_HANDLE_CONTAINER
+#include <set>
+
+//#include <darma_types.h>
+#include <darma/interface/frontend/frontend_fwd.h>
+
+#ifndef DARMA_CUSTOM_HANDLE_CONTAINER
 #include <unordered_set>
-namespace darma_runtime { namespace types {
+namespace darma_runtime {
+namespace types {
+
+  // TODO this needs to be changed to something like use_iterable
   template <typename... Ts>
-  using handle_container_template = std::unordered_set<Ts...>;
-}} // end namespace darma_runtime::types
+  using handle_container_template = std::set<Ts...>;
+
+} // end namespace types
+} // end namespace darma_runtime
 #endif
 
+#include <darma/interface/frontend/types/concrete_task_t.h>
 
-
-#endif /* SRC_ABSTRACT_FRONTEND_TYPES_H_ */
+#endif /* DARMA_ABSTRACT_FRONTEND_TYPES_H_ */

@@ -1,23 +1,124 @@
 %!TEX root = sandReportSpec.tex
 
-\chapter{Back End}
+\chapter{Backend}
 \label{chap:back_end}
 
-The back end API is organized into two namespaces:
-\begin{compactenum}
+\lstMakeShortInline[style=CppCodeInlineStyle]{\|}
+
+The \gls{back end} \gls{API} is organized into two namespaces:
+\begin{compactitem}
 \item {\ttfamily darma\_runtime::abstract::frontend} 
 \item {\ttfamily darma\_runtime::abstract::backend}  
-\end{compactenum}
+\end{compactitem}
 
 The first contains
-abstraction base classes of entities that are implemented in the translation
-layer and are the only constructs in that layer that the backend is
-allowed to interact with.  The second contains abstract base classes that must be concretely implemented in the backend and
-are the only backend abstractions the translation layer is allowed to interact
+abstraction base classes of entities that are implemented in the \gls{translation
+layer} and are the only constructs in that layer that the \gls{back end}
+\gls{runtime system} is
+allowed to interact with.  The second contains abstract base classes that must
+be concretely implemented in the \gls{back end} \gls{runtime system} and
+are the only \gls{back end} abstractions the \gls{translation layer} is allowed to interact
 with.  Below is a summary of the requirements to implement these abstractions,
 the documentation for which is taken from the Doxygen-style comments in
 the source code itself.  As such, the source code may be a better resource for
 those interested in this part of the document, but we have included it here for
-completeness. \todo{DAVID: add coments here about key and version going away} 
+completeness. 
+
+Before diving into the API iteslf, though, we'll give a brief overview of the abstractions and
+semantics that DARMA uses to express the dependency structure of the user's program to the
+backend.  It should be clear by now that a primary goal of DARMA is to translate from semantics and
+abstractions that are most convenient for application developers into semantics and abstractions
+that are most convenient for runtime system developers.  Chapter~\ref{chap:front_end} details the
+abstractions we've devised to address the needs of application developers, and this chapter details
+those devised for interaction with runtime system developers.  As such, it is critical that we
+recieve feedback on the usefulness (or awkwardness) of these abstractions when they are used to 
+interpret the user's execution needs for an existing AMT \gls{runtime system}.
+
+\section{{\tt Use}--{\tt Flow} Semantics}
+
+We are calling the general semantics that we use to express the graph of application tasks and
+dependencies {\it Use-Flow semantics}.  Roughly speaking, a |Flow| is a data node on the data-task
+directed acyclic graph (DAG) and a |Use| (or, more accurately, a set of |Use|s) is a task node.  In
+both cases, however, the analogy is only a rough one, and because of the intricacies and
+difficulties involved in representing a DAG that is simultaneously being executed and constructed
+(or ``discovered''), the exact semantics on |Use| and |Flow| objects are significatly more nuanced.
+
+\subsection{{\tt Flow} Objects, In Brief}
+
+A |Flow| is an object, issued by the backend and completely opaque to the translation layer, that
+the translation layer uses to represent the relationships between |Use| objects.  It is exposed to
+the translation layer via the |typedef| |flow_t|, which must support pointer-like copy semantics
+(i.e., |flow_t a = b| should not make a copy of |b|; it should just make |a| point to the same
+thing |b| points to).  Otherwise, there are no specific requirements on the implementation of
+|flow_t|; its form is entirely up to the backend implementer.
+
+The life cycle of a |Flow| object begins with a call by the translation layer to one of the
+|make_*_flow| methods of |abstract::backend::Runtime| (a pointer to a valid instance of which must
+be returned when called from the free function |abstract::backend::get_backend_runtime()| any
+context after the frontend returns from the backend's call to |frontend::darma_top_level_setup()|
+until the end of the program).  In the current specification, these
+include |make_initial_flow()|, |make_fetching_flow()|, |make_null_flow()|, |make_next_flow()|,
+and |make_forwarding_flow()|.  Its life cycle ends with a call by the translation layer to
+the |release_flow()| method of |Runtime|, the invocation of which must be preceded by the 
+end of the lifetime of any |Use|s that use that |Flow| and any (zero or one) {\it aliases}
+established on that |Flow| (both of these will be explained in more detail below, after the
+introduction of |Use|s).
+
+\subsection{{\tt Use} Objects, In Brief}
+
+A |Use| is an object created and managed by the translation layer, the abstract interface to which
+is exposed in |abstract::frontend::Use|.  
+
+
+%\section{Important Backend Concepts}
+%Although some of this terminology was given in the introduction, we repeat definitions here.
+%Some of the terms here have \CC{} classes that directly represent them.
+%Other terms are only concepts, useful in illustrating the use of other \CC{} classes.
+%\begin{compactdesc}
+%\item [Task:] The work unit instantiated directly by the application developer. 
+%Tasks are guaranteed to make forward progress, but are interruptible.
+%\item [Execution stream:] An \gls{execution stream} will consist of a sequence of
+%  many \glspl{task}, and, like \glspl{task}, is guaranteed to make forward progress.
+%  All \glspl{execution stream} are \glspl{task}, but \glspl{execution stream} specifically
+%  have no parent \gls{task} and are the root of an independent \gls{task-DAG}.
+%  There is no class corresponding uniquely to an \gls{execution stream} since all
+%streams are \glspl{task}.
+%\item [Operation:] This is a unit of execution that is guaranteed to be non-interruptible. 
+%  An \gls{operation} is not equivalent to a \gls{task} since \glspl{task} are interruptible.  
+%  \Glspl{operation} are the smallest, schedulable units of work.  
+%A \gls{task} consists of a sequence of \glspl{operation}.
+%While \glspl{task} are explicitly instantiated by the application developer,
+%\glspl{operation}
+%(individual portions of \gls{task}) can be implicitly instantiated by the
+%\gls{runtime system}.
+%There is no class provided corresponding directly to an \gls{operation}.
+%Since only one component \gls{operation} of a \gls{task} may be active at any given
+%time, a \gls{task} always corresponds uniquely to an \gls{operation}.
+%\item [Handle:] The \gls{DARMA} generalization of a variable. Handle encapsulates both a unique immutable name (key) and an immutable type. 
+%\item [Logical Time:] An abstract notion of time progressing as
+%  \glspl{operation} are performed on the values encapsulated by a Handle.
+%There is no class corresponding to logical time. 
+%The progression of logical time for Use objects is encapsulated in the input and output Flows (see below).
+%\item [Use:] A Use represents intended access to a Handle at a particular moment in logical time. 
+%Uses carry particular immediate and scheduling permissions and therefore have some intent of Read, Write, or Modify (and/or some intent to schedule tasks that require these).
+%  Uses are always unique to an \gls{operation}.
+%Operations cannot add or remove Use instances from its context;
+%however, tasks, being interruptible, can add and remove (i.e., create and release) Use instances.
+%\item [Flow:] A Flow encapsulates a data-task relationship. 
+%An input Flow indicates that a Use requires a particular value before its
+%corresponding \gls{operation} begins.
+%An output Flow indicates that a Use produces a particular value after being
+%released at the end of its corresponding \gls{operation}.
+%All Use objects have exactly two Flow objects --- one input and one output ---
+%and each Flow is associated with exactly one Use.
+%A Modify Use will have an input Flow indicating the value consumed and an output Flow indicating the value produced.
+%A Read Use will also have an output Flow even though it produces no data since the ``output'' indicates the release of data and clearing of an anti-dependence.
+%\item [Dependency:] Although Dependency is not a class in \gls{DARMA}, a
+%  \gls{task} will always have an initial set of Uses whose input Flows must become
+%  available for the \gls{task} to begin.
+%  This initial set of uses are the ``dependencies'' of a \gls{task}.
+%\end{compactdesc} 
+
+\lstDeleteShortInline{\|}
 
 \subimport{./doxygen-backend/latex/}{refman}

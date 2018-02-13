@@ -4,9 +4,9 @@
 //
 //                          dependency.h
 //                         darma_mockup
-//              Copyright (C) 2016 Sandia Corporation
+//              Copyright (C) 2017 NTESS, LLC
 //
-// Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
+// Under the terms of Contract DE-NA-0003525 with NTESS, LLC,
 // the U.S. Government retains certain rights in this software.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,7 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Questions? Contact David S. Hollman (dshollm@sandia.gov)
+// Questions? Contact darma@sandia.gov
 //
 // ************************************************************************
 //@HEADER
@@ -49,7 +49,30 @@ namespace darma_runtime {
 
 namespace detail {
 
+template <typename KeyType>
+class KeyedObject;
+
+struct handle_migration_unpack_t { };
+static constexpr handle_migration_unpack_t handle_migration_unpack = {};
+
+class VariableHandleBase;
+
+template <typename T>
+class VariableHandle;
+
 class AccessHandleBase;
+
+typedef enum AccessHandlePermissions {
+  NotGiven=-1,
+  None=0, Read=1, Write=2, Modify=3,
+} access_handle_permissions_t;
+
+typedef enum AccessHandleTaskCollectionCaptureMode {
+  NoCollectionCapture,
+  SharedRead,
+  // TODO add UniqueModifyOrRead mode or something like that (and allow overloads?)
+  UniqueModify
+} access_handle_task_collection_capture_mode_t;
 
 } // end namespace detail
 

@@ -11,7 +11,7 @@
 //   Copyright (C) 2013, Ennio Barbaro.
 // See LEGAL.md for more information.
 //
-// Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
+// Under the terms of Contract DE-NA-0003525 with NTESS, LLC,
 // the U.S. Government retains certain rights in this software.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,7 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Questions? Contact David S. Hollman (dshollm@sandia.gov)
+// Questions? Contact darma@sandia.gov
 //
 // ************************************************************************
 //@HEADER
@@ -54,6 +54,9 @@
 #include "variadic/erase.hpp"
 #include "as_sequence.hpp"
 #include "sequence.hpp"
+#include "transform.hpp"
+#include "at.hpp"
+#include "find_all_if.hpp"
 
 namespace tinympl {
 
@@ -66,18 +69,76 @@ namespace tinympl {
  * \param Seq The input sequence
  * \param Out The output sequence type
  */
-template<std::size_t First,
-        std::size_t Last,
-        class Seq,
-        template<class...> class Out = as_sequence<Seq>::template rebind>
-struct erase : erase<First, Last, as_sequence_t<Seq>, Out> {};
+template<
+  std::size_t First,
+  std::size_t Last,
+  class Seq,
+  template <class...> class Out = as_sequence<Seq>::template rebind
+>
+struct erase : erase<First, Last, as_sequence_t<Seq>, Out> { };
 
-template<std::size_t First,
-        std::size_t Last,
-        class ... Args,
-        template<class...> class Out>
+template<
+  std::size_t First,
+  std::size_t Last,
+  class... Args,
+  template <class...> class Out
+>
 struct erase<First, Last, sequence<Args...>, Out> :
-    variadic::erase<First, Last, Out, Args...> {};
+  variadic::erase<First, Last, Out, Args...> { };
+
+template <
+  class Seq,
+  template <class...> class F,
+  template <class...> class Out = as_sequence<Seq>::template rebind
+>
+struct erase_if_not {
+  private:
+
+    template <typename WrappedIndex>
+    using _seq_at = at<WrappedIndex::value, Seq>;
+
+  public:
+
+    using type = tinympl::transform_t<
+      tinympl::find_all_if_t<Seq, F>, _seq_at, Out
+    >;
+};
+
+template <
+  class Seq,
+  template <class...> class F,
+  template <class...> class Out = as_sequence<Seq>::template rebind
+>
+using erase_if_not_t = typename erase_if_not<Seq, F, Out>::type;
+
+template <
+  class Seq,
+  template <class...> class F,
+  template <class...> class Out = as_sequence<Seq>::template rebind
+>
+using erase_unless = erase_if_not<Seq, F, Out>;
+
+template <
+  class Seq,
+  template <class...> class F,
+  template <class...> class Out = as_sequence<Seq>::template rebind
+>
+using erase_unless_t = typename erase_if_not<Seq, F, Out>::type;
+
+template <
+  class Seq,
+  template <class...> class F,
+  template <class...> class Out = as_sequence<Seq>::template rebind
+>
+struct erase_if : erase_if_not<Seq, negate_metafunction<F>::template apply, Out> { };
+
+template <
+  class Seq,
+  template <class...> class F,
+  template <class...> class Out = as_sequence<Seq>::template rebind
+>
+using erase_if_t = typename erase_if<Seq, F, Out>::type;
+
 
 } // namespace tinympl
 

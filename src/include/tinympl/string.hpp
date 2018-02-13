@@ -11,7 +11,7 @@
 //   Copyright (C) 2013, Ennio Barbaro.
 // See LEGAL.md for more information.
 //
-// Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
+// Under the terms of Contract DE-NA-0003525 with NTESS, LLC,
 // the U.S. Government retains certain rights in this software.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,7 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Questions? Contact David S. Hollman (dshollm@sandia.gov)
+// Questions? Contact darma@sandia.gov
 //
 // ************************************************************************
 //@HEADER
@@ -207,15 +207,15 @@ struct basic_string
     template<std::size_t i,std::size_t count>
     using unguarded_substr = substr<i, (i+count <= size ? count : size - i)>;
 
-    template<class Str, int i, std::size_t s>
+    template<class Str, std::size_t i, std::size_t s>
     struct find_impl : std::conditional<
       unguarded_substr<i,Str::size>::type::template
       compare<Str>::value == 0,
-      std::integral_constant<int, i>,
+      std::integral_constant<std::size_t, i>,
       find_impl<Str,i+1,s>
     >::type {};
 
-    template<class Str, int s> struct find_impl<Str, s, s> : std::integral_constant<std::size_t, s> {};
+    template<class Str, std::size_t s> struct find_impl<Str, s, s> : std::integral_constant<std::size_t, s> {};
 
     template<class Str,int i>
     struct rfind_impl : std::conditional<
@@ -225,7 +225,7 @@ struct basic_string
       rfind_impl<Str,i-1>
     >::type {};
 
-    template<class Str, std::size_t s> struct find_impl< Str, -1, s> : std::integral_constant< std::size_t, s> {};
+    template<class Str, std::size_t s> struct find_impl< Str, (size_t)-1, s> : std::integral_constant< std::size_t, s> {};
 
   public:
 
@@ -293,7 +293,7 @@ template <typename T, T... Vals>
 using vector_c = basic_string<T, Vals...>;
 
 template <size_t... Sizes>
-using size_t_vector = basic_string<size_t, Sizes...>;
+using size_t_vector = std::integer_sequence<size_t, Sizes...>;
 
 
 /** @} */

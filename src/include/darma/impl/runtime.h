@@ -4,9 +4,9 @@
 //
 //                          runtime.h
 //                         darma_mockup
-//              Copyright (C) 2016 Sandia Corporation
+//              Copyright (C) 2017 NTESS, LLC
 //
-// Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
+// Under the terms of Contract DE-NA-0003525 with NTESS, LLC,
 // the U.S. Government retains certain rights in this software.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -36,45 +36,13 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Questions? Contact David S. Hollman (dshollm@sandia.gov)
+// Questions? Contact darma@sandia.gov
 //
 // ************************************************************************
 //@HEADER
 */
 
-#ifndef NEW_RUNTIME_H_
-#define NEW_RUNTIME_H_
+#ifndef DARMA_IMPL_RUNTIME_H_
+#define DARMA_IMPL_RUNTIME_H_
 
-#include <darma/interface/backend/runtime.h>
-
-#ifndef DARMA_THREAD_LOCAL_BACKEND_RUNTIME
-#  define DARMA_THREAD_LOCAL_BACKEND_RUNTIME
-#endif
-
-namespace darma_runtime {
-
-namespace detail {
-
-template <typename __ignored = void>
-abstract::backend::runtime_t*&
-_gen_backend_runtime_ptr() {
-  static_assert(std::is_same<__ignored, void>::value, "");
-  static DARMA_THREAD_LOCAL_BACKEND_RUNTIME abstract::backend::runtime_t* rv;
-  return rv;
-}
-
-namespace {
-
-DARMA_THREAD_LOCAL_BACKEND_RUNTIME
-abstract::backend::runtime_t*& backend_runtime = _gen_backend_runtime_ptr<>();
-
-}
-
-} // end namespace backend
-
-} // end namespace darma_runtime
-
-
-
-
-#endif /* NEW_RUNTIME_H_ */
+#endif /* DARMA_IMPL_RUNTIME_H_ */

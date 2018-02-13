@@ -11,7 +11,7 @@
 //   Copyright (C) 2013, Ennio Barbaro.
 // See LEGAL.md for more information.
 //
-// Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
+// Under the terms of Contract DE-NA-0003525 with NTESS, LLC,
 // the U.S. Government retains certain rights in this software.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,7 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Questions? Contact David S. Hollman (dshollm@sandia.gov)
+// Questions? Contact darma@sandia.gov
 //
 // ************************************************************************
 //@HEADER
@@ -51,9 +51,9 @@
 #ifndef TINYMPL_ANY_OF_HPP
 #define TINYMPL_ANY_OF_HPP
 
-#include "variadic/any_of.hpp"
-#include "as_sequence.hpp"
-#include "sequence.hpp"
+#include <tinympl/variadic/any_of.hpp>
+#include <tinympl/as_sequence.hpp>
+#include <tinympl/sequence.hpp>
 
 namespace tinympl {
 
@@ -68,11 +68,20 @@ given predicate
 is true iff at least one element in the sequence satisfy the predicate `F`
  * \sa variadic::any_of
  */
-template< class Sequence, template<class ...> class F>
-struct any_of : any_of<as_sequence_t<Sequence>, F> {};
+template <class Sequence, template <class...> class F>
+struct any_of : any_of<as_sequence_t<Sequence>, F> { };
 
 template< template<class ...> class F, class ... Args>
-struct any_of<sequence<Args...>, F > : variadic::any_of<F, Args...> {};
+struct any_of<sequence<Args...>, F > : variadic::any_of<F, Args...> { };
+
+namespace types_only {
+
+template< typename S, class FWrapped>
+struct any_of : tinympl::any_of<
+  S, FWrapped::template apply_value
+> { };
+
+} // end namespace types_only
 
 } // namespace tinympl
 

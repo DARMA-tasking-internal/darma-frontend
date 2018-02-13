@@ -3,54 +3,72 @@
 \chapter{Requirements} 
 \label{chap:requirements} 
 \section{High-level Philosophy}
-The requirements are informed by a few high-level design principles:
-\begin{itemize}
+The \gls{front end} \gls{API} requirements are informed by a few high-level design principles:
+\begin{compactitem}
 \item Keep simple things simple
 \item Keep tractable things tractable
 \item Make difficult things tractable
-\item New programming models should not complicate reasoning about code correctness
-\item New programming models should simplify application-specific performance optimizations
-\item Pareto rule: 80\% of the compute benefit from modest human effort preferred over 100\% of computer benefit from massive human effort
-\end{itemize}
-Essentially, code written in the DARMA programming model should be not be significantly more difficult than existing programming models (parallel programming is already difficult).
-Additionally, the DARMA programming model should not pass off 100\% of the responsibility for high-performance to the runtime/compilers.
-Rather, DARMA should enable application developers to express performance improvements in ways not previously possible.
+\item New \glspl{programming model} should not complicate reasoning about code correctness
+\item New \glspl{programming model} should simplify application-specific performance optimizations
+\item Pareto rule: 80\% of the compute benefit from modest human effort preferred over 100\% of compute benefit from massive human effort
+\end{compactitem}
 
-\section{Technical Justification for Asynchronous Many-Task (AMT)}
+Essentially, code written in the \gls{DARMA} \gls{programming model} should be
+not be more difficult than existing \glspl{programming model}.
+Additionally, the \gls{DARMA} \gls{programming model} should not pass off 100\% 
+of the responsibility for high-performance to the runtime/compilers.
+Rather, \gls{DARMA} should enable application developers to express performance improvements in ways not previously possible.
+
 Our approach is informed by what we see as the ``axiomatic'' challenges facing high-performance computing:
-\begin{itemize}
-\item SPMD (data parallelism) will remain the dominant parallelism and primary structure of code
-\item However, new architectures will have too much compute capacity for basic data parallelism to fill
-\item Task and pipeline parallelism will help ``fill'' the compute capacity on machines
-\item The traditional abstract machine model (flat memory spaces, uniform compute elements) will get further from actual system architecture as accelerators and deep memory hierarchies become more commonplace
-\item Applications with dynamic load balance or dynamic sparsity will require composable, migratable chunks of work
-\end{itemize}
-
-\section{Expected Products/Results from DARMA}
-The philosophy and technical justification lead to the following results or products that should be produced directly from DARMA or indirectly through collaboration:
-\begin{itemize}
-\item An abstraction layer between applications and the
-runtime system/physical architecture that shields scientific application codes
-from diversity and complexity of evolving architectures.
-\item A performant implementation of a software stack that supports this
-abstraction layer.
-\item Community best practices and eventual standards for this abstraction
-layer
-\end{itemize}
-
-\section{Specific Design Requirements}
-Combining our high-level philosophy with the specific technical justifications leads us to the following design requirements gathered to date:
 \begin{compactitem}
-\item Programming model/runtime must support \gls{spmd} algorithms in an intuitive and simple way.
-\item Programming model/runtime should provide hooks for developers to express application-specific data structures/data models.
-\item Programming model/runtime must support collective operations.
-\item Application developer should be able to control initial problem decomposition.
-\item Application developer should be able to express and mix all forms of
-parallelism.
+\item \gls{spmd} (\gls{data parallelism}) will remain the dominant parallelism
+  and primary structure of application codes
+\item New architectures will have too much compute capacity for basic \gls{data
+  parallelism} to fill
+\item \Gls{task parallelism} and \gls{pipeline parallelism} will help ``fill'' the compute capacity on machines
+\item The traditional \gls{abstract machine model} (flat memory spaces, uniform compute elements) will get further from 
+  actual system architecture as accelerators and deep memory hierarchies become more commonplace
+\item Applications with dynamic load balance or dynamic sparsity will require composable, migratable chunks of work
+\end{compactitem}
+
+\section{Application Requirements for the front end API}
+Based on \gls{co-design} efforts with application and \gls{runtime system}
+development teams, the following \gls{DARMA} \gls{front end} \gls{API}
+requirments have been identified:
+\begin{compactitem}
+\item The \gls{DARMA} \gls{front end} \gls{API} must enable the development and
+  deployment of \gls{spmd} algorithms in an intuitive and simple way.
+\item The \gls{DARMA} \gls{front end} \gls{API} must not limit the ability of
+  hte application developer to use their own data structures.
+\item The \gls{DARMA} \gls{front end} \gls{API} must support collective
+  communication operations.
+\item The \gls{DARMA} \gls{front end} \gls{API} must not limit the ability of
+      the application developer to express and control the initial problem
+      decomposition.
+\item The \gls{DARMA} \gls{front end} \gls{API} must not limit the application
+  developer's ability to mix and express all forms of parallelism.
+\end{compactitem}
+
+\section{Back end runtime system requirements}
+Althouth a primary purpose of the \gls{DARMA} specification is to provide a
+\gls{back end} \gls{runtime system} specification that is relatively execution
+model agnostic, we will synthesize our application and runtime-system co-design
+activities into a list of \gls{back end} \gls{runtime system} requirements.  To
+date, the following requirements have been identified:
+\begin{compactitem}
+\item A \gls{DARMA}-compliant \gls{runtime system} must support an efficient
+  \gls{spmd} launch of an application code.
+\item A \gls{DARMA}-compliant \gls{runtime system} must not limit the ability
+  of the application developer to use their own data structures.
+\item A \gls{DARMA}-compliant \gls{runtime system} must efficiently implement
+  distributed, key-value-style coordination between multiple streams of
+  execution.
+%\item A \gls{DARMA}-compliant \gls{runtime system} must support the allocation
+%  and arbitration of resources to support \glspl{elastic task}.
 \end{compactitem}
 
 
-\paragraph{Co-design contributors}
+\section{Co-design contributors}
 In addition to the authors listed on this document,
 the \gls{API} is being \gls{co-design}ed and vetted with application developers
 and computer scientists whose knowledge spans the entire runtime software stack.

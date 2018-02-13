@@ -4,9 +4,9 @@
 //
 //                          types.h
 //                         darma_new
-//              Copyright (C) 2016 Sandia Corporation
+//              Copyright (C) 2017 NTESS, LLC
 //
-// Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
+// Under the terms of Contract DE-NA-0003525 with NTESS, LLC,
 // the U.S. Government retains certain rights in this software.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,7 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Questions? Contact David S. Hollman (dshollm@sandia.gov)
+// Questions? Contact darma@sandia.gov
 //
 // ************************************************************************
 //@HEADER
@@ -49,9 +49,12 @@
 
 #include <darma_types.h> //provided by the backend
 
+#include <darma/key/SSO_key.h>
+
 namespace darma_runtime {
 
 // Key utility functions
+// TODO these should be somewhere else...
 
 template <typename... Args>
 inline types::key_t
@@ -59,11 +62,11 @@ make_key(Args&&... args) {
   return darma_runtime::detail::key_traits<types::key_t>::maker()(std::forward<Args>(args)...);
 }
 
-template <typename TupleType>
-inline types::key_t
-make_key_from_tuple(TupleType&& tup) {
-  return darma_runtime::detail::key_traits<types::key_t>::maker_from_tuple()(std::forward<TupleType>(tup));
-}
+//template <typename TupleType>
+//inline types::key_t
+//make_key_from_tuple(TupleType&& tup) {
+//  return darma_runtime::detail::key_traits<types::key_t>::maker_from_tuple()(std::forward<TupleType>(tup));
+//}
 
 } // end namespace darma_runtime
 

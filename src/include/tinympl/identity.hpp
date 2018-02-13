@@ -11,7 +11,7 @@
 //   Copyright (C) 2013, Ennio Barbaro.
 // See LEGAL.md for more information.
 //
-// Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
+// Under the terms of Contract DE-NA-0003525 with NTESS, LLC,
 // the U.S. Government retains certain rights in this software.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,7 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Questions? Contact David S. Hollman (dshollm@sandia.gov)
+// Questions? Contact darma@sandia.gov
 //
 // ************************************************************************
 //@HEADER
@@ -59,6 +59,45 @@ namespace tinympl {
  * \brief Returns the argument passed
  */
 template<class T> struct identity {typedef T type;};
+
+/**
+ * \ingroup Functional
+ * \class identity_value
+ * \brief Returns the argument passed and T::value for value
+ */
+template<class T>
+struct value_identity {
+  typedef T type;
+  static constexpr decltype(type::value) value = type::value;
+};
+
+/**
+ * \ingroup Functional
+ * \class ignore_argument
+ * \brief ignores the first argument and instead returns the second argument,
+ * which defaults to void
+ */
+template <typename /* ignored */, typename ReturnType=void>
+struct ignore_argument {
+  using type = ReturnType;
+};
+
+template <typename ReturnType>
+struct make_ignore_argument {
+  template <typename /* ignored */>
+  using apply = tinympl::identity<ReturnType>;
+};
+
+/**
+ * \ingroup Functional
+ * \class ignore_value_argument
+ * \brief ignores the non-type argument (of type T) and instead returns
+ * the third argument, which defaults to void
+ */
+template <typename T, T /*ignored*/, typename ReturnType=void>
+struct ignore_value_argument {
+  using type = ReturnType;
+};
 
 } // namespace tinympl
 

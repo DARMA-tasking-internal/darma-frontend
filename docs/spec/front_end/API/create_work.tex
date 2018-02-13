@@ -3,7 +3,8 @@
 \label{ssec:api_fe_cw}
 
 \paragraph{Summary}\mbox{}\\
-Expresses work to be executed by the runtime system.
+\codetarget{create_work} instantiates \gls{deferred work} to be executed by the \gls{runtime
+system}.
 
 \paragraph{Syntax}\mbox{}\\
 \begin{CppCode}
@@ -18,48 +19,62 @@ create_work(
     // Code expressing deferred work goes here
   }
 );
+// or:
+create_work<FunctorType>(ArgumentsToFunctor...);
 
 // Formally:
 /* unspecified */ create_work(Arguments..., LambdaExpression);
+/* unspecified */ create_work<FunctorWrapper>(Arguments...);
 \end{CppCode}
 
 
 \paragraph{Positional Arguments}\mbox{}\\
-\begin{itemize}
-  \item |LambdaExpression| A C++11 lambda expression with a copy
-  default-capture (i.e., |[=]|) and taking no arguments.  More details
+\begin{compactitem}
+\item \inlinecode{LambdaExpression} A \CC{}11 \gls{lambda} expression with a copy
+    default-\gls{capture} (i.e., |[=]|) and taking no arguments.  More details
   below.
-  \item |ConstraintExpressions...| (optional) If given, these
-  arguments can be used to express modifications in the default capture behavior
-  of |AccessHandle<T>| objects captured by the |LambdaExpression|
-  given as the final argument.  In the 0.2 spec, the only valid permission
-  modification expression is the return value of the |reads()| modifier
+\item \inlinecode{ConstraintExpressions...} (optional) If given, these
+  arguments can be used to express modifications in the default \gls{capture} behavior
+  of \codelink{AccessHandle<T>} objects captured by the \inlinecode{LambdaExpression}
+  given as the final argument.  In the \specVersion-specification, the only valid permission
+  modification expression is the return value of the \codelink{reads()} modifier
   (see \S~\ref{ssec:api_fe_reads}), which indicates that only read operations
-  are performed on a given handle or handles within the
-  |LambdaExpression| that follows.
-\end{itemize}
+  are performed on a given \gls{handle} or \glspl{handle} within the
+  \inlinecode{LambdaExpression} that follows.
+\item \inlinecode{ArgumentsToFunctor...} In the deferred functor invocation
+  version, these arguments are pattern-matched with the formal parameters of the
+  functor, causing the deferred invocation to invoke the call operator of
+  \inlinecode{FunctorType} with arguments derived from these as described in
+  \S~\ref{sec:functor}.  Constraint expressions may also be used in the
+  corresponding positional argument spots for a given \ahandleT argument.
+\end{compactitem}
 
 
 \paragraph{Return}\mbox{}\\
-Currently |void| in the 0.2 spec, but may be an object of unspecified
+Currently \inlinecode{void} in the \specVersion-specification, but may be an object of unspecified
 type in future implementations.
 
 \paragraph{Details}\mbox{}\\
-This function expresses work to be executed by the runtime system.  Any
-|AccessHandle<T>| variables used in the |LambdaExpression| will be
-captured and made available inside the capturing context as if they were used in
-sequence with previous capture operations on the same handle.  Depending on the
-scheduling permissions available to the |AccessHandle<T>| at the time of
-|create_work| invocation and on the |ConstraintExpressions...|
+This function expresses work to be executed by the \gls{runtime system}.  Any
+\codelink{AccessHandle} variables used in the \inlinecode{LambdaExpression} or
+given in \inlinecode{ArgumentsToFunctor...} will be captured and made available
+inside the capturing context or \inlinecode{FunctorType} call operator as if
+they were used in sequence with previous capture operations or deferred functor
+invocations with the same \gls{handle}.  Depending on the scheduling permissions
+available to the \inlinecode{AccessHandle<T>} at the time of
+\codelink{create_work} invocation and on the \inlinecode{ConstraintExpressions...}
 given as arguments, this function call expresses either a {\it read-only
-capture} or a {\it modify capture} operation on a given handle (see
-\S~\ref{sec:handlerules}).  If a handle |h| has {\it Read} scheduling
+capture} or a {\it modify capture} operation on a given \gls{handle} (see
+\S~\ref{sec:handlerules}).  If a \gls{handle} \inlinecode{h} has {\it Read} scheduling
 permissions when it is captured or if the explicit constraint expression
-|reads(h)| is given in the |ConstraintExpressions...| arguments,
-|create_work| functions as a {\it read-only capture} operation on that handle.
-Otherwise, it functions as a {\it modify capture}.  
+\inlinecode{reads(h)} is given in the \inlinecode{ConstraintExpressions...} arguments,
+\codelink{create_work} functions as a {\it read-only capture} operation on that
+\gls{handle}.
+Otherwise, it functions as a {\it modify capture}.  Formal parameters to the
+\inlinecode{FunctorType} call operator can also affect the type of capture
+operation that is performed, as discussed in \S~\ref{sec:functor}.
 
-Additional general discussion on use of |create_work| can be found in
+Additional general discussion on use of \codelink{create_work} can be found in
 \S~\ref{sec:deferred}.
 
 
@@ -71,17 +86,18 @@ create_work([=]{
 });
 \end{CppCodeNumb}
 \label{fig:fe_api_cw}
-\caption{Basic usage of \texttt{create\_work}.}
+  \caption{Basic usage of \protect\codelink{create_work}.}
 \end{figure}
 
 
+
 \paragraph{Restrictions and Pitfalls}\mbox{} \\
-Most of the general restrictionsn and pitfalls related to |create_work|
+Most of the general restrictions and pitfalls related to \codelink{create_work}
 are discussed in \S~\ref{sec:deferred}.  Some more technical restrictions are
 given here.
-\begin{itemize}
-  \item Because of the way in which |create_work| is implemented, placement of
-  multple |create_work| operations on the same line of code will not compile. 
+\begin{compactitem}
+  \item Because of the way in which \codelink{create_work} is implemented, placement of
+    multiple \codelink{create_work} operations on the same line of code will not compile. 
   For instance:
   \begin{CppCode}
 // $\no$ does not compile, gives cryptic error message
@@ -97,14 +113,14 @@ foo(
   create_work([=]{}); 
 )
   \end{CppCode}
-  Note that this is not a problem when using nested |create_work| calls:
+  Note that this is not a problem when using nested \codelink{create_work} calls:
   \begin{CppCode}
 // $\yes$ not a problem
 create_work([=]{ create_work([=]{}); }); // works fine
   \end{CppCode}
-  Other than the obvious solution of putting the |create_work| invocations on
+  Other than the obvious solution of putting the \codelink{create_work} invocations on
   multiple lines, this issue can be worked around by putting any of the later
-  |create_work| calls within their own scopes:
+  \codelink{create_work} calls within their own scopes:
   \begin{CppCode}
 // $\yes$ works fine
 create_work([=]{}); { create_work([=]{}); }
@@ -115,5 +131,5 @@ foo(
   { create_work([=]{}); }
 )
   \end{CppCode}
-\end{itemize}
+\end{compactitem}
 

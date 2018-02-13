@@ -6,7 +6,7 @@
 //                         darma_mockup
 //              Copyright (C) 2015 Sandia Corporation
 //
-// Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
+// Under the terms of Contract DE-NA-0003525 with NTESS, LLC,
 // the U.S. Government retains certain rights in this software.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,7 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Questions? Contact David S. Hollman (dshollm@sandia.gov)
+// Questions? Contact darma@sandia.gov
 //
 // ************************************************************************
 //@HEADER
@@ -44,6 +44,13 @@
 
 #ifndef META_TINYMPL_DELAY_HPP_
 #define META_TINYMPL_DELAY_HPP_
+
+#include <tinympl/detection.hpp>
+#include <tinympl/identity.hpp>
+#include <tinympl/insert.hpp>
+#include <tinympl/wrap.hpp>
+#include "is_instantiation_of.hpp"
+#include "is_metafunction_class.hpp"
 
 namespace tinympl {
 
@@ -60,16 +67,6 @@ struct delay {
   typedef typename F<
     typename Types::type...
   >::type type;
-};
-
-template <
-  template <class...> class Delayed
->
-struct undelay {
-  template <typename... Args>
-  struct apply {
-    typedef typename Delayed<Args...>::type::type type;
-  };
 };
 
 } // end namespace tinympl

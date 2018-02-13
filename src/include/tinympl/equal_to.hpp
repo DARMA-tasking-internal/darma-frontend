@@ -11,7 +11,7 @@
 //   Copyright (C) 2013, Ennio Barbaro.
 // See LEGAL.md for more information.
 //
-// Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
+// Under the terms of Contract DE-NA-0003525 with NTESS, LLC,
 // the U.S. Government retains certain rights in this software.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,7 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Questions? Contact David S. Hollman (dshollm@sandia.gov)
+// Questions? Contact darma@sandia.gov
 //
 // ************************************************************************
 //@HEADER
@@ -52,6 +52,8 @@
 #define TINYMPL_EQUAL_TO_HPP
 
 #include <type_traits>
+
+#include <tinympl/bool.hpp>
 
 namespace tinympl {
 
@@ -67,6 +69,16 @@ template<class T,class U,T t,U u> struct equal_to<
 	std::integral_constant<T,t>,
 	std::integral_constant<U,u> > : std::integral_constant<bool,t ==u> {};
 
+template <typename ValueType>
+struct make_value_equal {
+	template <ValueType a, ValueType b>
+  struct apply {
+		static constexpr auto value = a == b;
+		using type = bool_<value>;
+	};
+	template <ValueType a, ValueType b>
+  using apply_t = typename apply<a, b>::type;
+};
 
 } // namespace tinympl
 

@@ -1,32 +1,42 @@
 %!TEX root = sandReportSpec.tex
 
-In this document, we provide the specification for DARMA 
-\todo{acronym DARMA not defined anywhere, this is first time it appears},
-a co-design research vehicle for \gls{AMT} programming models and runtime
-systems.  This specification serves to facilitate three primary activities: 
-1) gathering and communicating application requirements, 2) exploring AMT
-design space tradeoffs, and 3) communication between the AMT community and
-other computer science research communities.
+In this document, we provide the specification for \gls{DARMA}, 
+a co-design research vehicle for \gls{AMT} \glspl{programming model} that 
+serves to:
+1) insulate applications from \gls{runtime system} and hardware idiosyncrasies,
+2) improve \gls{AMT} runtime programmability by co-designing an \gls{API} directly with
+  application developers, 3) synthesize application \gls{co-design} activities into
+  meaningful requirements for \glspl{runtime system}, and 4) 
+facilitate \gls{AMT} design space characterization and definition, accelerating the
+development of \gls{AMT} best practices.
 
-The DARMA code base comprises three main layers: the \gls{front end} \gls{API},
-\gls{translation layer}, and \gls{back end} \gls{API}.  
-The \gls{front end} is the user-level \gls{API}. 
-Its use has the feel of an \gls{EDSL} in \CC,  inheriting the generic
-language constructs of \CC and adding \gls{semantics} that facilitate
-distributed parallel programming. Though the \gls{front end} \gls{EDSL} uses
-\CC constructs in non-traditional ways to implement these semantics, it is
-nonetheless fully embedded in the \CC language. As such, it will compile with any
-\CC compiler supporting the \CC11 standard with a small subset of \CC14
-required for advanced features (\inlinecode{gcc >= 4.8, clang >= 3.5})\todo{FR:these have changed to 5.1 or so, right?}.
+\gls{DARMA} is a \gls{translation layer} between an 
+application-facing \gls{front end} \gls{API} and a \gls{runtime system} facing \gls{back end} 
+\gls{API}.    The application-facing user-level \gls{front end} \gls{API} 
+is an \gls{EDSL} in \CC,  inheriting the generic
+language constructs of \CC and adding \gls{semantics} that facilitate expressing
+distributed asynchronous parallel programs. Though the implementation of the \gls{EDSL} uses
+\CC constructs unfamiliar to many programmers to provide the front end semantics, 
+it is nonetheless fully embedded in the \CC language and
+leverages a widely supported subset of \CC{}14 functionality \compilerReqs.
 The \gls{translation layer} leverages \CC\ \gls{template
-metaprogramming} to map the user's code onto the \gls{back end} \gls{API}.
+metaprogramming} to map the user's code onto the \gls{back end} runtime \gls{API}.
 The \gls{back end} \gls{API} is a set of abstract classes and function
-signatures that runtime system developers must implement in accordance with the
+signatures that \gls{runtime system} developers must implement in accordance with the
 specification requirements in order to interface with application code written
-to the DARMA front end.  
-Each of these three layers is described herein. We also
+to the \gls{DARMA} front end. Executable \gls{DARMA} applications must link to a \gls{runtime
+  system} that implements the abstract \gls{back end} runtime \gls{API}.
+It is intended that these implementations will be external, drawing upon
+existing \gls{AMT} technologies.  However,  a reference implementation will be provided
+in the \gls{DARMA} code distribution.
+
+The \gls{front end} \gls{API}, \gls{translation layer}, and \gls{back end}
+\gls{API} are detailed herein. We also
 include a list of application requirements driving the specification (along
-with a list of the applications contributing to the requirements to date), some basic rules 
-and examples, and conclude with a brief history of changes between previous
+with a list of the applications contributing to the requirements to date), 
+a brief history of changes between previous
 versions of the specification, and summary of the planned changes in upcoming
-versions of the specification.
+versions of the specification.  Appendices walk the user through a more detailed set
+of examples of applications written in the \gls{DARMA} \gls{front end} \gls{API} and provide
+additional technical details for those the interested reader.
+

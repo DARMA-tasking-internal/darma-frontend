@@ -10,7 +10,7 @@
 //   Copyright (C) 2013, Ennio Barbaro.
 // See LEGAL.md for more information.
 //
-// Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
+// Under the terms of Contract DE-NA-0003525 with NTESS, LLC,
 // the U.S. Government retains certain rights in this software.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,7 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Questions? Contact David S. Hollman (dshollm@sandia.gov)
+// Questions? Contact darma@sandia.gov
 //
 // ************************************************************************
 //@HEADER
@@ -78,7 +78,7 @@ struct lambda
 
     template<class T>
     struct pick<T,
-      typename std::enable_if< (is_placeholder<T>::type::value > 0)>::type
+      std::enable_if_t< (is_placeholder<T>::type::value > 0)>
     > {
         typedef typename is_placeholder<T>::template cv_qualifier_rebind<
             variadic::at_t<is_placeholder<T>::value-1, Ts...>
@@ -95,8 +95,16 @@ struct lambda
     typedef typename pick<Expr>::type type;
   };
 
+  template<class... Ts>
+  struct eval_value
+  {
+    static constexpr decltype(eval<Ts...>::type::value) value = eval<Ts...>::type::value;
+    using type = std::integral_constant<decltype(eval<Ts...>::type::value), value>;
+  };
+
   template<class... Ts> using eval_t = typename eval<Ts...>::type;
   template<class... Ts> using apply = eval<Ts...>;
+  template<class... Ts> using apply_value = eval_value<Ts...>;
 };
 
 template<
@@ -122,8 +130,16 @@ struct lambda<F<Args...> >
     >::type::type type;
   };
 
-  template<class ... Ts> using eval_t = typename eval<Ts...>::type;
-  template<class ... Ts> using apply = eval<Ts...>;
+  template<class... Ts>
+  struct eval_value
+  {
+    static constexpr decltype(eval<Ts...>::type::value) value = eval<Ts...>::type::value;
+    using type = std::integral_constant<decltype(eval<Ts...>::type::value), value>;
+  };
+
+  template<class... Ts> using eval_t = typename eval<Ts...>::type;
+  template<class... Ts> using apply = eval<Ts...>;
+  template<class... Ts> using apply_value = eval_value<Ts...>;
 };
 
 

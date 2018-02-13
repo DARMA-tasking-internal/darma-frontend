@@ -2,7 +2,7 @@
 \label{ssec:api_fe_get_value}
 
 \paragraph{Summary} \mbox{}\
-Access the data pointed to by the handle in a read-only manner.
+\codetarget{get_value} accesses the data pointed to by a \gls{handle} in a read-only manner.
 
 \paragraph{Syntax}\mbox{}\\
 \begin{CppCode}
@@ -13,11 +13,11 @@ const T& AccessHandle<T>::get_value();
 None.
 
 \paragraph{Return}\mbox{}\\ 
-A const reference to the data associated with the handle.  
+A const reference to the data associated with the \gls{handle}.  
 
 \paragraph{Details}\mbox{}\\ 
-Calling |get_value()| on a handle requires {\it Read} or {\it
-Modify} immediate permissions (see \S~\ref{sec:handlerules}).
+Calling \codelink{get_value} on a \gls{handle} requires {\it Read} or {\it
+Modify} \gls{immediate permissions} (see \S~\ref{sec:handlerules}).
 
 
 \paragraph{Code Snippet}\mbox{}\\ 
@@ -32,14 +32,14 @@ create_work(reads(my_handle), [=]{
 });
 \end{CppCodeNumb}
 \label{fig:fe_api_get_value}
-\caption{Basic usage of \lstinline|get_value|.}
+\caption{Basic usage of \protect\codelink{get_value}.}
 \end{figure}
 
 
 \paragraph{Restrictions and Pitfalls}\mbox{}\\ 
 \begin{itemize}
   \item Do not hold the reference returned by this method across an asyncronous
-  operation on the source handle.  For example, the following results in
+    operation on the source \gls{handle}.  For example, the following results in
   undefined behavior:
   \begin{CppCode}
 	auto h = initial_access<int>("my_key"); 
@@ -63,7 +63,8 @@ create_work(reads(my_handle), [=]{
 		cout << v << endl; 
 	  } // $\yes$ prevent accidental usage of v after the create_work using h
 	  create_work([=]{ h.set_value(10); });
-	  // uses of v here are now a compile-time error rather than undefined behavior
+	  // uses of v here are now a compile-time error rather 
+    // than undefined behavior
 	});
   \end{CppCode}
 \end{itemize}

@@ -11,7 +11,7 @@
 //   Copyright (C) 2013, Ennio Barbaro.
 // See LEGAL.md for more information.
 //
-// Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
+// Under the terms of Contract DE-NA-0003525 with NTESS, LLC,
 // the U.S. Government retains certain rights in this software.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,7 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Questions? Contact David S. Hollman (dshollm@sandia.gov)
+// Questions? Contact darma@sandia.gov
 //
 // ************************************************************************
 //@HEADER
@@ -54,6 +54,7 @@
 #include "variadic/find_if.hpp"
 #include "as_sequence.hpp"
 #include "sequence.hpp"
+#include "reverse.hpp"
 
 namespace tinympl {
 
@@ -74,6 +75,33 @@ struct find_if : find_if<as_sequence_t<Sequence>, F > {};
 
 template<template<class ... T> class F, class ... Args>
 struct find_if<sequence<Args...>, F> : variadic::find_if<F, Args...> {};
+
+template <class Sequence, template <class... T> class F>
+using find_if_t = typename find_if<Sequence, F>::type;
+
+template<class Sequence, template<class ... T> class F>
+struct find_last_if : find_last_if<as_sequence_t<Sequence>, F > {};
+
+template<template<class ... T> class F, class ... Args>
+struct find_last_if<sequence<Args...>, F>
+{
+  private:
+    using rev_seq = typename tinympl::reverse<sequence<Args...>>::type;
+    static constexpr auto found_rev = find_if<rev_seq, F>::value;
+
+  public:
+
+    using type = std::conditional_t<
+      found_rev == sizeof...(Args),
+      std::integral_constant<size_t, sizeof...(Args)>,
+      std::integral_constant<size_t, sizeof...(Args) - found_rev - 1>
+    >;
+
+    static constexpr auto value = type::value;
+};
+
+template <class Sequence, template <class... T> class F>
+using find_last_if_t = typename find_last_if<Sequence, F>::type;
 
 } // namespace tinympl
 

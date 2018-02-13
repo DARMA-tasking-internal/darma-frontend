@@ -4,9 +4,9 @@
 //
 //                          spmd.h
 //                         darma_new
-//              Copyright (C) 2016 Sandia Corporation
+//              Copyright (C) 2017 NTESS, LLC
 //
-// Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
+// Under the terms of Contract DE-NA-0003525 with NTESS, LLC,
 // the U.S. Government retains certain rights in this software.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,7 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Questions? Contact David S. Hollman (dshollm@sandia.gov)
+// Questions? Contact darma@sandia.gov
 //
 // ************************************************************************
 //@HEADER
@@ -49,53 +49,13 @@
 
 #include <darma/impl/runtime.h>
 #include <darma/interface/backend/runtime.h>
-#include <darma/impl/darma_assert.h>
-#include <darma/impl/task.h>
+#include <darma/utility/darma_assert.h>
+#include <darma/impl/task/task.h>
 
+
+// Whole file is deprecated
 
 namespace darma_runtime {
-
-typedef size_t darma_rank_t;
-
-inline void
-darma_init(
-  int& argc,
-  char**& argv
-) {
-  std::unique_ptr<typename darma_runtime::abstract::backend::runtime_t::task_t> moved_from =
-      std::make_unique<detail::TopLevelTask>();
-  abstract::backend::darma_backend_initialize(
-    argc, argv, detail::backend_runtime, std::move(moved_from)
-  );
-}
-
-inline darma_rank_t
-darma_spmd_rank() {
-  DARMA_ASSERT_NOT_NULL(detail::backend_runtime);
-  DARMA_ASSERT_NOT_NULL(detail::backend_runtime->get_running_task());
-
-  DARMA_ASSERT_EQUAL(
-    std::string(detail::backend_runtime->get_running_task()->get_name().component<0>().as<std::string>()),
-    DARMA_BACKEND_SPMD_NAME_PREFIX
-  );
-  return detail::backend_runtime
-      ->get_running_task()->get_name().component<1>().as<darma_rank_t>();
-}
-
-inline darma_rank_t
-darma_spmd_size() {
-  DARMA_ASSERT_EQUAL(
-    std::string(detail::backend_runtime->get_running_task()->get_name().component<0>().as<std::string>()),
-    DARMA_BACKEND_SPMD_NAME_PREFIX
-  );
-  return detail::backend_runtime
-      ->get_running_task()->get_name().component<2>().as<darma_rank_t>();
-}
-
-inline void
-darma_finalize() {
-  detail::backend_runtime->finalize();
-}
 
 } // end namespace darma_runtime
 

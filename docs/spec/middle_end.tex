@@ -3,46 +3,180 @@
 \chapter{Translation Layer}
 \label{chap:translation_layer}
 
-A key design principle of DARMA is the ability to explore the design space of
-backend AMT runtime implementations without requiring changes in the application
-code.  Since the frontend is EDSL-like (embedded domain specific language-like)
-and most backends with which we want to interface use traditional C or C++
-constructs, a layer is needed that translates EDSL-based application code into
-C++ constructs that the backends can easily implement and interact with.  Given
-that DARMA is strictly embedded in C++, this layer makes heavy use of newer C++
-motifs and features from C++11 and C++14, such as template metaprogramming,
-perfect forwarding, constant expressions (\inlinecode{constexpr}), and lambda
-capture.  Many of the additions to C++ in recent years have centered around
+A key design principle of \gls{DARMA} is the ability to explore the design space of
+\gls{back end} \gls{AMT} \gls{runtime system} implementations without requiring changes in the application
+code.  Since the \gls{front end} \gls{API} is essentially an \gls{EDSL}
+and most \gls{back end} \glspl{runtime system} with which we want to interface
+use traditional C or \CC{}
+constructs, a layer is needed that translates \gls{EDSL}-based application code into
+\CC{} constructs that the \gls{back end} \glspl{runtime system} can easily implement and interact with.  Given
+that \gls{DARMA} is strictly embedded in \CC{}, this layer makes heavy use of
+newer \CC{} motifs and features from \CC{}11 and \CC{}14, such as \gls{template
+metaprogramming}, \gls{perfect forwarding}, constant expressions
+(\inlinecode{constexpr}), and \gls{lambda} \gls{capture}.  Many of the
+additions to \CC{} in recent years have centered around
 making it easier for the user to express compile-time optimizations and
 transformations that the compiler can make to reduce runtime overhead.  As such,
-much of the translation DARMA does between the frontend EDSL and the backend API
+much of the translation \gls{DARMA} does between the \gls{front end} \gls{EDSL}
+and the \gls{back end} \gls{runtime system} \gls{API}
 happens at compile time, and should result in minimal runtime overhead with most
 modern compilers.
 
-Even though neither the frontend application programmers nor the backend
-implementation developers need to understand the implementation details of this
-layer, it is useful to document several of the idioms and ``tricks'' used in the
-translation layer for those wishing to have a thorough understanding of all
-DARMA layers, and particularly for those who wish to contribute to the expansion
-and adaptation of the EDSL that is the frontend.  Thus, a few of the basic
+\section{Separation of Responsibilities Across Layers}
+\gls{DARMA} separates responsibilities across the three different layers:
+application, translation, and \gls{back end} \gls{runtime system}.
+The list below describes the most important quantities and concepts that are
+required for writing and running \gls{DARMA} applications.
+Each layer will either read, write, or never use each quantity.  
+Some of these quantities are parts of the specification while certain other quantities 
+are introduced for illustrating concepts, and are not strictly part of the specification.
+Some quantities are repeated from previous sections.
+
+\begin{compactitem}
+\item AccessHandle: a variable (templated on data type) that is used in the application as arguments to 
+  \glspl{task} and for reading/writing values in a data block.
+  Each \gls{task} has its own unique copy of AccessHandle. AccessHandles are
+  never shared across \glspl{task}.
+\item Data Type: the type of a variable, e.g., \inlinecode{int}, \inlinecode{vector<double>}.
+\item Data Layout: the layout or internal structure of a data type, usually telling whether a type is contiguous in memory and whether a type holds only data (e.g., double) or has lookup pointers.
+\item Data Size: the total size a data block occupies in memory (number of bytes).
+\item Task Dependencies: a relationship between a \gls{task} and data
+  indicating the \gls{task} depends on the data being available before the
+  \gls{task} can run.
+\item Task Precedence Constraints: a relationship between \glspl{task} indicating
+  that an ordering constraint exists between \glspl{task}.
+\item Access Permissions: access permissions (read, read-write, etc.) for an
+  AccessHandle within a \gls{task}.
+\item Address: a pointer through which data is accessed.
+The pointer provides no information on the size or type of memory being accessed.
+It merely provides a means of accessing data at a particular memory location.
+\end{compactitem}
+
+The following items are not strictly part of the specification, but are useful
+for having a rigorous vocabulary to explain and understand the \gls{translation
+layer}.  These are quantities that are \emph{likely} to be used in a \gls{back
+end} \gls{runtime system} implementation, but are \emph{not required}.
+As will be discussed in the \gls{back end} section, all of these quantities (if
+used by a \gls{back end} \gls{runtime system}),
+exist in an abstract class \inlinecode{Instance} that the \gls{translation
+layer} interacts with.
+\begin{compactitem}
+  \item Handle ID: the generalization of a variable in \CC{}. A globally unique ID identifying a block of data that represents the ``same'' quantity across time.  
+This corresponds to, e.g., values mesh that are updated iteratively.  
+This is NOT synonymous with an actual physical location.
+\item Generation: an ID that distinguishes logically distinct generations of the same Handle ID. 
+Updating the values in a Data Handle changes the data and therefore progresses the generation. 
+Two data blocks with the same Handle ID that contain different logical times (usually different iterations) will be different generations.
+\item Data Blocks: the actual physical memory allocations where data lives. 
+Data blocks comprise not just an address, but potentially size and location information such as whether memory is DRAM, HBM, GPU, or remote.
+\item Logical ID: a tuple of Generation and Handle ID. 
+Two Data Handles with the same logical ID must access exactly the same values, but potentially different physical locations, and thus are logically the same. 
+All objects with the same Logical ID are required to have the same Handle ID.
+Thus, Logical ID equivalence is a stronger condition than Handle ID equivalence.
+\item Physical ID: a tuple of Address, Generation, and Handle ID (although not required to be implemented as a tuple). 
+Two Data Handles with the same Physical ID not only access exactly the same values, but must also access exactly the same memory location. 
+Two logically distinct blocks that happen to access the same memory location at different times do NOT share a Physical ID. 
+All data \glspl{handle} with the same Physical ID must have the same Logical ID and therefore the same Handle ID. 
+Physical ID equivalence is then a stronger condition than Logical ID or Handle ID.
+\end{compactitem}
+
+The way in which quantities are used in each layer of the software stack can have several possibilities:
+\begin{compactitem}
+\item Modifies: The layer both reads and manipulates the given quantity.
+\item Creates: A subset of Modifies. The layer creates the initial version of something, but is not allowed to modify the quantity thereafter.
+\item Reads: The layer reads and understand a quantity, but is not allowed to manipulate it.
+\item Opaque Modify: The caller layer understands operations that need to be performed that will modify a struct, but the implementation details are hidden by an interface. 
+For example, a caller can pass a forward-declared struct by pointer to a function. 
+The function (callee) can modify integer members within the struct. 
+Even though the caller initiates the modification, the internal details of the struct are opaque to the caller and are only known to the callee (function).
+\item Opaque Pass: A caller provides values in a struct to be read by a callee function, but the values are opaque to the caller function. 
+Similar to Opaque Modify, but the callee function cannot modify the struct.
+\item DNE: The concept does not exist - it is neither manipulated nor read by a layer.
+\end{compactitem}
+We now summarize where quantities are created, modified, and read in Table \ref{tbl:conceptsInLayers}.
+
+\begin{table}
+  \centering
+\begin{tabular}{l l l l}
+\hline
+Quantity & App & Translation Layer & Backend \\
+\hline
+Data Type & Creates & Reads & DNE \\
+Data Layout & Modifies & Reads & DNE \\
+Data Size & Modifies & Reads & Reads \\
+Task Dependencies & Modifies & Reads & Reads \\
+Task Order Constraints & DNE & Creates & Modifies \\
+Address & Reads & DNE & Modifies \\
+Access Permissions & Modifies & Reads & Reads \\
+Handle ID & DNE & Opaque Create & Creates \\
+Generation & DNE & Opaque Modify & Creates \\
+Logical ID & DNE & Opaque Pass & Creates \\
+Physical ID & DNE & Opaque Pass & Modifies 
+\end{tabular}
+\caption{Which concepts are modified by a given layer, which exist opaquely, and finally which concepts do not exist (DNE).}
+\label{tbl:conceptsInLayers}
+\end{table}
+
+A critical part of the \gls{DARMA} design avoids potential interference between layers that can read/modify the same quantity. 
+Operations occurring in the \gls{back end} must have guarantees that the application
+and \gls{translation layer} are not creating conflicts.
+We must therefore define a life cycle for each \gls{task}:
+\begin{compactitem}
+\item Precursor: Dependencies are modified during the execution of a precursor
+  \gls{task}.
+\item Initialization: The \gls{task} is created and initialized before being
+  passed to a scheduler or \gls{task} queue.
+\item Waiting:  The \gls{task} has been created is waiting in a queue to be scheduled or run.
+\item Running: The \gls{task} has been popped from the queue and is actively running.
+\item Deletion: The \gls{task} has finished running and is releasing its resources.
+\end{compactitem}
+
+\begin{table}
+  \centering
+\begin{tabular}{l l l l l l}
+\hline
+Quantity & Precursor & Initializing & Waiting & Running & Deletion \\
+\hline
+Data Type & App Creates & TL Reads & TL Reads & App Reads & TL Reads \\
+Data Size & App Creates & TL,BE Reads & BE Reads & App Modifies & TL,BE Reads \\ 
+Access Permissions & App Modifies & TL,BE Reads & BE Reads & n/a & TL,BE Reads \\
+Task Dependencies & App Creates & TL,BE Reads & BE Reads & n/a & TL,BE Reads \\
+Task Order Constraints & n/a & TL Creates & BE Modifies & n/a & BE Reads \\
+Address & n/a & BE Modifies & BE Modifies & App Reads & BE Reads 
+\end{tabular}
+\caption{Usage of different quantities throughout a single \gls{task}'s life cycle}
+\label{tbl:taskLifeCycle}
+\end{table}
+Critically, Table \ref{tbl:taskLifeCycle} ensures that each layer has no conflicts. 
+No two layers simultaneously have modify permissions during the life cycle of a
+\gls{task}, nor can one layer read simultaneously as another layer modifies. 
+Two layers can simultaneously read, although even that rarely happens.
+
+\section{Important C++ Concepts}
+Even though neither the \gls{front end} \gls{API} application programmers nor the \gls{back end}
+implementation developers need to understand the implementation details of the
+\gls{translation layer}, it is useful to document several of the idioms and ``tricks'' used in the
+\gls{translation layer} for those wishing to have a thorough understanding of all
+\gls{DARMA} layers, and particularly for those who wish to contribute to the expansion
+and adaptation of the \gls{EDSL} that is the \gls{front end} \gls{API}.  Thus, a few of the basic
 techniques and concepts used by the translation layer are documented below.
 
-\section{Lambda Capture for Automatic Dependency Detection and Versioning}
-
+\subsection{Lambda Capture for Automatic Dependency Detection and Versioning}
 The most pivotal trick to document here is (semi-)automatic dependency detection
-through the \CC11 lambda mechanism and the copy {\it capture-default} (that is,
+through the \CC11 \gls{lambda} mechanism and the copy {\it capture-default} (that is,
 \inlinecode{[=]}).  The \CC\ standard specifies that if the copy
 {\it capture-default} is given, any variables that are ODR-used\footnote{``one
 definition rule''-used.  See
 \url{http://en.cppreference.com/w/cpp/language/definition\#ODR-use} for
-details.} 
+details.
 As this source states, ``Informally, an object is odr-used if its address is
 taken, or a reference is bound to it, and a function is odr-used if a function
-call to it is made or its address is taken.'' inside of the lambda's scope but
-defined outside of it\footnote{technically, defined in the lambdas
+call to it is made or its address is taken.''}
+inside of the \gls{lambda}'s scope but
+defined outside of it\footnote{technically, defined in the \gls{lambda}'s
 ``reaching scope,'' which is also formally defined} are copied by value into
-that lambda's scope.  Furthermore, if a lambda with a copy {\it capture-default}
-is moved\footnote{e.g., with \inlinecode{std::move()}; lambdas have a deleted
+that \gls{lambda}'s scope.  Furthermore, if a \gls{lambda} with a copy {\it capture-default}
+is moved\footnote{e.g., with \inlinecode{std::move()}; \glspl{lambda} have a deleted
 copy constructor}, the move constructors of the inner scope copies will be
 invoked (or, if no user-defined move constructor is given but a user-defined
 copy constructor is, the copy constructor is invoked).  We can leverage this
@@ -50,23 +184,17 @@ fact along with a thread-safe (and thread-specific) global context object to
 associate captured \inlinecode{AccessHandle<T>} objects with the capturing
 \inlinecode{create_work(...)} invocation as dependencies.  Furthermore, if we
 make the relevant members of \inlinecode{AccessHandle<T>} \inlinecode{mutable},
-we can modify the handle that has been {\it copied from} to increment the
+we can modify the \gls{handle} that has been {\it copied from} to increment the
 version, so that later tasks will depend on the completion of earlier
-\inlinecode{create_work} calls that capture the same handle.  Thus, the capture
-mechanism can be used for both dependency detection and sequential semantics.
-\todo[inline]{add proof of concept example}
+\inlinecode{create_work} calls that \gls{capture} the same \gls{handle}.  Thus, the
+\gls{capture} mechanism can be used for both dependency detection and \gls{sequential
+semantics}.
 
-\section{Hierarchical Versioning}
-
-Hierarchical versioning of handles in the translation layer is critical to the
-implementation of sequential semantics in DARMA. \todo[inline]{finish this}
-
-\section{Keyword Arguments}
+\subsection{Keyword Arguments}
 \label{sec:kwargs}
-
-The tricks used to emulate keyword arguments in \CC\ are well-known and have been
+The tricks used to emulate \glspl{keyword argument} in \CC\ are well-known and have been
 exploited elsewhere\footnote{e.g., the Boost::Parameter library} to similar
 effect.  The addition of perfect forwarding and constant expression semantics to
 \CC11 and \CC14 allow this to be done with rigorously zero runtime overhead ---
-all transformations used to interpret keyword arguments as traditional,
+all transformations used to interpret \glspl{keyword argument} as traditional,
 positional arguments can occur at compile time.

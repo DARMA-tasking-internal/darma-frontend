@@ -10,7 +10,7 @@
 //   Copyright (C) 2013, Ennio Barbaro.
 // See LEGAL.md for more information.
 //
-// Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
+// Under the terms of Contract DE-NA-0003525 with NTESS, LLC,
 // the U.S. Government retains certain rights in this software.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,7 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Questions? Contact David S. Hollman (dshollm@sandia.gov)
+// Questions? Contact darma@sandia.gov
 //
 // ************************************************************************
 //@HEADER
@@ -51,9 +51,55 @@
 #define TINYMPL_VARIADIC_AT_HPP
 
 #include <cstddef>
+#include <cstdlib>
+#include <type_traits>
+#include <utility>
+
+#include <tinympl/sequence.hpp>
+#include <tinympl/identity.hpp>
+#include "fill_n.hpp"
+
+#include <future>
+#include <condition_variable>
 
 namespace tinympl {
 namespace variadic {
+
+// Constant time at<...> implementation borrowed from the brigand project (search on github)
+namespace detail {
+
+template <typename T> struct _element_at;
+
+template <std::size_t... Idxs>
+struct _element_at<std::integer_sequence<std::size_t, Idxs...>> {
+  template <class T>
+  static identity<T> at(
+    typename tinympl::ignore_value_argument<std::size_t, Idxs, void const*>::type...,
+    identity<T>*,
+    ...
+  );
+};
+
+template <std::size_t i, typename... Args>
+struct _at_impl
+#if 0
+  : decltype(
+      // Since std::make_index_sequence is implemented in constant "time" via
+      // a compiler extension in most implementations, this implementation of at
+      // operates in constant (meta-)time also
+      _element_at<std::make_index_sequence<i>>::at(
+        static_cast<identity<Args>*>(nullptr)...
+      )
+    )
+#else
+  : identity<
+      std::tuple_element_t<i, std::tuple<Args...>>
+    >
+#endif
+{ };
+
+
+} // end namespace detail
 
 /**
  * \ingroup VarBasics
@@ -61,23 +107,12 @@ namespace variadic {
  * \brief Extract the i-th element of a variadic template
  * \param i The index to extract
  */
-template<std::size_t i, class ... Args>
-struct at;
+template <std::size_t i, class... Args>
+using at = detail::_at_impl<i, Args...>;
 
-template<std::size_t i, class ... Args>
+template<std::size_t i, class... Args>
 using at_t = typename at<i, Args...>::type;
 
-template<std::size_t i, class Head, class ... Tail>
-struct at<i, Head, Tail...>
-{
-  static_assert(i < sizeof ... (Tail) + 1,"Index out of range");
-  typedef typename at<i-1,Tail...>::type type;
-};
-
-template<class Head, class ... Tail> struct at<0,Head,Tail...>
-{
-  typedef Head type;
-};
 
 namespace types_only {
 
@@ -86,6 +121,19 @@ struct at : public tinympl::variadic::at<WrappedSpot::value, Args...>
 { };
 
 } // end namespace types_only
+
+template <typename Default, std::size_t i, typename... Args>
+struct at_or : tinympl::identity<
+  typename std::conditional_t<
+    i < sizeof...(Args),
+    tinympl::variadic::at<i, Args...>,
+    tinympl::identity<Default>
+  >::type
+> { };
+
+template <typename Default, std::size_t i, typename... Args>
+using at_or_t = typename at_or<Default, i, Args...>::type;
+
 
 } // namespace variadic
 } // namespace tinympl

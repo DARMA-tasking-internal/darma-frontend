@@ -4,9 +4,9 @@
 //
 //                          create_work.h
 //                         dharma_new
-//              Copyright (C) 2016 Sandia Corporation
+//              Copyright (C) 2017 NTESS, LLC
 //
-// Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
+// Under the terms of Contract DE-NA-0003525 with NTESS, LLC,
 // the U.S. Government retains certain rights in this software.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,7 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Questions? Contact David S. Hollman (dshollm@sandia.gov)
+// Questions? Contact darma@sandia.gov
 //
 // ************************************************************************
 //@HEADER
@@ -45,72 +45,40 @@
 #ifndef SRC_INCLUDE_DARMA_INTERFACE_APP_CREATE_WORK_H_
 #define SRC_INCLUDE_DARMA_INTERFACE_APP_CREATE_WORK_H_
 
-#include <darma/impl/create_work.h>
-
-#include <darma/impl/keyword_arguments/check_allowed_kwargs.h>
-
-#include <darma/impl/util.h>
-
-//#define create_work(...) { \
-//  auto _DARMA__started_ ## __LINE__ = darma_runtime::detail::_start_create_work(); \
-//  darma_runtime::detail::_do_create_work(std::move(_DARMA__started_ ## __LINE__))(__VA_ARGS__); }
-#define create_work \
-  auto DARMA_CONCAT_TOKEN_(_DARMA__started_, __LINE__) = darma_runtime::detail::_start_create_work(); \
-  darma_runtime::detail::_do_create_work(std::move(DARMA_CONCAT_TOKEN_(_DARMA__started_, __LINE__))).operator()
+#include <darma/utility/config.h>
 
 namespace darma_runtime {
 
+namespace detail {
 
-//template <typename... Args>
-//typename detail::create_work_parser<Args...>::return_type
-//create_work(Args&&... args) {
-//  static_assert(detail::only_allowed_kwargs_given<
-//    >::template apply<Args...>::type::value,
-//    "Unknown keyword argument given to create_work()"
-//  );
-//
-//  namespace m = tinympl;
-//  // Pop off the last type and move it to the front
-//  typedef typename m::vector<Args...>::back::type lambda_t;
-//  typedef typename m::vector<Args...>::pop_back::type rest_vector_t;
-//  typedef typename m::splat_to<
-//    typename rest_vector_t::template push_front<lambda_t>::type, detail::create_work_impl
-//  >::type helper_t;
-//  namespace m = tinympl;
-//  namespace mp = tinympl::placeholders;
-//
-//  detail::TaskBase* parent_task = dynamic_cast<detail::TaskBase* const>(
-//    detail::backend_runtime->get_running_task()
-//  );
-//
-//
-//  meta::tuple_for_each_filtered_type<
-//    m::lambda<std::is_same<std::decay<mp::_>, detail::reads_decorator_return>>::template apply
-//  >(std::forward_as_tuple(std::forward<Args>(args)...), [&](auto&& rdec){
-//    if(rdec.use_it) {
-//      for(auto&& h : rdec.handles) {
-//        parent_task->read_only_handles.emplace(h);
-//      }
-//    }
-//    else {
-//      for(auto&& h : rdec.handles) {
-//        parent_task->ignored_handles.emplace(h.get());
-//      }
-//    }
-//  });
-//
-//  // TODO waits() decorator
-//  //meta::tuple_for_each_filtered_type<
-//  //  m::lambda<std::is_same<std::decay<mp::_>, detail::waits_decorator_return>>::template apply
-//  //>(std::forward_as_tuple(std::forward<Args>(args)...), [&](auto&& rdec){
-  //  parent_task->waits_handles.emplace(rdec.handle);
-  //});
+struct _create_work_uses_lambda_tag { };
+} // end namespace detail
+
+// TODO create_work with return value (Issue #107 on GitLab)
+
+#if DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
+struct _create_work_creation_context;
+#else
+template <
+  typename Functor=detail::_create_work_uses_lambda_tag,
+  typename... Args
+>
+void create_work(Args&&... args);
+#endif
+
+} // end namespace darma_runtime
 
 
-//  return helper_t()(std::forward<Args>(args)...);
-//}
+#include <darma/impl/create_work/create_work.h>
+//#include <darma/impl/util.h>
 
-}
+
+//#define create_work \
+//  auto DARMA_CONCAT_TOKEN_(_DARMA__started_, __LINE__) = \
+//    ::darma_runtime::detail::_start_create_work(); \
+//    ::darma_runtime::detail::_do_create_work( \
+//      std::move(DARMA_CONCAT_TOKEN_(_DARMA__started_, __LINE__)) \
+//    ).operator()
 
 
 #endif /* SRC_INCLUDE_DARMA_INTERFACE_APP_CREATE_WORK_H_ */

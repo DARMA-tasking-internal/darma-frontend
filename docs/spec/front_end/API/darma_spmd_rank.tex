@@ -6,8 +6,8 @@
 \subsection{\texttt{darma\_spmd\_rank}}
 
 \paragraph{Summary}\mbox{}\\
-Returns the rank index associated with the opaque rank context from which this
-function was invoked.
+\codetarget{darma_spmd_rank} returns the \gls{rank} index associated with the
+\gls{execution stream} from which this function was invoked.
 
 \paragraph{Syntax}\mbox{}\\
 \begin{CppCode}
@@ -18,25 +18,24 @@ function was invoked.
 None. 
 
 \paragraph{Output}\mbox{}\\
-An object of unspecified type that may be treated as a |std::size_t|
-which is less than the value returned by |darma_spmd_size()|.
+An object of unspecified type that may be treated as a \inlinecode{std::size_t}
+which is less than the value returned by \codelink{darma_spmd_size}.
 
 \paragraph{Details}\mbox{}\\
-This function returns the rank index of the calling DARMA rank.  (Recall that a
-rank is the opaque context between the invocation of |darma_init| and
-a corresponding invocation of |darma_finalize|).  If the value returned
-by |darma_spmd_size| is convertible to a |std::size_t| with the
+This function returns the \gls{rank} index of the calling \gls{DARMA} \gls{execution
+stream}.  If the value returned
+by \codelink{darma_spmd_size} is convertible to a \inlinecode{std::size_t} with the
 value $N$, then the value returned by this function will be convertible to a
-|std::size_t| with the value $r$, which will always satisfy $0 <=
+\inlinecode{std::size_t} with the value $r$, which will always satisfy $0 <=
 r < N$.  Furthermore, the type of the value returned by this function will
-always be directly comparable to the type returned by |darma_spmd_size|
+always be directly comparable to the type returned by \codelink{darma_spmd_size}
 and to $0$ such that this previous condition is met.  The value returned is also
 equality comparable with $0$, the value returned will be true for equality
 comparison with $0$ on exactly one rank.  The value returned by this function
-will be unique on every rank (in the equality sense), and will be the same
-across multiple invocations of the function within a given rank.  The value
+will be unique on every \gls{rank} (in the equality sense), and will be the same
+across multiple invocations of the function within a given \gls{rank}.  The value
 returned will also be the same at any asynchronous work invocation depth within
-a rank's opaque context, regardless of whether that work gets stolen or
+a \gls{rank}'s \gls{execution stream}, regardless of whether that work gets stolen or
 migrated.
 
 \paragraph{Code Snippet}\mbox{}\\ 
@@ -60,7 +59,7 @@ int darma_main(int argc, char** argv)
 }
 \end{CppCodeNumb}
 \label{fig:fe_api_ranksize}
-\caption{Basic usage of \texttt{darma\_spmd\_rank}.}
+\caption{Basic usage of \protect\codelink{darma_spmd_rank}.}
 \end{figure}
 
 

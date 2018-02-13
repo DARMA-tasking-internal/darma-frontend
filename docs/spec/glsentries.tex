@@ -7,6 +7,86 @@
   description={An application programmer interface (API) is set of functions and tools provided by a library developer to allow an application programmer to interact with a specific piece of software or allow a developer to utilize prebuilt functionality}
 }
 
+\newglossaryentry{garbage collection}
+{
+  type=glossary,
+  name={garbage collection},
+  description={Reclaiming (freeing) the memory associate with a variable after it is no longer required.
+    This can occur automatically for reference-counted variables.}
+}
+
+\newglossaryentry{subtask}
+{
+  type=glossary,
+  name=subtask,
+  description={Any task instantiated with \codelink{create_work} will be a subtask of the task running
+    at the time \codelink{create_work} was invoked.  For sequential semantics, a task cannot complete 
+    until all of its subtasks have completed.}
+}
+
+\newglossaryentry{asynchronous}
+{
+  type=glossary,
+  name={asynchronous},
+  description={Asynchronous indicates two operations can happen independently without requirizing synchronization.},
+}
+
+\newglossaryentry{handle}
+{
+  type=glossary,
+  name={handle},
+  description={In DARMA, types are wrapped in a lightweight wrapper we term handle.
+    Handles replace conventional C++ variables as the means for accessing a data value.
+    The handle wrapper provides a control block used by DARMA in creating tasks.},
+}
+
+\newglossaryentry{parent task}
+{
+  type=glossary,
+  name={parent task},
+  description={A predecessor task in a task graph. Successors tasks are \glspl{child task}.
+    More rigorously, in a \gls{dag} representing task-order constraints,
+    parent task means there is a directed edge from parent to child
+    indicating a parent happens-before child relationship.}
+}
+
+\newglossaryentry{leaf task}
+{
+  type=glossary,
+  name={leaf task},
+  description={A task with no direct successors, i.e. at the end of a task graph branch},
+}
+
+\newglossaryentry{child task}
+{
+  type=glossary,
+  name={child task},
+  description={A successor task in a task graph. Predecessor tasks are \glspl{parent task}.
+    More rigorously, in a \gls{dag} representing task-order constraints,
+    child task means there is a directed edge from parent to child
+    indicating a parent happens-before child relationship.}
+}
+
+\newglossaryentry{scheduling permissions}
+{
+  type=glossary,
+  name={scheduling permissions},
+  description={The permissions for a handle when scheduling new tasks,
+   but which may not apply immediately. A task may schedule further tasks with read privileges
+   in certain cases even if the data cannot be immediately read.}
+}
+
+\newglossaryentry{immediate permissions}
+{
+  type=glossary,
+  name={immediate permissions},
+  description={The permissions for a handle that applies immediately at the current point in execution.
+    For immediate Read permissions, \inlinecode{handle.get_value()} can be called.
+    For immediate Write permissions, \inlinecode{handle.set_value()} and \inlinecode{handle.get_reference()} can also be called.}
+}
+
+
+
 \newglossaryentry{concurrency}
 {
   type=glossary,
@@ -27,50 +107,273 @@
 {
   type=glossary,
   name=co-design,
-  description={\todo{Fill out co-design glossary description}},
+  description={Co-design refers to a computer system design process where
+    scientific problem requirements influence architecture design and
+      technology and constraints inform formulation and design of algorithms
+      and software.  Co-design methodology requires the combined expertise of
+      vendors, hardware architects, system software developers, domain
+      scientists, computer scientists, and applied mathematicians working
+      together to make informed decisions about features and tradeoffs in the
+      design of the hardware, software and underlying
+      algorithms~\cite{co-design}}
 }
 
-\newglossaryentry{reference counted pointers}
+\newglossaryentry{memory model}
 {
   type=glossary,
-  name=reference counted pointers,
-  description={\todo{Fill out reference counted pointers glossary description}},
+  name={memory model},
+  description={Describes the interactions of processing entities (e.g.,
+      threads) with memory, including how they store and retrieve data}
+}
+
+\newglossaryentry{distributed memory model}
+{
+  type=glossary,
+  name={distributed memory model},
+  description={ Each processor has its own private memory. 
+     Computational tasks can only operate on their local data. When remote data
+     is required, it is communicated between the remote and local tasks}
+}
+
+\newglossaryentry{distributed shared memory model}
+{
+  type=glossary,
+  name={distributed shared memory model},
+  description={ Physically distinct memory that can be accessed as one
+    logically shared address space}
+}
+
+\newglossaryentry{data model}
+{
+  type=glossary,
+  name={data model},
+  description={A model capturing assumptions or restrictions on the structure of data}
+}
+
+
+\newglossaryentry{reference counted pointer}
+{
+  type=glossary,
+  name={reference counted pointer},
+  plural={reference counted pointers},
+  description={An abstract data type that stores a traditional pointer, along
+    with the number of shared references to that pointers
+    memory location.  Objects referenced by the contained raw pointer are only
+     destroyed when all copies of the reference counted pointer are destroyed} 
 }
 
 \newglossaryentry{lambda}
 {
   type=glossary,
-  name=lambda,
-  description={\todo{Fill out lambda glossary description}},
+  name={lambda},
+  description={ In \CC{} a lambda is a mechanism for 
+    defining an unnamed function object at the location 
+    where it is invoked. Lambdas are capable of capturing (see \gls{capture}) variables in
+    scope. See~\cite{lambda} for more detail},
+}
+
+\newglossaryentry{closure}
+{
+  type={glossary},
+  name={closure},
+  plural={closures},
+  description={A closure is a record storing a function, together with an
+    environment.  See~\cite{closure} for more detail},
+}
+
+\newglossaryentry{archive}
+{
+  type=glossary,
+  name=archive,
+  description={In DARMA serialization, an object that performs either 1) packing operations, storing serialized values in the archive or 2) unpacking operations, deserializing values stored in the archive.},
+}
+
+\newglossaryentry{capture}
+{
+  type=glossary,
+  name=capture,
+  description={In \CC{} the capture list specifies which variables defined
+    outside the lambda are available for use within the lambda. Variables may
+    be captured by value or reference.  See~\cite{lambda} for more detail},
+}
+
+\newglossaryentry{introspection}
+{
+  type=glossary,
+  name=introspection,
+  description={The ability of a program to examine properties of an object at
+    runtime},
+}
+
+\newglossaryentry{overdecomposition}
+{
+  type=glossary,
+  name=overdecomposition,
+  description={A problem which is decomposed into more tasks than compute units. i
+  Usually applied to a data-parallel overdecomposition in which, e.g., an array
+  is broken in 4x times as many chunks as there are compute units.
+  Rather than have each compute unit execute one task of cost 4,
+  each compute units 4 tasks of cost 1.
+  The increased granularity enables dynamic load balancing at the cost of increased 
+  scheduling overheads}
+}
+
+\newglossaryentry{execution stream}
+{
+  type=glossary,
+  name={execution stream},
+  description={A top-level task (no predecessors) that is guaranteed to make forward progress.
+  No other restrictions apply. An execution stream (being a \gls{task}) may communicate
+  and may be interrupted. Execution streams are often part of an SPMD launch and therefore
+  automatically given a unique integer ID for each particular stream. We use the term rank
+  for this unique ID to match MPI terminology}
+}
+
+\newglossaryentry{process}
+{
+  type=glossary,
+  name={process},
+  plural={processes},
+  description={Used here as a process in the UNIX sense. Each process will have its own address space and global variables.
+    The process begins from a singly-defined int main(...) function}
+}
+
+\newglossaryentry{deferred execution}
+{
+  type=glossary,
+  name={deferred execution},
+  description={Execution of work is not performed until all dependencies are
+    met}
+  }
+
+\newglossaryentry{deferred work}
+{
+  type=glossary,
+  name={deferred work},
+  description={See \gls{deferred task}. Work
+performed by code inside the capturing lambda passed to the
+\codelink{create_work} construct (as well as other deferred constructs which
+may be added to future versions of the specification)},
+}
+
+\newglossaryentry{deferred task}
+{
+  type=glossary,
+  name={deferred task},
+  description={See \gls{deferred work}. A \gls{task} instantiated in the application code
+  which, instead of executing immediately as would be done in a sequential C++ code,
+  is delayed while other tasks execute and are created.
+  The term is applied to tasks that, even once created, immediately execute.
+  A more precise term would be ``deferrable task'', but without ambiguity
+  we use the adjective deferred to match previous literature}
+}
+
+\newglossaryentry{captured work}
+{
+  type=glossary,
+  name={captured work},
+  description={See \gls{deferred work}},
+}
+
+\newglossaryentry{captured context}
+{
+  type=glossary,
+  name={captured context},
+  description={See \gls{deferred work}},
+}
+
+\newglossaryentry{continuing context}
+{
+  type=glossary,
+  name={continuing context},
+  description={the code in the outer scope after a \codelink{create_work}},
+%  \begin{verbatim}
+%  //outer scope predecessor context
+%  create_work([=]{
+%    //inner scope captured context
+%  })
+%  //outer scope continuing context
+%  \end{verbatim}
+%  },
+}
+
+\newglossaryentry{deferred context}
+{
+  type=glossary,
+  name={deferred context},
+  description={See \gls{deferred work}},
+}
+
+\newglossaryentry{slicing}
+{
+  type={glossary},
+  name={slicing},
+  description={A subset of an array. The slice can either be across array indices or, if each array entry, a subset of the fields within each class.  Slices are defined only abstractly here, as slices may be in-place, referring to the original array data
+  or the slice may create a copy of values}
+}
+
+\newglossaryentry{interference test}
+{
+  type={glossary},
+  name={interference test},
+  plural={interference tests},
+  description={A test on two operations to see if they can safely run in parallel or if they conflict and must run in sequence.
+    Two operations on different data never interfere.
+    For operations on the same data, if the operation is read-only, there is no interference.
+    Operations writing and reading the same data do interfere}
+}
+
+
+\newglossaryentry{access group}
+{
+  type={glossary},
+  name={access group},
+  description={An abstract (as of yet unspecified) concept. An access group is a group of tasks that \emph{may} read a particular piece of data. Until all tasks in the access group release read privileges on the data (or a copy is made),
+  the data can not be overwritten}
+}
+
+\newglossaryentry{keyword argument}
+{
+  type={glossary},
+  name={keyword argument},
+  plural={keyword arguments},
+  description={An argument that is passed to a function as a keyword=value},
+}
+
+\newglossaryentry{positional argument}
+{
+  type={glossary},
+  name={positional argument},
+  plural={positional arguments},
+  description={An argument passed to a function, whose corresponding parameter
+    is inferred by the argument's position within the function call},
+}
+
+\newglossaryentry{perfect forwarding}
+{
+  type={glossary},
+  name={perfect forwarding},
+  description={A mechanism for forwarding arguments of one function to another
+    in \CC{} that avoids copying and maintains lvalue/rvalue nature of the
+      arguments. See~\cite{perfect-forwarding} for more detail},
 }
 
 \newglossaryentry{rank}
 {
   type=glossary,
   name=rank,
-  description={\todo{Fill out rank glossary description}},
-}
-
-\newglossaryentry{tuple}
-{
-  type=glossary,
-  name=tuple,
-  description={\todo{Fill out tuple glossary description}},
-}
-
-
-\newglossaryentry{deferred}
-{
-  type=glossary,
-  name=deferred,
-  description={\todo{Fill out deferred glossary description}},
+  plural=ranks,
+  description={A unique integer identifier for an \gls{execution stream} created in an SPMD launch.
+  The term rank matches the MPI notion of a unique process ID in an MPI communicator}
 }
 
 \newglossaryentry{PGAS}
 {
-  type=glossary,
-  name=PGAS,
-  description={\todo{Fill out PGAS glossary description}},
+  type=\acronymtype,
+  name={PGAS},
+  first={Partitioned Global Address Space (PGAS)},
+  description={A programming model assuming a global memory address space that is logically
+    partitioned such that a portion of it is local to each process or thread~\cite{PGAS}},
 }
 
 
@@ -79,77 +382,137 @@
   type=glossary,
   name=dependency,
   plural=dependencies,
-  description={\todo{Fill out dependency glossary description}},
+  description={See \gls{Read-After-Write}},
 }
 
-\newglossaryentry{capture}
+\newglossaryentry{associative array}
 {
   type=glossary,
-  name=capture,
-  description={\todo{Fill out capture glossary description}},
+  name={associative array},
+  plural={associative arrays},
+  description={An abstract data type composed of a 
+    collection of key-value pairs, such that each possible key appears just
+      once in the collection~\cite[associative-array]. Data is retrieved from an associative array
+  via its key, rather than its address in the array},
 }
 
-\newglossaryentry{introspection}
+\newglossaryentry{DHT}
 {
   type=glossary,
-  name=introspection,
-  description={\todo{Fill out introspection glossary description}},
-}
-
-
-\newglossaryentry{create_work}
-{
-  type=glossary,
-  name=create_work,
-  description={\todo{Fill out create_work glossary description}},
+  name={DHT},
+  first={distributed hash table (DHT)},
+  description={An implementation of a key-value map (table) that relies a consistent hash of
+    keys and a partition of the key space to distribute storage of the table across a distributed system}
 }
 
 \newglossaryentry{key-value store}
 {
   type=glossary,
-  name=key-value store,
-  description={\todo{Fill out key-value store glossary description}},
+  name={key-value store},
+  plural={key-value stores},
+  description={A database that has an \gls{associative array} as its underlying
+    data model.  In DARMA, a key-value store},
+}
+
+\newglossaryentry{abstract machine model}
+{
+  type=glossary,
+  name={abstract machine model},
+  plural={abstract machine models},
+  description={A model of a computer system that is designed to allow
+    application developers to focus on the aspects of the machine that are
+      important or relevant to performance and code
+      structure~\cite{AbstractMachine}},
 }
 
 \newglossaryentry{execution space}
 {
   type=glossary,
   name={execution space},
-  description={\todo{Fill out execution space glossary description}},
+  plural={execution spaces},
+  description={A \gls{abstract machine model} abstraction used to describe where work is executed},
 }
 
 \newglossaryentry{memory space}
 {
   type=glossary,
   name={memory space},
-  description={\todo{Fill out memory glossary description}},
+  plural={memory spaces},
+  description={An \gls{abstract machine model} abstraction used to describe
+    where data resides},
 }
+
 \newglossaryentry{version}
 {
   type=glossary,
   name=version,
-  description={\todo{Fill out version glossary description}},
-}
-\newglossaryentry{handle}
-{
-  type=glossary,
-  name=handle,
-  description={\todo{Fill out handle glossary description}},
+  plural=versions,
+  description={In DARMA, version is specifically a unique tuple key specified by the user to label what
+    version of data is being \gls{publish}ed.}
 }
 
 \newglossaryentry{migratable}
 {
   type=glossary,
   name=migratable,
-  description={\todo{Fill out migratable glossary description}},
+  description={Migratable is used in DARMA to indicate that something can be serialized,
+   transported or to a remote process, deserialized, and used on that remote process.},
 }
+
+\newglossaryentry{serialization}
+{
+  type=glossary,
+  name=serialization,
+  description={The process of converting a \CC{} object into a sequence of bytes that
+    can be transmitted over the network or stored}, 
+}
+
+
 
 \newglossaryentry{Trilinos}
 {
   type=glossary,
   name=Trilinos,
-  description={\todo{Fill out Trilinos glossary description}},
+  description={The Trilinos Project is an effort to develop algorithms and
+    enabling technologies within an object-oriented software framework for the
+      solution of large-scale, complex multi-physics engineering and scientific
+      problems~\cite{trilinos}}
 }
+
+\newglossaryentry{tuple}
+{
+  type={glossary},
+  name={tuple},
+  plural={tuples},
+  description={A tuple is a finite ordered list of elements.  See~\cite{tuple}
+  for more detail},
+}
+
+\newglossaryentry{tuple space}
+{
+  type={glossary},
+  name={tuple space},
+  plural={tuple spaces},
+  description={A repository of \glspl{tuple} that can be
+  accessed concurrently, used to relate input to output patterns. A tuple
+  space served as the underpinning to \gls{Linda} \gls{programming
+  language}. Tuple spaces can be considered a generalization of a
+  \glspl{key-value store}. Implementations of tuple spaces have 
+  been developed for a number of other
+  programming models including Java and Python.  See~\cite{tupleSpace} for
+  more detail} 
+}
+
+\newglossaryentry{Linda}
+{
+  type={glossary},
+  name={Linda},
+  description={ Linda is a model of coordination and communication among several parallel
+      processes operating upon objects stored in and retrieved from shared,
+    virtual, associative memory~\cite{Linda}}
+}
+
+
 
 \newglossaryentry{EDSL}
 {
@@ -194,10 +557,15 @@
       \gls{MPI}, programs are decomposed based on \gls{MPI} ranks that coordinate via
       messages. This programming model can be termed \gls{spmd}, decomposing
       the problem into disjoint (non-conflicting) data regions.  \Charm{}
-    decomposes problems via migratable objects called \glspl{chare} that coordinate via remote procedure calls (entry methods). Legion decomposes problems in a data-centric way with logical regions.  All parallel coordination is implicitly expressed via data dependencies.  The parallel programming model covers how an application \emph{expresses} concurrency.
+    decomposes problems via migratable objects called \glspl{chare} that
+      coordinate via remote procedure calls (entry methods). Legion decomposes
+      problems in a data-centric way with logical regions.  All parallel
+      coordination is implicitly expressed via data dependencies.  The parallel
+      programming model covers how an application \emph{expresses}
+    \gls{concurrency}.
 In many cases, the \gls{execution model} and programming model are closely tied
-and therefore not distinguished. In these cases the non-specific term parallel
-model can be applied}
+and the same term has been used to describe both an execution model and programming model, e.g.
+CSP (communicating sequential processes)}
 }
 
 \newglossaryentry{front end}
@@ -247,7 +615,12 @@ model can be applied}
 {
   type=glossary,
   name={coordination semantics},
-  description={\todo{add def of coordination semantics to glossary}}
+  description={The operations to support communication between different
+    computation activities. Independent parallel workers never directly
+      communicate, rather they ``coordinate'' indirectly via a \gls{key-value
+        store} or \gls{tuple space}. \gls{Linda} is a notable \gls{programming
+        language} with coordination semantics
+  },
 }
 
 
@@ -320,20 +693,97 @@ model can be applied}
   name={execution model},
   plural={execution models},
   description={A parallel execution model specifies how an application creates
-    and manages concurrency. This covers, e.g., \gls{CSP} (communicating
-        sequential processes), strict \gls{fork-join}, or event-based
+    and manages \gls{concurrency}. This includes, e.g., \gls{CSP} (communicating
+        sequential processes), strict \gls{fork-join}, or \gls{event-based}
       execution.  These classifications distinguish whether many parallel
-      workers begin simultaneously (\gls{CSP}) and synchronize to reduce concurrency
-      or if a single top-level worker forks new tasks to increase concurrency.
+      workers begin simultaneously (e.g., \gls{CSP}) and synchronize to reduce
+      \gls{concurrency}
+      or if a single top-level worker forks new tasks to increase \gls{concurrency}.
       These classifications also distinguish how parallel hazards (\gls{WAR},
-          \gls{RAW}, \gls{WAW}) are managed either through synchronization,
-    atomics, conservative execution, or idempotent execution.  In many cases,
-    the \gls{programming model} and execution model are closely tied and
-      therefore not distinguished. The non-specific term parallel model can be
-      applied. In other cases, the way execution is managed is decoupled from
+          \gls{RAW}, \gls{WAW}) are managed. Execution models fall into the
+      follwing broad categories: \gls{conservative execution}, \gls{phased
+        execution}, \gls{copy-on-write data-flow execution}, and
+        \gls{speculative execution}.
+    In many cases, the \gls{programming model} and execution model are closely tied and
+      therefore not distinguished. In other cases, the way execution is managed is decoupled from
       the \gls{programming model} in \glspl{runtime system} with
       \gls{declarative} \glspl{programming model} like Legion or Uintah. The execution model is implemented in the
-      \gls{runtime system}}}
+      \gls{runtime system}
+  }
+}
+
+\newglossaryentry{DEP}
+{
+  type=glossary,
+  name={DEP},
+  plural={DEPs},
+  first={\gls{DARMA} Enhancement Plan (DEP)},
+  description={The method by which changes are made to the \gls{DARMA}
+    specification}
+}
+
+
+\newglossaryentry{conservative execution}
+{
+  type=glossary,
+  name={conservative execution},
+  description={The \gls{runtime system} only spawns tasks in parallel that are guaranteed not to conflict.  
+The application exposes \gls{RAW}/\gls{WAR} conflicts, allowing the
+  \gls{runtime system} to decide which tasks can safely 
+run in parallel.  Independent threads do not need to explicitly synchronize.
+Execution begins with zero \gls{concurrency}
+and grows conservatively to the maximum allowed \gls{concurrency}}
+}
+
+\newglossaryentry{barrier}
+{
+  type=glossary,
+  name={barrier},
+  description={Generally a synonym for global barrier. A group of processes must reach a particular execution point
+  before any one process can continue}
+}
+
+\newglossaryentry{phase barrier}
+{
+  type=glossary,
+  name={phase barrier},
+  plural={phase barriers},
+  description={A fine-grained barrier used by a group of processes (potentially only two processes)
+    to agree that a particular phase of execution has completed. Phase barriers are not rigorously defined and
+    may be non-blocking and multiple phase barriers may be active at a given time}
+}
+
+\newglossaryentry{phased execution}
+{
+  type=glossary,
+  name={phased execution},
+  description={The \gls{runtime system} spawns many tasks in parallel.  Where
+    \gls{RAW} or \gls{WAR} conflicts may 
+  exist, a \gls{phase barrier} is executed to guarantee safe execution. The
+  term \gls{phase barrier} has previously 
+  been used in Legion~\cite{LegionThesis} and X10~\cite{X10Phasers}. Barriers may be local operations 
+  or global collectives.  Execution begins with maximum parallelism and
+  \gls{concurrency} decreases when 
+  necessary to satisfy synchronization constraints}
+}
+
+\newglossaryentry{copy-on-write data-flow execution}
+{
+  type=glossary,
+  name={copy-on-write data-flow execution},
+  description={This is an intermediate between \gls{conservative execution} and
+    \gls{phased execution}, with the additional constraint that the application guarantees no 
+    \gls{WAR} conflicts.  Tasks are written to follow a
+    write-once, read-many policy when necessary to avoid \glspl{anti-dependency}.
+    The only synchronizations required are \gls{RAW}, ensuring that a
+    value exists before a task can run.  Similar to \gls{conservative
+      execution},
+    tasks spawn once all their \gls{RAW} dependencies are met, forking new
+      \gls{concurrency}.  
+    Once running, tasks do not synchronize because there are no \gls{WAR} conflicts
+    to avoid.  This approach often has higher memory requirements, and the
+    necessary garbage collection adds complications}
+}
 
 \newglossaryentry{runtime system} %linked,
 {
@@ -342,7 +792,8 @@ model can be applied}
   plural={runtime systems},
   description={A parallel runtime system primarily implements portions of an
   \gls{execution model}, managing how and where concurrency is managed and created. 
- Runtime systems therefore control the order in which parallel work (decomposed and expressed via the programming model) is actually performed and executed.  Runtime systems can range greatly in complexity. A runtime could only provide point-to-point message-passing, for which the runtime only manages message order and tag matching. A full \gls{MPI} implementation automatically manages collectives and global synchronization mechanisms.
+ Runtime systems therefore control the order in which parallel work (decomposed
+     and expressed via the \gls{programming model}) is actually performed and executed.  Runtime systems can range greatly in complexity. A runtime could only provide point-to-point message-passing, for which the runtime only manages message order and tag matching. A full \gls{MPI} implementation automatically manages collectives and global synchronization mechanisms.
   Legion handles not only data movement but task placement and out-of-order task execution, handling almost all aspects of execution in the runtime.  Generally, parallel execution requires managing task placement, data placement, concurrency creation, concurrency managed, task ordering, and data movement. A runtime comprises all aspects of parallel execution that are not explicitly managed by the application}
 }
 
@@ -460,6 +911,50 @@ model can be applied}
   AltiVec and \gls{AVX}}
 }
 
+\newglossaryentry{thread pool} %linked, defined
+{
+  type=glossary,
+  name={thread pool},
+  description={A preallocated (usually already spawned) group of threads used for implementing thread-parallel applications.
+  Instead of allocating a new thread (with corresponding stack resources and initialization overheads),
+  a pool of ready and waiting threads are maintained.
+  Threads are chosen from the thread pool to execute new tasks}
+}
+
+\newglossaryentry{task} %linked, defined
+{
+  type=glossary,
+  name={task},
+  description={The work unit explicitly instantiated by the application developer through \codelink{create_work}.
+  Currently a task has no restrictions on behavior, other than a gurantee of forward progress.
+  It can be interrupted and communicate (indirectly through coordination) with other tasks.
+  The fundamental (indivisible and interruptible) work unit (\gls{operation}) is not instantiated directly
+  in the application. Thus tasks are the more fundamental concept in the programming model},
+}
+
+\newglossaryentry{operation} %linked, defined
+{
+  type=glossary,
+  name={operation},
+  description={The fundamental, indivisible (not-interruptible) work unit.
+  Operations are closed, unable to communicate with other operations and unable to add/release variables}
+}
+
+\newglossaryentry{fetch}
+{
+  type=glossary,
+  name={fetch},
+  description={A fetch operation reads values from the key-value store. Fetches are requests that must be satisfied with a matching publish into the key-value store. In DARMA, fetches implicitly occur when read-only handles are created through \codelink{read_access}.},
+}
+
+\newglossaryentry{precondition}
+{
+  type=glossary,
+  name={precondition},
+  description={When applied to tasks, preconditions are the set of events that must occur before a task can safely run,
+    leading to the data the task operates on being in the correct state. Preconditions usually are either other tasks,
+    data staging or copying, or communication operations}
+}
 
 \newglossaryentry{task parallelism} %linked, defined
 {
@@ -479,7 +974,9 @@ individual sub-tasks, each of which represents a stage whose execution can be
 \newglossaryentry{task-DAG} %linked
 {
   name={task-DAG},
-  description={A use of a directed acyclic graph (\gls{dag}) that represents tasks as nodes and directed lines as dependencies of a particular task/data segment. These graphs have no cycles, they do not represent iteration within a program}
+  description={A use of a directed acyclic graph (\gls{dag}) that represents
+    tasks as nodes. Edges between two nodes capture task/task precedent
+      constraints}
 }
 \newglossaryentry{dag}  %linked
 {
@@ -487,6 +984,38 @@ individual sub-tasks, each of which represents a stage whose execution can be
   name={DAG},
   first={directed acyclic graph (DAG)},
   description={A directed acyclic graph (DAG) is a directed graph with no cycles. This type of data representation is common form for representing dependencies}
+}
+
+\newglossaryentry{CDAG}  %linked
+{
+  type=\acronymtype,
+  name={CDAG},
+  first={computational directed acyclic graph (CDAG)},
+  description={ A CDAG is a data-flow task graph that has two
+types of vertices - tasks $T$ and data $D$ that compose the complete set of vertices $V$.
+Edges never directly connect two tasks and instead edges are only ever described between a task vertex, $t$, and a data vertex, $d$
+indicating that (depending on direction of the edge) data is either consumed or produced by a task.
+}
+}
+
+
+\newglossaryentry{data prefetching}
+{
+  type=glossary,
+  name={data prefetching},
+  description={Requesting data movement operations before they are needed to
+    increase \gls{concurrency}}
+}
+
+\newglossaryentry{speculative execution}
+{
+  type=glossary,
+  name={speculative execution},
+  description={Potential data hazards are ignored and, in some cases, work is performed prior to
+    whether or not it is known whether it will be required.  By performing the
+      work speculatively, the delay associated with waiting to know whether or not the work
+      was in fact required are avoided. Conflicts that are detected after the
+      fact lead to rollback or recovery}
 }
 
 \newglossaryentry{AMT}
@@ -505,14 +1034,21 @@ individual sub-tasks, each of which represents a stage whose execution can be
   description={Asynchronous many-task (AMT) is a categorization of programming
     and \glspl{execution model} that break from the dominant \gls{CSP} or \gls{spmd} models.
       Different \gls{AMT RTS} implementations can share a common AMT model.
-	An AMT \gls{programming model} decomposes applications into small, transferable units of work (many tasks) with associated inputs (dependencies or data blocks) rather than simply decomposing at the process level (\gls{MPI} ranks).
-	An AMT execution model can be viewed as the coarse-grained, distributed memory analog of instruction-level parallelism, extending the concepts of data prefetching,
-	out-of-order task execution based on dependency analysis, and even branch prediction (speculative execution). 
+	An AMT \gls{programming model} decomposes applications into small,
+  \gls{migratable} units of work (many tasks) with associated inputs (dependencies or data blocks) rather than simply decomposing at the process level (\gls{MPI} ranks).
+	An AMT \gls{execution model} can be viewed as the coarse-grained, distributed memory analog of instruction-level parallelism, extending the concepts of data prefetching,
+	out-of-order task execution based on dependency analysis, and even branch
+    prediction (\gls{speculative execution}). 
 	Rather than executing in a well-defined order, tasks execute when inputs become available.
-	An AMT model aims to leverage all available task and pipeline parallelism, rather just relying on basic data parallelism for concurrency.
+	An AMT model aims to leverage all available \gls{task parallelism} and
+  \gls{pipeline parallelism},
+  rather than rely solely on \gls{data parallelism} for \gls{concurrency}.
 	The term asynchronous encompasses the idea that 1) processes (threads) can
-  diverge to different tasks, rather than executing in the same order; and 2) concurrency is maximized (minimum synchronization) by leveraging multiple forms of parallelism.
-	The term many-task encompasses the idea that the application is decomposed into many \emph{transferable} or \emph{migratable} units of work, to enable the overlap of communication and computation as well as asynchronous load balancing strategies}
+  diverge to different tasks, rather than executing in the same order; and 2)
+  \gls{concurrency} is maximized (minimum synchronization) by leveraging multiple forms of parallelism.
+	The term {\em many-task} encompasses the idea that the application is
+  decomposed into many \gls{migratable} units of work, to enable the overlap of
+  communication and computation as well as \gls{asynchronous} load balancing strategies}
 }
 
 
@@ -597,7 +1133,7 @@ individual sub-tasks, each of which represents a stage whose execution can be
 \newglossaryentry{data-flow dependency}
 {
   type=glossary,
-  name={data flow dependency},
+  name={data-flow dependency},
   plural={data-flow dependencies},
   description={A data dependency where a set of tasks or instructions require a certain sequence to complete without causing race conditions. Data-flow dependency types include \gls{Write-After-Read}, \gls{Read-After-Write} and \gls{Write-After-Write}}
 }
@@ -634,9 +1170,13 @@ individual sub-tasks, each of which represents a stage whose execution can be
 {
   type=glossary,
   name={DARMA},
-  description={ The DARMA (Distributed asyncHronous Adaptive and Resilient Models for
-    Applications) research team at Sandia is focused on next generation \glspl{programming
-    model}, \glspl{execution model}, and \glspl{runtime system} research}
+  first={DARMA (Distributed Asynchronous Resilient Models and Applications)},
+  description={ DARMA is an AMT portability layer serving as a vehicle for
+    community-based co-design activities.  The layer aims to 1) insulate applications from runtime system and hardware idiosyncrasies,
+2) improve AMT runtime programmability by co-designing an API directly with
+  application developers, 3) synthesize application co-design activities into
+  meaningful requirements for runtimes, and 4) 
+facilitate AMT design space characterization and definition, accelerating the development of AMT best practices}
 }
 
 \newglossaryentry{remote procedure invocation} 
@@ -735,7 +1275,7 @@ individual sub-tasks, each of which represents a stage whose execution can be
   common hybrid models involving \gls{MPI}. \gls{MPI} describes the
   parallelism between processes (with separate memory address spaces) and
   the ``X'' typically provides parallelism within a process (typically
-  with a shared-memory model)}
+  with a shared \gls{memory model})}
 }
 
 % Added by Greg Sjaardema
@@ -842,7 +1382,7 @@ individual sub-tasks, each of which represents a stage whose execution can be
 {
   type={glossary},
   name={POD},
-  first={plain old data},
+  first={plain old data (POD)},
   description={In \CC{}, POD stands for Plain Old Data---that is, a
   class or struct without constructors, destructors and virtual
   members functions and all data members of the class are also POD}
@@ -922,33 +1462,44 @@ individual sub-tasks, each of which represents a stage whose execution can be
   in massively parallel computing}
 }
 
-\newglossaryentry{tuple space}
+\newglossaryentry{vasp}
 {
   type={glossary},
-  name={tuple space},
-  plural={tuple spaces},
-  description={yeah, something about Linda},
+  name={VASP},
+  first={versioned asynchronous smart pointer (VASP)},
+  description={a new concept introduced in DARMA. A lightweight wrapper around 
+   an C++ type that enables asynchronous, deferred, out-of-order execution of tasks that
+   use the VASP.  The VASP maintains version information to ensure a logically correct
+   ordering of tasks}
 }
 
-\newglossaryentry{interference test}
+\newglossaryentry{task elasticity}
 {
   type={glossary},
-  name={interference tests},
-  description={yeah, something about data conflicts},
+  name={task elasticity},
+  description={See \gls{elastic task}}
 }
 
-\newglossaryentry{slicing}
+\newglossaryentry{elastic task}
 {
   type={glossary},
-  name={slicing},
-  description={yeah, something about data subsets},
+  name={elastic task},
+  plural={elastic tasks},
+  description={a task with inherent parallelism, as opposed to a sequential task with no parallelism that will
+    execute serially.  These parallel tasks are termed elastic since they usually involve a flexible amount of parallelism,
+    executing faster as more processors are allocated to running the task}
 }
 
-\newglossaryentry{access group}
+\newglossaryentry{concept}
 {
   type={glossary},
-  name={access group},
-  description={yeah, something about send/recv, broadcast, scopes},
+  name={concept},
+  plural={concepts},
+  description={A concept is a description of the supported operations on a type
+  to be used in generic programming.  In C++, there is no language level support
+  for concepts (yet), but the idea can still be applied to C++ templates and
+  deduced types in the context of API specification.  DARMA performs most of
+  its concept checking using the \inlinecode{void_t} detection idiom~\cite{DetectionIdiom}.},
 }
 
 

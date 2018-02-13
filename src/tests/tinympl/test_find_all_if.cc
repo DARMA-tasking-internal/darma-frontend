@@ -4,9 +4,9 @@
 //
 //                          test_find_all_if.cc
 //                         darma_new
-//              Copyright (C) 2016 Sandia Corporation
+//              Copyright (C) 2017 NTESS, LLC
 //
-// Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
+// Under the terms of Contract DE-NA-0003525 with NTESS, LLC,
 // the U.S. Government retains certain rights in this software.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -36,62 +36,63 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Questions? Contact David S. Hollman (dshollm@sandia.gov)
+// Questions? Contact darma@sandia.gov
 //
 // ************************************************************************
 //@HEADER
 */
 
+
 #include <tinympl/find_all.hpp>
 #include <tinympl/find_all_if.hpp>
 #include <util/empty_main.h>
-
-#include "metatest_helpers.h"
 
 #include <type_traits>
 
 #include <tinympl/vector.hpp>
 #include <tinympl/string.hpp>
 
+#include <darma/utility/static_assertions.h>
+
 using namespace tinympl;
 
-meta_assert_same(
+STATIC_ASSERT_TYPE_EQ(
   typename find_all<
     vector<float, int, int, float, double>,
     float
   >::type,
-  vector_c<size_t, 0, 3>
+  std::integer_sequence<size_t, 0, 3>
 );
 
-meta_assert_same(
+STATIC_ASSERT_TYPE_EQ(
   typename find_all_if<
     vector<float, int, int, float, double>,
     std::is_integral
   >::type,
-  vector_c<size_t, 1, 2>
+  std::integer_sequence<size_t, 1, 2>
 );
 
 
-meta_assert_same(
+STATIC_ASSERT_TYPE_EQ(
   typename find_all_if<
     vector<float>,
     std::is_integral
   >::type,
-  vector_c<size_t>
+  std::integer_sequence<size_t>
 );
 
-meta_assert_same(
+STATIC_ASSERT_TYPE_EQ(
   typename find_all_if<
     vector<>,
     std::is_integral
   >::type,
-  vector_c<size_t>
+  std::integer_sequence<size_t>
 );
 
-meta_assert_same(
+STATIC_ASSERT_TYPE_EQ(
   typename find_all_if<
     vector<int>,
     std::is_integral
   >::type,
-  vector_c<size_t, 0>
+  std::integer_sequence<size_t, 0>
 );

@@ -1,11 +1,13 @@
 \subsection{\texttt{set\_value}}
 
 \paragraph{Summary} \mbox{}\\
-Set the value of the data pointed to by the handle.
+\codetarget{set_value} sets the value of the data pointed to by a
+\gls{handle}.
 
 \paragraph{Syntax} \mbox{}\\
 \begin{CppCode}
-void AccessHandle<T>::set_value(value)
+template <typename U>
+void AccessHandle<T>::set_value(U&& value)
 \end{CppCode}
 
 \paragraph{Positional Arguments}\mbox{}\\
@@ -14,10 +16,10 @@ void AccessHandle<T>::set_value(value)
 \end{itemize}
 
 \paragraph{Details}\mbox{}\\
-{\color{red}[0.2 only]} In the 0.2 spec, this just directly forwards to
-|emplace_value()| so that the relevant copy constructor of {\tt T} is
-called.  Thus, all comments and examples for |emplace_value()| apply
-here.  See \S~\ref{ssec:api_fe_emplace_value} for more.
+This invokes |T::operator=(U&&)| (|T|'s assignment operator to
+a universal reference to |U|) with the argument |value|.  If the type |T| has no
+assignment operator for this type, calling \codelink{set_value} will be a compile-time
+error.  If you need to invoke an in-place constructor instead, use \codelink{emplace_value}.
 
 \paragraph{Code Snippet}\mbox{}\\
 \begin{figure}[!h]
@@ -28,15 +30,15 @@ create_work([=]{
 });
 \end{CppCodeNumb}
 \label{fig:fe_api_set_value}
-\caption{Basic usage of \lstinline|set_value|.}
+\caption{Basic usage of \protect\codelink{set_value}.}
 \end{figure}
 
 \paragraph{Restrictions and Pitfalls}\mbox{}\\
 \begin{itemize}
   \item The specification of the method is likely to change in the future to
-  analogous to the behavior, e.g., |std::vector<T>::push_back()| (as it
+  be analogous to the behavior of, e.g., |std::vector<T>::push_back()| (as it
   relates to |std::vector<T>::emplace_back()|).  If this could be a
-  problem for |T|, you should probably use |emplace_value()| for now.
+  problem for |T|, you should probably use \codelink{emplace_value} for now.
 \end{itemize}
 
 

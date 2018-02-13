@@ -11,7 +11,7 @@
 //   Copyright (C) 2013, Ennio Barbaro.
 // See LEGAL.md for more information.
 //
-// Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
+// Under the terms of Contract DE-NA-0003525 with NTESS, LLC,
 // the U.S. Government retains certain rights in this software.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,7 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Questions? Contact David S. Hollman (dshollm@sandia.gov)
+// Questions? Contact darma@sandia.gov
 //
 // ************************************************************************
 //@HEADER
@@ -51,10 +51,11 @@
 #ifndef TINYMPL_INSERT_HPP
 #define TINYMPL_INSERT_HPP
 
-#include "variadic/erase.hpp"
-#include "as_sequence.hpp"
-#include "sequence.hpp"
-#include "join.hpp"
+#include <tinympl/variadic/erase.hpp>
+#include <tinympl/as_sequence.hpp>
+#include <tinympl/sequence.hpp>
+#include <tinympl/join.hpp>
+#include <tinympl/size.hpp>
 
 namespace tinympl {
 
@@ -86,6 +87,23 @@ class insert<Pos, sequence<SubSeqArgs...>, sequence<SeqArgs...>, Out> {
   public:
     typedef typename join<Out<>, head, tail>::type type;
 };
+
+template <typename Sequence, typename Arg>
+using push_front = insert<0, sequence<Arg>, Sequence>;
+template <typename Sequence, typename Arg>
+using push_front_t = typename push_front<Sequence, Arg>::type;
+
+template <typename Sequence, typename SubSeq>
+using extend_front = insert<0, as_sequence_t<SubSeq>, Sequence>;
+
+template <typename Sequence, typename Arg>
+using push_back = insert<size<Sequence>::value, sequence<Arg>, Sequence>;
+template <typename Sequence, typename Arg>
+using push_back_t = typename  push_back<Sequence, Arg>::type;
+
+template <typename Sequence, typename SubSeq>
+using extend_back = insert<size<Sequence>::value, as_sequence_t<SubSeq>, Sequence>;
+
 
 } // namespace tinympl
 

@@ -1,0 +1,212 @@
+%!TEX root = ../sandReportSpec.tex
+
+\section{Creating Deferred Work using Functors}
+\label{sec:functor}
+
+\lstMakeShortInline[style=CppCodeInlineStyle]{\|}
+
+Thus far, the only method we've introduced for creating \gls{deferred work} is using
+\CC{} \glspl{lambda}.  For instance,
+\begin{CppCodeNumb}
+auto h = initial_access<int>("my_key");
+create_work([=]{ h.set_value(42); });
+create_work(reads(h), [=]{ 
+  cout << h.get_value() << endl; // prints "42"
+});
+\end{CppCodeNumb}
+While this is a useful shorthand that makes it easy to get simple programs up
+and running quickly, \gls{DARMA} also provides a far more powerful and flexible
+mechanism for describing and creating \gls{deferred work}:  functors.  While functors
+are significantly more verbose than the in-line \gls{lambda} syntax, they are also
+much more feature rich and allow \gls{DARMA} to perform some additional optimizations
+that aren't available to \glspl{lambda} because of the limitations inherent to
+the \CC{} language itself.  The same piece of code from above can be written with
+functors:
+\begin{CppCodeNumb}
+struct SetTo42 {
+  void operator()(AccessHandle<int> h) const {
+    h.set_value(42);
+  }
+};
+
+struct PrintIntValue {
+  void operator()(int v) const {
+    cout << v << endl;
+  }
+};
+
+int darma_main(...) {
+  /* ... */
+  auto my_handle = initial_access<int>("my_key");
+  create_work<SetTo42>(my_handle);
+  create_work<PrintIntValue>(my_handle);
+  /* ... */
+}
+\end{CppCodeNumb}
+Even though this code snippet is substantially more verbose than the
+\gls{lambda} version, it provides some useful advantages.  Most noticeably, the functors
+|SetTo42| and |PrintIntValue| are reusable, just like normal functions.  They
+can be implemented in different files or even different translation units for
+code cleanliness and modularization.  
+
+There are some more subtle differences
+too, though.  Notice that in |PrintIntValue|, |AccessHandle::get_value()| never
+needs to be called.  As long as the type to which the \codelink{AccessHandle} refers is
+convertible to the formal parameter given in the functor call operator,
+\gls{DARMA} will call \codelink{get_value} automatically.  Also, since the formal parameter is a
+value (as opposed to a reference), \gls{DARMA} can deduce at compile time that this
+|PrintIntValue| makes a read-only usage of its argument.  (This would work the
+same way if the formal parameter had been |int const&|, a const lvalue
+reference).  Even more subtly, the fact that the formal parameter for
+|PrintIntValue| isn't an \codelink{AccessHandle} communicates to \gls{DARMA} at compile time
+that |PrintIntValue| won't schedule any \glspl{task} that depend on |my_handle| inside
+of |PrintIntValue| (we call this a \gls{leaf task} with respect to |my_handle|),
+which is useful information that the \gls{back end} \gls{runtime system} can utilize to make informed
+scheduling decisions.  To accomplish the same effect for a modify usage, we can
+give a formal parameter that is a non-|const| lvalue (e.g., |int&|).  The
+|SetTo42| functor could then be rewritten:
+\begin{CppCodeNumb}
+struct SetTo42 {
+  void operator()(int& val) const {
+    val = 42;
+  }
+};
+\end{CppCodeNumb}
+As you can see, the functor code starts to look very much like regular \CC{} code.
+
+The \gls{lambda} interface can still be mixed with the functor interface.  For
+instance,
+\begin{CppCodeNumb}
+struct Compute42 {
+  void operator()(AccessHandle<int> h) const {
+    create_work([=]{
+      h.set_value(21);
+    });
+    create_work([=]{
+      h.set_value( h.get_value() * 2 );
+    });
+  }
+};
+\end{CppCodeNumb}
+As you can see, if we want to be able to schedule more deferred uses of a
+\gls{handle}, we have to take an \codelink{AccessHandle} as a formal
+parameter.\footnote{Equivalently, an lvalue reference or a \inlinecode{const}
+lvalue reference to an \codelink{AccessHandle} can be given. 
+\codelink{AccessHandle} objects ignore \inlinecode{const}, and the copy
+overhead is negligible (though giving a reference parameter will be {\it
+slightly} more efficient)}  If we want to pass on a read-only \codelink{AccessHandle}, we
+can do so by giving \codetarget{ReadAccessHandle}\footnote{Note that
+is identical to \codelink{AccessHandle}
+in every way except that it is known to be read-only at compile time, whereas
+\codelink{AccessHandle} has unknown compile-time permissions.  All
+compile-time qualified \codelink{AccessHandle} variants are castable to
+\codelink{AccessHandle} (and to any other \codelink{AccessHandle}
+variant with greater compile-time permissions)} and the formal parameter type:
+\begin{CppCodeNumb}
+struct PrintIntReadHandle {
+  void operator()(ReadAccessHandle<int> h) const {
+    create_work([=]{
+      std::ofstream f("42.txt");
+      f << h.get_value() << endl;
+    });
+    create_work([=]{
+      cout << h.get_value() << endl;
+    });
+  }
+};
+\end{CppCodeNumb}
+The nested \glspl{task} will request read permissions on |h|, just as if they had been
+created with |create_work(reads(h), ...)|.  Moreover, any attempts to call
+|h.set_value()| inside of |PrintIntReadHandle| will result in a {\it
+compile-time} error (unlike in the pure \gls{lambda} case), since \gls{DARMA} knows at
+compile time that the |ReadAccessHandle<T>| is read-only.  
+
+\subsection{Mixing Deferred and Immediate Arguments}
+In \gls{DARMA}, deferred functor invocations can also take normal, value arguments. 
+These can, of course, be mixed (i.e., an invocation can take some
+\codelink{AccessHandle} arguments and some value arguments in the same call).  However,
+since \gls{deferred execution} can be tricky, there are some special rules involved
+with value arguments to \codelink{create_work}.
+\begin{itemize}
+  \item When the formal parameter to the functor is a non-const lvalue
+  reference, deferred invocation of the functor can only be made
+  with an \codelink{AccessHandle} as that argument.  For instance,
+\begin{CppCodeNumb}
+int i;
+auto j = initial_access<int>("mykey");;
+create_work<SetTo42S>(i); // $\no$ compile-error!
+create_work<SetTo42>(j); // $\yes$
+\end{CppCodeNumb}
+  \item When the formal parameter is a |const| lvalue reference, the deferred
+    invocation must also take \codelink{AccessHandle} as argument.  
+    References cannot be made to regular \CC{} variables for \gls{deferred
+    execution} since, by deferring,
+  the referred to variable may no longer exist.
+  An implicit copy would be required that isn't apparent from the syntax to make the variable permanent.  
+  To do this, you need to either use a value formal parameter or explicitly use
+|darma_runtime::darma_copy|:
+\begin{CppCodeNumb}
+struct PrintIntRef {
+  void operator()(const int& val) const { cout << val << endl; }
+};
+int darma_main(...) {
+  /* ... */
+  int i = 42;
+  auto j = read_access<int>("mykey");
+  create_work([=]{ j.set_value(42); });
+  create_work<PrintIntRef>(i); // $\no$ compile error, implicit copy of i $\label{ln:badprintintref}$
+  create_work<PrintIntRef>(42); // $\yes$ 42 is an rvalue (prvalue)
+  create_work<PrintIntRef>(j); // $\yes$ j is an AccessHandle<int>
+  create_work<PrintIntRef>(darma_copy(i)); // $\yes$ explicit darma_copy used
+  create_work<PrintIntRef>(std::move(i)); // $\yes$ i is an rvalue (xvalue)
+  /* ... */
+}
+\end{CppCodeNumb}
+  This isn't a matter of constness, but one of reference-ness; even if |i| had
+  been declared as |const int i = 42;|, line \ref{ln:badprintintref} would still
+  be a compile-time error, since the reference may have expired by the time the
+  \gls{deferred work} actually runs and a copy needs to be made.
+\item Normal arguments by default can not be implicitly converted to \codelink{AccessHandle} formal
+  parameters (whereas the reverse is allowed, and even encouraged when appropriate).
+\end{itemize}
+
+
+\subsection{FunctorWrapper Interface Pitfalls}
+
+\begin{itemize}
+  \item Rvalue references (|T&&|) can't be given as formal parameters to
+    \gls{DARMA} functors, and doing so may lead to unexpected and/or undefined compile-time
+    and/or runtime behavior.  This is related to how \gls{DARMA} detects attributes of
+  the formal parameters for functors, but it's also redundant --- you can just
+  use a regular value parameter.  
+  Because of the way \gls{deferred execution} works, rvalues must be moved into
+  storage until the actual invocation occurs anyway, so there is no savings
+  from using an rvalue reference over a value parameter.
+\item The \gls{DARMA} functor interface doesn't currently support deferred
+  invocation of functors with templated call operators (the detection idiom we
+  use woudn't work here, and besides, we wouldn't even know if the deduced type
+  is supposed to be an \codelink{AccessHandle} or not!).  Limited support for this may be
+  available in the future.  Note that the functor class itself can still be
+  templated, as long as the functor's template parameters are given explicitly
+  at the invocation site:
+\begin{CppCodeNumb}
+struct CantBeUsed {
+  template <typename T>
+  operator()(T val) const;
+};
+template <typename T>
+struct ThisIsFine {
+  operator()(T val) const;
+};
+int darma_main(...) {
+  /* ... */
+  auto h = initial_access<int>("hello");
+  create_work<ThisIsFine<int>>(h);
+  /* ... */
+}
+\end{CppCodeNumb}
+  \item Functors don't have state in \gls{DARMA}.  (Even if they did, there is no
+  access to the functor instance at the call site, so that state wouldn't be useful).
+\end{itemize}
+
+\lstDeleteShortInline{\|}

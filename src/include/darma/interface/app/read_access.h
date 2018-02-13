@@ -4,9 +4,9 @@
 //
 //                          read_access.h
 //                         dharma_new
-//              Copyright (C) 2016 Sandia Corporation
+//              Copyright (C) 2017 NTESS, LLC
 //
-// Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
+// Under the terms of Contract DE-NA-0003525 with NTESS, LLC,
 // the U.S. Government retains certain rights in this software.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,7 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Questions? Contact David S. Hollman (dshollm@sandia.gov)
+// Questions? Contact darma@sandia.gov
 //
 // ************************************************************************
 //@HEADER
@@ -45,35 +45,112 @@
 #ifndef SRC_INCLUDE_DARMA_INTERFACE_APP_READ_ACCESS_H_
 #define SRC_INCLUDE_DARMA_INTERFACE_APP_READ_ACCESS_H_
 
+#include <darma/impl/feature_testing_macros.h>
+
+#if OLD_CODE
+#if _darma_has_feature(arbitrary_publish_fetch)
+
 #include <darma/interface/app/access_handle.h>
 #include <darma/impl/handle_attorneys.h>
-#include <darma/impl/keyword_arguments/check_allowed_kwargs.h>
+#include <darma/impl/flow_handling.h>
+#include <darma/impl/compatibility.h>
+#include <darma/keyword_arguments/check_allowed_kwargs.h>
+
 
 namespace darma_runtime {
+
+namespace detail {
+
+template <typename U>
+struct _read_access_helper {
+  template <typename... Args>
+  decltype(auto)
+  operator()(
+    types::key_t const& version_key,
+    darma_runtime::detail::variadic_arguments_begin_tag,
+    Args&&... args
+  ) const {
+    auto backend_runtime = darma_runtime::abstract::backend::get_backend_runtime();
+    auto key = darma_runtime::make_key(std::forward<decltype(args)>(args)...);
+    auto var_h = darma_runtime::detail::make_shared<
+      darma_runtime::detail::VariableHandle<U>
+    >(key);
+
+    using namespace darma_runtime::detail::flow_relationships;
+    using namespace darma_runtime::abstract::frontend;
+
+    auto use_holder = std::make_shared<detail::UseHolder>(
+      detail::HandleUse(
+        var_h,
+        frontend::Permissions::Read, frontend::Permissions::None,
+        detail::FlowRelationshipImpl(
+          abstract::frontend::FlowRelationship::Fetching,
+          /* related flow = */ nullptr,
+          /* related_is_in = */ false,
+          /* version key = */ &version_key,
+          /* index = */ 0,
+          /* anti_related = */ nullptr,
+          /* anti_rel_is_in = */ false
+        ),
+        null_flow(),
+        null_flow(),
+        detail::FlowRelationshipImpl(
+          abstract::frontend::FlowRelationship::Fetching,
+          /* related flow = */ nullptr,
+          /* related_is_in = */ false,
+          /* version key = */ &version_key,
+          /* index = */ 0,
+          /* anti_related = */ nullptr,
+          /* anti_rel_is_in = */ false
+        )
+      ), true, false
+    );
+    use_holder->could_be_alias = true;
+
+    return darma_runtime::ReadAccessHandle<U>(
+      var_h, std::move(use_holder)
+    );
+
+  }
+};
+
+} // end namespace detail
 
 template <
   typename U=void,
   typename... KeyExprParts
 >
-AccessHandle<U>
+DARMA_ATTRIBUTE_DEPRECATED_WITH_MESSAGE(
+  "arbitrary publish fetch is being removed very soon"
+)
+auto
 read_access(
   KeyExprParts&&... parts
 ) {
-  static_assert(detail::only_allowed_kwargs_given<
-      keyword_tags_for_publication::version
-    >::template apply<KeyExprParts...>::type::value,
-    "Unknown keyword argument given to read_access"
-  );
-  typedef detail::access_expr_helper<KeyExprParts...> helper_t;
-  helper_t helper;
-  types::key_t key = helper.get_key(std::forward<KeyExprParts>(parts)...);
-  types::key_t user_version_tag = helper.get_version_tag(std::forward<KeyExprParts>(parts)...);
-  return detail::access_attorneys::for_AccessHandle::construct_read_access<U>(key, user_version_tag);
+  using namespace darma_runtime::detail;
+  using parser = detail::kwarg_parser<
+    variadic_positional_overload_description<
+      _optional_keyword<converted_parameter, keyword_tags_for_publication::version>
+    >
+  >;
+  using _______________see_calling_context_on_next_line________________ = typename parser::template static_assert_valid_invocation<KeyExprParts...>;
+
+  return parser()
+    .with_converters(
+      [](auto&&... parts) {
+        return darma_runtime::make_key(std::forward<decltype(parts)>(parts)...);
+      }
+    )
+    .with_default_generators(
+      keyword_arguments_for_publication::version=[]{ return make_key(); }
+    )
+    .parse_args(std::forward<KeyExprParts>(parts)...)
+    .invoke(detail::_read_access_helper<U>{});
 }
-
-
 
 } // end namespace darma_runtime
 
+#endif // _darma_has_feature(arbitrary_publish_fetch)
+#endif // OLD CODE
 
 #endif /* SRC_INCLUDE_DARMA_INTERFACE_APP_READ_ACCESS_H_ */

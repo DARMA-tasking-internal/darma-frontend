@@ -1,8 +1,8 @@
 \subsection{\texttt{operator->}}
 
 \paragraph{Summary}\mbox{}\\
-A dereference operator to directly access the object 
-pointed to by the handle.
+\codetarget{operator->} is a dereference operator to directly access the object 
+pointed to by the \gls{handle}.
 
 \paragraph{Syntax}\mbox{}\\
 \begin{CppCode}
@@ -13,18 +13,20 @@ T* AccessHandle<T>::operator->();
 None.
 
 \paragraph{Return}\mbox{}\\
-Returns a reference to the data pointed to by the handle.
+Returns a reference to the data pointed to by the \gls{handle}.
 
 \paragraph{Details}\mbox{}\\
-Just like |set_value| and |get_reference|, this operator
-requires {\it Modify} immediate permissions to invoke safely.  Unlike 
-|set_value| and |get_reference|, however, the arrow operator can
-also be invoked on handles that only have {\it Read} immediate permissions.  In
+Just like \codelink{set_value} and \codelink{get_reference}, this operator
+requires {\it Modify} \gls{immediate permissions} to invoke safely.  Unlike 
+\codelink{set_value} and \codelink{get_reference}, however, the
+\codelink{operator->} can
+also be invoked on \glspl{handle} that only have {\it Read} \gls{immediate
+permissions}.  In
 that case, it is up to the user to ensure that only |const| methods are
 called on the resulting object.  In other words,
-|AccessHandle<T>::operator->()| lets you ``shoot yourself in the foot''.
+|AccessHandle<T>::operator->()| lets you ``shoot yourself in the foot.''
 If more safety is desired, use the more  verbose forms with
-|set_value()| and |get_reference()|.
+\codelink{set_value} and \codelink{get_reference}.
 
 
 \paragraph{Code Snippet}\mbox{}\\
@@ -41,6 +43,6 @@ create_work([=]{
 });
 \end{CppCodeNumb}
 \label{fig:fe_api_arrow}
-\caption{Basic usage of \texttt{AccessHandle<T>::operator->()}.}
+\caption{Basic usage of \protect\codelink{:operator->}.}
 \end{figure}
 

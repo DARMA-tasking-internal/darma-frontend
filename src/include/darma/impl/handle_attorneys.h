@@ -4,9 +4,9 @@
 //
 //                          handle_attorneys.h
 //                         dharma_new
-//              Copyright (C) 2016 Sandia Corporation
+//              Copyright (C) 2017 NTESS, LLC
 //
-// Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
+// Under the terms of Contract DE-NA-0003525 with NTESS, LLC,
 // the U.S. Government retains certain rights in this software.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,7 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Questions? Contact David S. Hollman (dshollm@sandia.gov)
+// Questions? Contact darma@sandia.gov
 //
 // ************************************************************************
 //@HEADER
@@ -45,8 +45,11 @@
 #ifndef SRC_INCLUDE_DARMA_IMPL_HANDLE_ATTORNEYS_H_
 #define SRC_INCLUDE_DARMA_IMPL_HANDLE_ATTORNEYS_H_
 
+#include <darma_types.h> // needed for types::flow_t
+
 #include <darma/impl/handle.h>
 #include <darma/interface/app/access_handle.h>
+#include <darma/impl/flow_handling.h>
 
 
 namespace darma_runtime {
@@ -57,15 +60,17 @@ namespace access_attorneys {
 
 struct for_AccessHandle {
   // call the private constructors
-  template <typename T, typename Key, typename Version>
+  template <typename T>
   static AccessHandle<T>
-  construct_initial_access(Key const& key, Version const& version) {
-    return { key, version, AccessHandle<T>::State::Modify_None };
-  }
-  template <typename T, typename Key>
-  static AccessHandle<T>
-  construct_read_access(Key const& key, Key const& user_version_tag) {
-    return { key, AccessHandle<T>::State::Read_None, user_version_tag };
+  construct_access(
+    types::shared_ptr_template<VariableHandle<T>> var_handle,
+    flow_ptr const& in_flow,
+    flow_ptr const& out_flow,
+    abstract::frontend::Use::permissions_t scheduling_permissions,
+    abstract::frontend::Use::permissions_t immediate_permissions
+  ) {
+    return { var_handle, in_flow, out_flow,
+             scheduling_permissions, immediate_permissions };
   }
 
 };
@@ -79,7 +84,7 @@ struct for_AccessHandle {
   static inline
   typename tinympl::copy_cv_qualifiers<AccessHandleType>::template apply<
     typename AccessHandleType::dep_handle_t
-  >::type* const
+  >::type*
   get_dep_handle(
     AccessHandleType const& ah
   ) {
@@ -122,7 +127,7 @@ struct for_AccessHandle {
 
 } // end namespace detail
 
-} // end namespace darma
+} // end namespace darma_runtime
 
 
 

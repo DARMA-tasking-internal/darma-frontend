@@ -120,6 +120,39 @@ pages={35-53},
 language={English}
 }
 
+@Misc{TIDA,
+  title =	"BoxLib with Tiling: An {AMR} Software Framework",
+  note = 	"Comment: Accepted for publication in SIAM J. on
+		 Scientific Computing",
+  author =	"Weiqun Zhang and Ann Almgren and Marcus Day and Tan
+		 Nguyen and John Shalf and Didem Unat",
+  year = 	"2016",
+  month =	apr # "~12",
+  abstract =	"In this paper we introduce a block-structured adaptive
+		 mesh refinement (AMR) software framework that
+		 incorporates tiling, a well-known loop transformation.
+		 Because the multiscale, multiphysics codes built in
+		 BoxLib are designed to solve complex systems at high
+		 resolution, performance on current and next generation
+		 architectures is essential. With the expectation of
+		 many more cores per node on next generation
+		 architectures, the ability to effectively utilize
+		 threads within a node is essential, and the current
+		 model for parallelization will not be sufficient. We
+		 describe a new version of BoxLib in which the tiling
+		 constructs are embedded so that BoxLib-based
+		 applications can easily realize expected performance
+		 gains without extra effort on the part of the
+		 application developer. We also discuss a path forward
+		 to enable future versions of BoxLib to take advantage
+		 of NUMA-aware optimizations using the TiDA portable
+		 library.",
+  bibsource =	"OAI-PMH server at export.arxiv.org",
+  oai =  	"oai:arXiv.org:1604.03570",
+  subject =	"Computer Science - Mathematical Software; Physics -
+		 Computational Physics; 97N80",
+  URL =  	"http://arxiv.org/abs/1604.03570",
+}
 
 
 @inproceedings{VirtualizedDebugging,
@@ -163,6 +196,102 @@ language={English}
 @online{titan,
   title = {Titan Supercomputer at Oak Ridge Leadership Computing Facility},
 url ={https://www.olcf.ornl.gov/titan/}
+}
+
+@online{trilinos,
+  title = {Trilinos},
+url ={https://trilinos.org}
+}
+
+
+@online{lambda,
+  title = {{L}ambda functions},
+url ={http://en.cppreference.com/w/cpp/language/lambda}
+}
+
+@online{closure,
+  title = {{C}losure: {W}ikipedia},
+url ={https://en.wikipedia.org/wiki/Closure_(computer_programming)}
+}
+
+@online{associative-array,
+  title = {{A}ssociative {A}rray: {W}ikipedia},
+url ={https://en.wikipedia.org/wiki/Associative_array}
+}
+
+@online{tuple,
+  title = {{T}uple: {W}ikipedia},
+url ={https://en.wikipedia.org/wiki/Tuple}
+}
+
+@online{tupleSpace,
+  title = {{T}uple {S}pace: {W}ikipedia},
+url ={https://en.wikipedia.org/wiki/Tuple_space}
+}
+
+
+@online{co-design,
+  title = {{DOE} {ASCR} Co-Design},
+url ={http://science.energy.gov/ascr/research/scidac/co-design/}
+}
+
+@online{Qthreads,
+  title={Qthreads},
+  url = {http://www.cs.sandia.gov/qthreads/},
+}
+
+@online{PGAS,
+  title={PGAS},
+  url = {http://www.pgas.org/},
+}
+
+@online{Hobbes,
+  title={Hobbes},
+  url = {http://xstack.sandia.gov/hobbes/},
+}
+
+@online{perfect-forwarding,
+  title = {{P}erfect {F}orwarding},
+  url = {http://en.cppreference.com/w/cpp/utility/forward},
+}
+@online{Kitten,
+  title={Kitten},
+  url = {https://github.com/HobbesOSR/kitten},
+}
+
+@online{Adios,
+  title={Adios},
+  url={https://www.olcf.ornl.gov/center-projects/adios/},
+}
+
+@online{DataSpaces,
+  title={DataSpaces},
+  url={http://personal.cac.rutgers.edu/TASSL/projects/data/index.html},
+}
+
+@online{Trios,
+  title={{T}rios: {N}essie, {K}elpie, {NNTI}},
+  url={https://trilinos.org/packages/trios/},
+}
+
+@Article{Coordination,
+  author =	"N. Carriero and D. Gelernter",
+  title =	"Coordination Languages and Their Significance",
+  journal =	"Communications of the ACM",
+  year = 	"1992",
+  month =	feb,
+  pages =	"97--107",
+  volume =	"35",
+  number =	"2",
+  keyword =	"Linda, coordination language",
+}
+
+@article{LindaFriends,
+  author =	"Ahuja and Gelernter and Carriero",
+  title =	"Linda and Friends",
+  journal =	"Computer",
+  month =	aug,
+  year = 	"1986",
 }
 
 @online{PSAAPII,
@@ -311,13 +440,6 @@ pages={211-229},
                   "http://www.sciencedirect.com/science/article/pii/S0743731514001257",
   author =	 "H. Carter Edwards and Christian R. Trott and Daniel
                   Sunderland",
-  keywords =	 "Parallel computing",
-  keywords =	 "Thread parallelism",
-  keywords =	 "Manycore",
-  keywords =	 "\{GPU\}",
-  keywords =	 "Performance portability",
-  keywords =	 "Multidimensional array",
-  keywords =	 "Mini-application "
 }
 
 @inproceedings{ MRNet,
@@ -1955,3 +2077,75 @@ pages={1-6},
 keywords={energy measurement;power engineering computing;power measurement;PowerInsight;Sandia National Laboratories;commodity hardware;commodity power measurement capability;energy instrumentation;high performance computing;Connectors;Current measurement;Hardware;Instruments;Peer-to-peer computing;Resistors;Voltage measurement;Application Energy Profiling;High Performance Computing;Power and Energy Measurement}, 
 doi={10.1109/IGCC.2013.6604485}, 
 month={June},}
+
+@techreport{L2Sand2015,
+title = {{ASC ATDM} {L}evel 2 Milestone \#5325: Asynchronous {M}any-{T}ask Runtime System Analysis and Assessment for Next Generation Platforms},
+author = {Janine Bennett and Robert Clay and others},
+number = {SAND2015-8312},
+institution = {Sandia National Laboratories},
+year = {2015},
+}
+@article{FauziaReuseDistance2013,
+author = {Fauzia, Naznin and Elango, Venmugil and Ravishankar, Mahesh and Ramanujam, J. and Rastello, Fabrice and Rountev, Atanas and Pouchet, Louis-No\"{e}l and Sadayappan, P.},
+title = {Beyond Reuse Distance Analysis: Dynamic Analysis for Characterization of Data Locality Potential},
+journal = {ACM Trans. Archit. Code Optim.},
+issue_date = {December 2013},
+volume = {10},
+number = {4},
+month = dec,
+year = {2013},
+issn = {1544-3566},
+pages = {53:1--53:29},
+articleno = {53},
+numpages = {29},
+url = {http://doi.acm.org/10.1145/2541228.2555309},
+doi = {10.1145/2541228.2555309},
+acmid = {2555309},
+publisher = {ACM},
+address = {New York, NY, USA},
+keywords = {Data locality, dynamic analysis, tiling},
+} 
+@article{VydyanathanMixedParallel,
+author = {Vydyanathan, Naga and Krishnamoorthy, Sriram and Sabin, Gerald M. and Catalyurek, Umit V. and Kurc, Tahsin and Sadayappan, Ponnuswamy and Saltz, Joel H.},
+title = {An Integrated Approach to Locality-Conscious Processor Allocation and Scheduling of Mixed-Parallel Applications},
+journal = {IEEE Trans. Parallel Distrib. Syst.},
+issue_date = {August 2009},
+volume = {20},
+number = {8},
+month = aug,
+year = {2009},
+issn = {1045-9219},
+pages = {1158--1172},
+numpages = {15},
+url = {http://dx.doi.org/10.1109/TPDS.2008.219},
+doi = {10.1109/TPDS.2008.219},
+acmid = {1592248},
+publisher = {IEEE Press},
+address = {Piscataway, NJ, USA},
+keywords = {Load balancing and task assignment, Mixed-parallelism, Processor Allocation and Scheduling, Processor allocation, Processor allocation, scheduling, mixed parallelism, data-flow graphs, locality-conscious scheduling., Scheduling and task partitioning, data-flow graphs, locality-conscious scheduling., mixed parallelism, scheduling},
+} 
+@article{KwokStaticScheduling,
+author = {Kwok, Yu-Kwong and Ahmad, Ishfaq},
+title = {Static Scheduling Algorithms for Allocating Directed Task Graphs to Multiprocessors},
+journal = {ACM Comput. Surv.},
+issue_date = {Dec. 1999},
+volume = {31},
+number = {4},
+month = dec,
+year = {1999},
+issn = {0360-0300},
+pages = {406--471},
+numpages = {66},
+url = {http://doi.acm.org/10.1145/344588.344618},
+doi = {10.1145/344588.344618},
+acmid = {344618},
+publisher = {ACM},
+address = {New York, NY, USA},
+keywords = {DAG, automatic parallelization, multiprocessors, parallel processing, software tools, static scheduling, task graphs},
+} 
+@online{DetectionIdiom,
+author = {Walter E. Brown},
+year = 2015,
+title = {Proposing Standard Library Support for the C++ Detection Idiom},
+url = {http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2015/n4436.pdf}
+}

@@ -4,9 +4,9 @@
 //
 //                          test_read_access.cc
 //                         dharma_new
-//              Copyright (C) 2016 Sandia Corporation
+//              Copyright (C) 2017 NTESS, LLC
 //
-// Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
+// Under the terms of Contract DE-NA-0003525 with NTESS, LLC,
 // the U.S. Government retains certain rights in this software.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -36,12 +36,14 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Questions? Contact David S. Hollman (dshollm@sandia.gov)
+// Questions? Contact darma@sandia.gov
 //
 // ************************************************************************
 //@HEADER
 */
 
+
+#ifdef OLD_CODE
 
 #include <gtest/gtest.h>
 
@@ -57,116 +59,47 @@ class TestReadAccess
 {
   protected:
 
-    virtual void SetUp() {
-      setup_mock_runtime<::testing::StrictMock>();
+    virtual void SetUp() override {
+      setup_mock_runtime<::testing::NiceMock>();
       TestFrontend::SetUp();
     }
 
-    virtual void TearDown() {
+    virtual void TearDown() override {
       TestFrontend::TearDown();
     }
 };
 
 ////////////////////////////////////////////////////////////////////////////////
 
+// THIS IS GOING AWAY.  IT'S JUST A TEMPORARY FIX
+
 TEST_F(TestReadAccess, call_sequence) {
   using namespace ::testing;
   using namespace darma_runtime;
   using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace mock_backend;
 
-  types::key_t my_version_tag = darma_runtime::make_key("my_version_tag");
+  auto my_version_tag = darma_runtime::make_key("my_version_tag");
+  DECLARE_MOCK_FLOWS(f_in, f_out);
+  use_t* use_read = nullptr;
 
-  auto hm1 = make_same_handle_matcher();
+  EXPECT_CALL(*mock_runtime, make_fetching_flow(
+    is_handle_with_key(make_key("hello")), Eq(my_version_tag))
+  ).WillOnce(Return(f_in));
+  EXPECT_CALL(*mock_runtime,
+    make_null_flow(is_handle_with_key(make_key("hello")))
+  ).WillOnce(Return(f_out));
+  EXPECT_REGISTER_USE(use_read, f_in, f_out, Read, None);
 
-  Sequence s1, s2;
-
-  EXPECT_CALL(*mock_runtime, register_fetching_handle(Truly(hm1), Eq(my_version_tag)))
-    .Times(Exactly(1))
-    .InSequence(s1, s2);
-
-  EXPECT_CALL(*mock_runtime, release_read_only_usage(Truly(hm1)))
-    .Times(Exactly(1))
-    .InSequence(s2);
-
-  EXPECT_CALL(*mock_runtime, release_handle(Truly(hm1)))
-    .Times(Exactly(1))
-    .InSequence(s1, s2);
+  EXPECT_FLOW_ALIAS(f_in, f_out);
+  EXPECT_RELEASE_USE(use_read);
 
   {
-    auto tmp = read_access<int>("hello", version="my_version_tag");
-    auto* tmp_handle = detail::create_work_attorneys::for_AccessHandle::get_dep_handle(tmp);
-    ASSERT_THAT(tmp_handle, Eq(hm1.handle));
+    auto tmp = read_access<int>("hello", version=my_version_tag);
   }
 
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-// Same as call_sequence, but uses helper to verify that other uses of helper should be valid
-TEST_F(TestReadAccess, call_sequence_helper) {
-  using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_publication;
-
-  types::key_t my_version_tag = darma_runtime::make_key("my_version_tag");
-
-  auto hm1 = make_same_handle_matcher();
-  Sequence s1;
-  expect_handle_life_cycle(hm1, s1, /*read_only=*/true);
-
-  {
-    auto tmp = read_access<int>("hello", version="my_version_tag");
-    auto* tmp_handle = detail::create_work_attorneys::for_AccessHandle::get_dep_handle(tmp);
-    ASSERT_THAT(tmp_handle, Eq(hm1.handle));
-  }
-
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-TEST_F(TestReadAccess, call_sequence_assign) {
-  using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_publication;
-
-  types::key_t my_version_tag = darma_runtime::make_key("my_version_tag");
-  types::key_t other_version_tag = darma_runtime::make_key("other_version_tag");
-
-  auto hm1 = make_same_handle_matcher();
-  auto hm2 = make_same_handle_matcher();
-
-  Sequence s;
-
-  EXPECT_CALL(*mock_runtime, register_fetching_handle(Truly(hm1), Eq(my_version_tag)))
-    .Times(Exactly(1))
-    .InSequence(s);
-  EXPECT_CALL(*mock_runtime, register_fetching_handle(Truly(hm2), Eq(other_version_tag)))
-    .Times(Exactly(1))
-    .InSequence(s);
-  EXPECT_CALL(*mock_runtime, release_read_only_usage(Truly(hm1)))
-    .Times(Exactly(1))
-    .InSequence(s);
-  EXPECT_CALL(*mock_runtime, release_handle(Truly(hm1)))
-    .Times(Exactly(1))
-    .InSequence(s);
-  EXPECT_CALL(*mock_runtime, release_read_only_usage(Truly(hm2)))
-    .Times(Exactly(1))
-    .InSequence(s);
-  EXPECT_CALL(*mock_runtime, release_handle(Truly(hm2)))
-    .Times(Exactly(1))
-    .InSequence(s);
-
-  {
-    auto tmp1 = read_access<int>("hello", version="my_version_tag");
-
-    tmp1 = read_access<int>("world", version="other_version_tag");
-
-    auto* tmp_handle = detail::create_work_attorneys::for_AccessHandle::get_dep_handle(tmp1);
-
-    ASSERT_THAT(tmp_handle, Eq(hm2.handle));
-  }
-
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
+#endif // OLD_CODE

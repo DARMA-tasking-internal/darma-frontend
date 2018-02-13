@@ -8,8 +8,9 @@
 \lstMakeShortInline[style=CppCodeInlineStyle]{\|}
 
 \section{API: Creating and Managing Work}
-In this section we provide details regarding the DARMA-\specVersion\ \gls{API}.
-
+In this section we provide details regarding the \gls{DARMA}-\specVersion\ \gls{API}.
+\input{front_end/API/darma_main}
+\clearpage
 \input{front_end/API/darma_init_finalize}
 \clearpage
 \input{front_end/API/darma_spmd_size}
@@ -21,17 +22,17 @@ In this section we provide details regarding the DARMA-\specVersion\ \gls{API}.
 
 \section{API: Data Access Handles}
 
-In this section, we discuss the handle types in the DARMA \specVersion\ spec.
+In this section, we discuss the functions that create \glspl{handle}
+in the \gls{DARMA}-\specVersion\ \gls{API}.
 \input{front_end/API/initial_access}
 \clearpage
 \input{front_end/API/read_access}
 \clearpage
 
 \section{API: \texttt{AccessHandle} methods}
-
 In this section, we describe the methods that can be called 
-on \texttt{AccessHandle<T>} objects (i.e., the objects returned by the 
-\texttt{initial\_access<T>} and \texttt{read\_access<T>} functions).
+on \codelink{AccessHandle<T>} objects (i.e., the objects returned by the 
+\codelink{initial_access} and \codelink{read_access} functions).
 
 
 \input{front_end/API/emplace_value}
@@ -53,12 +54,11 @@ on \texttt{AccessHandle<T>} objects (i.e., the objects returned by the
 
 \section{API: Keywords}
 
-In this section, we describe the keywords of the \specVersion\ API. 
-
+In this section, we describe the keywords of the \gls{DARMA}-\specVersion\ \gls{API}. 
 \input{front_end/API/reads}
-\clearpage
+%\clearpage
 \input{front_end/API/n_readers}
-\clearpage
+%\clearpage
 \input{front_end/API/version}
 
 \lstDeleteShortInline{\|}

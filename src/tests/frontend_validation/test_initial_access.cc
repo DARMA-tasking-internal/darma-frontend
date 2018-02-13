@@ -4,9 +4,9 @@
 //
 //                          test_initial_access.cc
 //                         dharma_new
-//              Copyright (C) 2016 Sandia Corporation
+//              Copyright (C) 2017 NTESS, LLC
 //
-// Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
+// Under the terms of Contract DE-NA-0003525 with NTESS, LLC,
 // the U.S. Government retains certain rights in this software.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,7 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Questions? Contact David S. Hollman (dshollm@sandia.gov)
+// Questions? Contact darma@sandia.gov
 //
 // ************************************************************************
 //@HEADER
@@ -47,6 +47,8 @@
 
 #include <darma/impl/handle.h>
 #include <darma/interface/app/initial_access.h>
+
+#include <darma/serialization/serializers/all.h>
 
 #include "mock_backend.h"
 #include "test_frontend.h"
@@ -59,7 +61,7 @@ class TestInitialAccess
   protected:
 
     virtual void SetUp() {
-      setup_mock_runtime<::testing::StrictMock>();
+      setup_mock_runtime<::testing::NiceMock>();
       TestFrontend::SetUp();
     }
 
@@ -73,31 +75,34 @@ class TestInitialAccess
 TEST_F(TestInitialAccess, call_sequence) {
   using namespace ::testing;
   using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_publication;
 
-  Sequence s1;
-
-  auto hm1 = make_same_handle_matcher();
-
-  EXPECT_CALL(*mock_runtime, register_handle(Truly(hm1)))
-    .Times(Exactly(1))
-    .InSequence(s1);
-
-  // Release read-only usage should happen immedately for initial access,
-  // i.e., before runnign the next line of code that triggers the next register_handle
-  EXPECT_CALL(*mock_runtime, release_read_only_usage(Truly(hm1)))
-    .Times(Exactly(1))
-    .InSequence(s1);
-
-  EXPECT_CALL(*mock_runtime, release_handle(Truly(hm1)))
-    .Times(Exactly(1))
-    .InSequence(s1);
+  DECLARE_MOCK_FLOWS(f_in_1, f_out_1);
+  use_t* use_init = nullptr;
 
   {
+    InSequence s;
+
+    EXPECT_CALL(*mock_runtime, make_initial_flow(_))
+      .WillOnce(Return(f_in_1));
+
+    EXPECT_CALL(*mock_runtime, make_null_flow(_))
+      .WillOnce(Return(f_out_1));
+
+    EXPECT_REGISTER_USE(use_init, f_in_1, f_out_1, Modify, None);
+
+    EXPECT_FLOW_ALIAS(f_in_1, f_out_1);
+
+    EXPECT_RELEASE_USE(use_init);
+  }
+
+
+
+  //============================================================================
+  // Actual code being tested
+  {
     auto tmp = initial_access<int>("hello");
-    ASSERT_THAT(hm1.handle, NotNull());
-    ASSERT_THAT(hm1.handle, Eq(detail::create_work_attorneys::for_AccessHandle::get_dep_handle(tmp)));
   } // tmp deleted
+  //============================================================================
 
 }
 
@@ -107,20 +112,61 @@ TEST_F(TestInitialAccess, call_sequence) {
 TEST_F(TestInitialAccess, call_sequence_helper) {
   using namespace ::testing;
   using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace mock_backend;
 
-  Sequence s1;
-  auto hm1 = make_same_handle_matcher();
-  expect_handle_life_cycle(hm1, s1);
+  DECLARE_MOCK_FLOWS(f_in, f_out);
+  use_t* use;
 
   {
+    InSequence s;
+
+    EXPECT_INITIAL_ACCESS(f_in, f_out, use, make_key("hello"));
+
+    EXPECT_FLOW_ALIAS(f_in, f_out);
+
+    EXPECT_RELEASE_USE(use);
+  }
+
+  //============================================================================
+  // Actual code being tested
+  {
     auto tmp = initial_access<int>("hello");
-    ASSERT_THAT(hm1.handle, NotNull());
-    ASSERT_THAT(hm1.handle, Eq(detail::create_work_attorneys::for_AccessHandle::get_dep_handle(tmp)));
   } // tmp deleted
+  //============================================================================
 
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
+// Same as call_sequence, but with delayed assignment
+TEST_F(TestInitialAccess, call_sequence_helper_2) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace mock_backend;
+
+  DECLARE_MOCK_FLOWS(f_in, f_out, f_in_2, f_out_2);
+  use_t* use_init;
+
+  EXPECT_INITIAL_ACCESS(f_in, f_out, use_init, make_key("hello"));
+
+  EXPECT_FLOW_ALIAS(f_in, f_out);
+  EXPECT_RELEASE_USE(use_init);
+
+  //============================================================================
+  // Actual code being tested
+  {
+    AccessHandleWithTraits<int,
+      advanced::access_handle_traits::allow_copy_assignment_from_this<true>
+    > tmp;
+    AccessHandle<int> tmp2;
+
+    tmp = initial_access<int>("hello");
+    tmp2 = tmp;
+
+  } // tmp2, tmp deleted
+  //============================================================================
+
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -129,28 +175,25 @@ TEST_F(TestInitialAccess, call_sequence_assign) {
   using namespace darma_runtime;
   using namespace darma_runtime::keyword_arguments_for_publication;
 
-  Sequence s1, s2;
+  DECLARE_MOCK_FLOWS(f_in_1, f_out_1, f_in_2, f_out_2);
+  use_t* use_init1 = nullptr, *use_init2 = nullptr;
 
-  auto hm1 = make_same_handle_matcher();
-  auto hm2 = make_same_handle_matcher();
+  {
+    InSequence s;
+    EXPECT_INITIAL_ACCESS(f_in_1, f_out_1, use_init1, make_key("hello"));
 
-  EXPECT_CALL(*mock_runtime, register_handle(Truly(hm1)))
-    .InSequence(s1);
-  // Release read-only usage should happen immedately for initial access,
-  // i.e., before runnign the next line of code that triggers the next register_handle
-  EXPECT_CALL(*mock_runtime, release_read_only_usage(Truly(hm1)))
-    .InSequence(s1);
-  EXPECT_CALL(*mock_runtime, register_handle(AllOf(Truly(hm2), Not(Eq(hm1.handle)))))
-    .InSequence(s1);
-  // Release read-only usage should happen immedately for initial access,
-  // i.e., before runnign the next line of code that triggers the next register_handle
-  EXPECT_CALL(*mock_runtime, release_read_only_usage(Truly(hm2)))
-    .InSequence(s1);
-  EXPECT_CALL(*mock_runtime, release_handle(Truly(hm1)))
-    .InSequence(s1);
-  EXPECT_CALL(*mock_runtime, release_handle(Truly(hm2)))
-    .InSequence(s1);
+    EXPECT_INITIAL_ACCESS(f_in_2, f_out_2, use_init2, make_key("world"));
 
+    EXPECT_FLOW_ALIAS(f_in_1, f_out_1);
+    EXPECT_RELEASE_USE(use_init1);
+
+    EXPECT_FLOW_ALIAS(f_in_2, f_out_2);
+    EXPECT_RELEASE_USE(use_init2);
+  }
+
+
+  //============================================================================
+  // Actual code being tested
   {
 
     auto tmp1 = initial_access<int>("hello");
@@ -159,8 +202,53 @@ TEST_F(TestInitialAccess, call_sequence_assign) {
     tmp1 = initial_access<int>("world");
 
   } // tmp1
+  //============================================================================
 
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
+TEST_F(TestInitialAccess, call_sequence_copy_assign) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::detail;
+  using namespace darma_runtime::keyword_arguments_for_publication;
+
+  DECLARE_MOCK_FLOWS(f_in_1, f_out_1, f_in_2, f_out_2);
+  use_t* use1 = nullptr, *use2 = nullptr;
+
+  {
+    InSequence s;
+
+    EXPECT_INITIAL_ACCESS(f_in_2, f_out_2, use2, make_key("world"));
+    EXPECT_INITIAL_ACCESS(f_in_1, f_out_1, use1, make_key("hello"));
+
+    EXPECT_FLOW_ALIAS(f_in_2, f_out_2);
+    EXPECT_RELEASE_USE(use2);
+
+    EXPECT_CALL(*sequence_marker, mark_sequence("in between"));
+
+    EXPECT_FLOW_ALIAS(f_in_1, f_out_1);
+    EXPECT_RELEASE_USE(use1);
+  }
+
+  //============================================================================
+  // Actual code being tested
+  {
+    auto tmp2 = initial_access<int>("world");
+    auto tmp1 = initial_access<int,
+      advanced::access_handle_traits::allow_copy_assignment_from_this<true>
+    >("hello");
+
+    // Replace tmp2 with tmp1 (leaving a hanging alias to tmp1), since that
+    // should be allowed now
+    tmp2 = tmp1;
+
+    sequence_marker->mark_sequence("in between");
+
+  }
+  //============================================================================
+
+}
+
+////////////////////////////////////////////////////////////////////////////////

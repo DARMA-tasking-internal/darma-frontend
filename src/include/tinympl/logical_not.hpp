@@ -11,7 +11,7 @@
 //   Copyright (C) 2013, Ennio Barbaro.
 // See LEGAL.md for more information.
 //
-// Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
+// Under the terms of Contract DE-NA-0003525 with NTESS, LLC,
 // the U.S. Government retains certain rights in this software.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,7 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Questions? Contact David S. Hollman (dshollm@sandia.gov)
+// Questions? Contact darma@sandia.gov
 //
 // ************************************************************************
 //@HEADER
@@ -60,8 +60,31 @@ namespace tinympl {
  * \class logical_not
  * \brief Negate the argument
  */
-template<class T> struct logical_not : not_b<T::type::value> {};
+template<class T> struct logical_not {
+  typedef typename not_b<
+    T::type::value
+  >::type type;
+  static constexpr auto value = type::value;
+};
 template<class T> using not_ = logical_not<T>;
+
+/**
+ * \ingroup Logical
+ * \class negate
+ * \brief Metafunction class that produces (via template apply) a metafunction
+ * that returns the negation of the original metafunction
+ * \param F a metafunction for which, given type parameters Args..., the
+ * expression `not F<Args...>::value` is valid
+ */
+template <
+  template <class...> class F
+>
+struct negate_metafunction {
+  template <typename... Args>
+  struct apply : std::integral_constant<bool, not F<Args...>::value> { };
+};
+
+
 
 } // namespace tinympl
 
