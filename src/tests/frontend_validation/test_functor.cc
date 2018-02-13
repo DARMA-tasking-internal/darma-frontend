@@ -127,6 +127,50 @@ struct SimplerFunctor {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+struct SimpleFunctorWithDowngradePermissions {
+
+  void
+  operator()(AccessHandle<int> handle) {
+
+    EXPECT_DEATH(
+      {
+        handle.set_value(42);
+      },
+      "`set_value\\(\\)` performed on AccessHandle"
+    );
+
+  }
+
+  static void permissions_downgrades(AccessHandle<int> handle) { 
+     darma_runtime::detail::permissions_downgrades(reads(handle));
+  }
+};
+
+
+////////////////////////////////////////////////////////////////////////////////
+
+struct SimpleFunctorWithRequiredPermissions {
+  
+  void
+  operator()(AccessHandle<int> handle1, AccessHandle<int> handle2) {
+    
+    EXPECT_DEATH(
+      { 
+        handle1.set_value(42);
+      },
+      "`set_value\\(\\)` performed on AccessHandle"
+    );
+  
+  }
+  
+  static void required_permissions(AccessHandle<int> handle1, AccessHandle<int> handle2) {
+    darma_runtime::detail::required_permissions(reads(handle2));
+  }
+};
+
+
+////////////////////////////////////////////////////////////////////////////////
+
 TEST_F(TestFunctor, simpler) {
   using namespace ::testing;
   testing::internal::CaptureStdout();
@@ -596,6 +640,117 @@ TEST_F(TestFunctor, schedule_only) {
   Mock::VerifyAndClearExpectations(mock_runtime.get());
 
   EXPECT_NEW_RELEASE_USE(use_capt, true);
+
+  run_all_tasks();
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestFunctor, functor_with_permissions_downgrades) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace mock_backend;
+
+  static_assert(std::is_convertible<meta::any_arg, AccessHandle<int>>::value, "any_arg not convertible!");
+
+  mock_runtime->save_tasks = true;
+
+  MockFlow f_initial, f_null, f_task_out;
+  use_t* task_use = nullptr;
+  use_t* use_initial = nullptr;
+  use_t* use_cont = nullptr;
+
+  EXPECT_INITIAL_ACCESS(f_initial, f_null, use_initial, make_key("hello"));
+
+  // --------------------
+  // Expect read capture:
+
+  {
+    InSequence s;
+
+    EXPECT_CALL(*mock_runtime, legacy_register_use(IsUseWithFlows(
+      f_initial, nullptr, 
+      darma_runtime::frontend::Permissions::Read,
+      darma_runtime::frontend::Permissions::Read
+    ))).WillOnce(SaveArg<0>(&task_use));
+
+    EXPECT_REGISTER_TASK(task_use);
+
+    EXPECT_RELEASE_USE(use_initial);
+  }
+
+  // End expect read capture
+  // -----------------------
+
+
+  //============================================================================
+  // actual code being tested
+  {
+    auto tmp = initial_access<int>("hello");
+    create_work<SimpleFunctorWithDowngradePermissions>(tmp);
+  }
+  //============================================================================
+
+  EXPECT_RELEASE_USE(task_use);
+
+  run_all_tasks();
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestFunctor, functor_with_required_permissions) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace mock_backend;
+
+  static_assert(std::is_convertible<meta::any_arg, AccessHandle<int>>::value, "any_arg not convertible!");
+
+  mock_runtime->save_tasks = true;
+
+  MockFlow f_initial_1, f_initial_2, f_null_1, f_null_2, f_task_out;
+  use_t* task_use = nullptr;
+  use_t* use_initial_1 = nullptr;
+  use_t* use_initial_2 = nullptr;
+  use_t* use_cont = nullptr;
+
+  EXPECT_INITIAL_ACCESS(f_initial_1, f_null_1, use_initial_1, make_key("hello"));
+  EXPECT_INITIAL_ACCESS(f_initial_2, f_null_2, use_initial_2, make_key("hello2"));
+
+  // --------------------
+  // Expect read capture:
+
+  {
+    InSequence s;
+
+    EXPECT_CALL(*mock_runtime, legacy_register_use(IsUseWithFlows(
+      f_initial_2, nullptr,
+      darma_runtime::frontend::Permissions::Read,
+      darma_runtime::frontend::Permissions::Read
+    ))).WillOnce(SaveArg<0>(&task_use));
+
+    EXPECT_REGISTER_TASK(task_use);
+
+    EXPECT_RELEASE_USE(use_initial_2);
+
+    EXPECT_RELEASE_USE(use_initial_1);
+  }
+
+  // End expect read capture
+  // -----------------------
+
+
+  //============================================================================
+  // actual code being tested
+  {
+    auto tmp = initial_access<int>("hello");
+    auto tmp2 = initial_access<int>("hello2");
+    create_work<SimpleFunctorWithRequiredPermissions>(tmp, tmp2);
+  }
+  //============================================================================
+
+  EXPECT_RELEASE_USE(task_use);
 
   run_all_tasks();
 

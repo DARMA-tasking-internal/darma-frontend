@@ -59,6 +59,66 @@ namespace darma_runtime {
 
 namespace detail {
 
+struct variadic_tag_has_downgrades_permissions { };
+struct variadic_tag_has_required_permissions { };
+struct variadic_tag_permissions_not_specified { };
+
+namespace _permissions_traits_impl {
+
+// Utility metafunctions
+template <typename T> using vvoid_t = void;
+
+template <typename T> struct _is_member_callable : std::false_type {typedef void type;};
+template <typename Ret, typename... Args> struct _is_member_callable<Ret(*)(Args...)> : std::true_type { typedef Ret(*type)(Args...); };
+
+template <typename FirstArg, typename... LastArgs> struct _is_arg_by_value {
+   static constexpr bool value =
+      (not std::is_reference<FirstArg>::value) and
+      _is_arg_by_value<LastArgs...>::value;
+};
+
+template <typename Arg> struct _is_arg_by_value<Arg> {
+   static constexpr bool value = not std::is_reference<Arg>::value;
+};
+
+// Check whether a method can be invoked with the given call arguments
+template <typename T, typename... Args>
+using is_method_callable_with_args_archetype = decltype(std::declval<T>()(std::declval<Args>()...));
+
+// Detect presence of static permissions_downgrades method in class
+template <typename T, typename> struct has_permissions_downgrades {
+   typedef void type;
+   static constexpr bool value = false;
+};
+
+template <typename T> struct has_permissions_downgrades<T, vvoid_t<decltype(&T::permissions_downgrades)>> {
+   typedef typename _is_member_callable<decltype(&T::permissions_downgrades)>::type type;
+   static constexpr bool value = _is_member_callable<decltype(&T::permissions_downgrades)>::value;
+};
+
+// Detect presence of static required_permissions method in class
+template <typename T, typename> struct has_required_permissions {
+   typedef void type;
+   static constexpr bool value = false;
+};
+
+template <typename T> struct has_required_permissions<T, vvoid_t<decltype(&T::required_permissions)>> {
+   typedef typename _is_member_callable<decltype(&T::required_permissions)>::type type;
+   static constexpr bool value = _is_member_callable<decltype(&T::required_permissions)>::value;
+};
+
+// All formal arguments to permissions methods must be passed by value
+template <typename T> struct arguments_by_value {
+   static constexpr bool value = _is_arg_by_value<T>::value;
+};
+
+template <typename Ret, typename... Args> struct arguments_by_value<Ret(*)(Args...)> {
+   static constexpr bool value = _is_arg_by_value<void, Args...>::value;
+};
+
+} // end namespace _permissions_traits_impl
+
+
 ////////////////////////////////////////////////////////////////////////////////
 
 // <editor-fold desc="FunctorWrapper traits">
@@ -170,6 +230,50 @@ template <
   typename... CallArgs
 >
 struct functor_call_traits {
+
+  public:
+
+    typedef typename _permissions_traits_impl::has_permissions_downgrades<Functor, void>::type ftype_perm_down;
+    static constexpr bool has_static_permissions_downgrades = _permissions_traits_impl::has_permissions_downgrades<Functor, void>::value;
+    static constexpr bool static_permissions_downgrades_is_callable_with_args =
+      tinympl::is_detected<_permissions_traits_impl::is_method_callable_with_args_archetype, ftype_perm_down, CallArgs...>::value;
+
+    typedef typename _permissions_traits_impl::has_required_permissions<Functor, void>::type ftype_reqr_perm;
+    static constexpr bool has_static_required_permissions = _permissions_traits_impl::has_required_permissions<Functor, void>::value;
+    static constexpr bool static_required_permissions_is_callable_with_args =
+      tinympl::is_detected<_permissions_traits_impl::is_method_callable_with_args_archetype, ftype_reqr_perm, CallArgs...>::value;
+
+    // permissions_downgrades and required_permissions should be mutually exclusive
+//    static_assert(not (has_static_permissions_downgrades and has_static_required_permissions),
+//      "Error. Static methods required_permissions and permissions_downgrades in a functor must be mutually exclusive."
+//    );
+
+    // if required_permissions method exists, it should be callable with the call arguments passed to the functor
+//    static_assert(static_required_permissions_is_callable_with_args or (not has_static_required_permissions),
+//      "Error. Static method required_permissions is not callable with call arguments passed to functor"
+//    );
+
+    // same holds true for permissions_downgrades
+//    static_assert(static_permissions_downgrades_is_callable_with_args or (not has_static_permissions_downgrades),
+//      "Error. Static method permissions_downgrades is not callable with call arguments passed to functor"
+//    );
+
+    static constexpr bool permissions_downgrades_arguments_by_value = _permissions_traits_impl::arguments_by_value<ftype_perm_down>::value;
+    static constexpr bool required_permissions_arguments_by_value = _permissions_traits_impl::arguments_by_value<ftype_reqr_perm>::value;
+
+    // currently, non-elementary call arguments should be passed by reference to permissions methods
+//    static_assert(permissions_downgrades_arguments_by_reference and required_permissions_arguments_by_reference,
+//      "Error. Non-elementary arguments of permissions method should be passed by reference"
+//    );
+
+    typedef typename tinympl::select_first_t<
+       tinympl::bool_constant<permissions_downgrades_arguments_by_value and (not std::is_void<ftype_perm_down>::value)>,
+       /* => */ variadic_tag_has_downgrades_permissions,
+       tinympl::bool_constant<required_permissions_arguments_by_value and (not std::is_void<ftype_reqr_perm>::value)>,
+       /* => */ variadic_tag_has_required_permissions,
+       std::true_type,
+       /* => */ variadic_tag_permissions_not_specified
+       > dispatch_tag;
 
   public:
 

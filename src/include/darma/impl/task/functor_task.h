@@ -52,6 +52,7 @@
 #include <darma/impl/handle.h>
 #include <darma/impl/util/smart_pointers.h>
 #include <darma/impl/polymorphic_serialization.h>
+#include <darma/impl/task/functor_task_permissions.h>
 
 #include <darma/serialization/serializers/standard_library/tuple.h>
 
@@ -67,6 +68,7 @@ struct FunctorCaptureSetupHelper : protected CaptureSetupHelperBase {
 
   FunctorCaptureSetupHelper() = default;
 
+  // Permissions not directly specified
   template <typename CaptureManagerT>
   FunctorCaptureSetupHelper(
     TaskBase* running_task,
@@ -75,6 +77,40 @@ struct FunctorCaptureSetupHelper : protected CaptureSetupHelperBase {
     pre_capture_setup(running_task, current_capture_context);
   }
 
+  // added by gb -- 02-08-2018 -- Downgrades permissions specified
+  template <
+    typename CaptureManagerT,
+    typename FuncPtr,
+    typename... Args
+  >
+  FunctorCaptureSetupHelper(
+    TaskBase* running_task,
+    CaptureManagerT* current_capture_context,
+    FuncPtr downPerm,
+    variadic_tag_has_downgrades_permissions /* unused */,
+    Args&&... args
+  ) {
+    (*downPerm)(std::forward<Args>(args)...);
+    pre_capture_setup(running_task, current_capture_context);
+  }
+
+  // added by gb -- 02-08-2018 -- Required permissions specified
+  template <
+    typename CaptureManagerT,
+    typename FuncPtr,
+    typename... Args
+  >
+  FunctorCaptureSetupHelper(
+    TaskBase* running_task,
+    CaptureManagerT* current_capture_context,
+    FuncPtr reqPerm,
+    variadic_tag_has_required_permissions /* unused */,
+    Args&&... args
+  ) {
+    (*reqPerm)(std::forward<Args>(args)...);
+    running_task->must_specify_permissions = true;
+    pre_capture_setup(running_task, current_capture_context);
+  }
 };
 
 
@@ -87,6 +123,7 @@ struct FunctorCapturer : protected FunctorCaptureSetupHelper {
   using traits = functor_traits<Functor>;
   using call_traits = functor_call_traits<Functor, Args&&...>;
   using stored_args_tuple_t = typename call_traits::args_tuple_t;
+  using dispatch_tag = typename call_traits::dispatch_tag; // added by gb -- 02-08-2018
 
   //using traits = functor_closure_traits<Functor>;
   //using overload_traits = typename traits::template best_overload<Args...>;
@@ -103,7 +140,66 @@ struct FunctorCapturer : protected FunctorCaptureSetupHelper {
   STATIC_ASSERT_VALUE_EQUAL(n_functor_args, n_functor_args_max);
   STATIC_ASSERT_VALUE_EQUAL(n_functor_args, sizeof...(Args));
 
+private:
 
+  // added by gb -- 02-08-2018 -- permissions not directly specified
+  template <
+    typename CaptureManagerT,
+    typename... ArgsDeduced
+  >
+  FunctorCapturer(
+    TaskBase* running_task,
+    CaptureManagerT* capture_manager,
+    variadic_tag_permissions_not_specified, /* unused */
+    ArgsDeduced&&... args_deduced
+  ) : FunctorCaptureSetupHelper(running_task, capture_manager),
+      stored_args_(std::forward<ArgsDeduced>(args_deduced)...)
+  {
+    post_capture_cleanup(running_task, capture_manager);
+  }
+
+  // added by gb -- 02-08-2018 -- downgrades permissions specified
+  template <
+    typename CaptureManagerT,
+    typename... ArgsDeduced
+  >
+  FunctorCapturer(
+    TaskBase* running_task,
+    CaptureManagerT* capture_manager,
+    variadic_tag_has_downgrades_permissions, /* unused */
+    ArgsDeduced&&... args_deduced
+  ) : FunctorCaptureSetupHelper(running_task, capture_manager,
+        &Functor::permissions_downgrades,
+        variadic_tag_has_downgrades_permissions{},
+        std::forward<ArgsDeduced>(args_deduced)...),
+        stored_args_(std::forward<ArgsDeduced>(args_deduced)...)
+  { 
+    post_capture_cleanup(running_task, capture_manager);
+  }
+
+  // added by gb -- 02-08-2018 -- required permissions specified 
+  template <
+    typename CaptureManagerT,
+    typename... ArgsDeduced
+  >
+  FunctorCapturer(
+    TaskBase* running_task,
+    CaptureManagerT* capture_manager,
+    variadic_tag_has_required_permissions, /* unused */
+    ArgsDeduced&&... args_deduced
+  ) : FunctorCaptureSetupHelper(running_task, capture_manager,
+        &Functor::required_permissions,
+        variadic_tag_has_required_permissions{},
+        std::forward<ArgsDeduced>(args_deduced)...),
+        stored_args_(std::forward<ArgsDeduced>(args_deduced)...)
+  {
+    running_task->must_specify_permissions = false; // added by - 02-08-2018
+    post_capture_cleanup(running_task, capture_manager);
+  }
+
+public:
+
+  // modified by gb -- 02-08-2018 -- add dispatch tag
   template <
     typename CaptureManagerT,
     typename... ArgsDeduced
@@ -112,10 +208,11 @@ struct FunctorCapturer : protected FunctorCaptureSetupHelper {
     TaskBase* running_task,
     CaptureManagerT* capture_manager,
     ArgsDeduced&&... args_deduced
-  ) : FunctorCaptureSetupHelper(running_task, capture_manager),
-      stored_args_(std::forward<ArgsDeduced>(args_deduced)...)
+  ) : FunctorCapturer(running_task,capture_manager,
+      dispatch_tag{},
+      std::forward<ArgsDeduced>(args_deduced)...)
   {
-    post_capture_cleanup(running_task, capture_manager);
+    // forwarding ctor, must be empty
   }
 
   explicit

@@ -135,6 +135,7 @@ struct PermissionsPair {
 
 struct DeferredPermissionsModificationsBase {
   virtual void do_permissions_modifications() = 0;
+  virtual void do_source_permissions_modifications() = 0; // added by gb -- 02-09-2018
   virtual ~DeferredPermissionsModificationsBase() = default;
 };
 
@@ -182,6 +183,46 @@ struct DeferredPermissionsModifications : DeferredPermissionsModificationsBase
       return 0;
     }
 
+    // added by gb -- 02-09-2018
+    template <
+      typename CapturedObjectBaseT,
+      typename CallableT
+    >
+    int
+    apply_source_permissions_modifications(
+      CapturedObjectBaseT&& obj,
+      CallableT const& callable,
+      std::enable_if_t<
+        std::is_base_of<CapturedObjectBase, std::decay_t<CapturedObjectBaseT>>::value,
+        utility::_not_a_type
+      > /*unused*/ = { }
+    ) {
+      callable(obj.get_source_access_handle());
+      return 0;
+    }
+
+    // added by gb -- 02-09-2018
+    template <
+      typename DeferredPermissionsModificationsT,
+      typename CallableT
+    >
+    int
+    apply_source_permissions_modifications(
+      DeferredPermissionsModificationsT&& obj,
+      CallableT const& callable,
+      std::enable_if_t<
+        std::is_base_of<
+          DeferredPermissionsModificationsBase,
+          std::decay_t<DeferredPermissionsModificationsT>
+        >::value,
+        utility::_not_a_type
+      > /*unused*/ = { }
+    ) {
+      obj.apply_source_permissions_modifications(callable);
+      // Don't forget to invoke the nested modifications as well:
+      obj.do_permissions_modifications();
+      return 0;
+    }
 
   private:
 
@@ -205,6 +246,23 @@ struct DeferredPermissionsModifications : DeferredPermissionsModificationsBase
 
     }
 
+    // added by gb -- 02-09-2018
+    template <
+      typename CallableT,
+      size_t... Idxs
+    >
+    void _apply_source_permissions_modifications_impl(
+      std::integer_sequence<size_t, Idxs...>,
+      CallableT const& callable
+    ) {
+      std::make_tuple( // fold emulation
+        apply_source_permissions_modifications(
+          std::get<Idxs>(arg_refs_tuple_),
+          callable
+        )...
+      );
+    }
+
   public:
 
     DeferredPermissionsModifications(DeferredPermissionsModifications const&) = delete;
@@ -223,6 +281,19 @@ struct DeferredPermissionsModifications : DeferredPermissionsModificationsBase
       );
     }
 
+    // added by gb -- 02-09-2018
+    template <
+      typename CallableT
+    >
+    void apply_source_permissions_modifications(
+      CallableT const& callable
+    ) {
+      _apply_source_permissions_modifications_impl(
+        std::index_sequence_for<Args...>{},
+        callable
+      );
+    }
+
     template <typename CallableDeduced, typename... ArgsDeduced>
     DeferredPermissionsModifications(
       utility::variadic_constructor_tag_t /*unused*/, // prevent generation of move and copy ctors via this template
@@ -236,6 +307,10 @@ struct DeferredPermissionsModifications : DeferredPermissionsModificationsBase
       apply_permissions_modifications(callable_);
     }
 
+    // added by gb -- 02-09-2018 -- modify permissions on source ah
+    void do_source_permissions_modifications() override {
+      apply_source_permissions_modifications(callable_);
+    }
 };
 
 template <typename Callable, typename... PassThroughArgs>
@@ -258,6 +333,12 @@ struct CapturedObjectAttorney {
   static CapturedObjectBase::CapturedAsInfo&
   captured_as_info(CapturedObjectBase const& obj) {
     return obj.captured_as.info;
+  }
+
+  // added by gb -- 02-09-2018
+  static CapturedObjectBase::captured_as_info_as_int_t
+  captured_as_int(CapturedObjectBase const& obj) {
+    return obj.captured_as.as_int;
   }
 
   static void
