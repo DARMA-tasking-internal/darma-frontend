@@ -45,7 +45,6 @@
 #ifndef SRC_ABSTRACT_FRONTEND_TASK_H_
 #define SRC_ABSTRACT_FRONTEND_TASK_H_
 
-#include <darma/utility/config.h>
 #include <darma/impl/feature_testing_macros.h>
 
 #include <darma_types.h>
@@ -55,6 +54,10 @@
 #include <darma/impl/feature_testing_macros.h>
 
 #include "use.h"
+
+#include <darma/serialization/polymorphic/polymorphic_serializable_object.h>
+
+#include <darma/utility/config.h>
 
 namespace darma_runtime {
 
@@ -124,7 +127,7 @@ class Closure {
  */
 class Task
 #if _darma_has_feature(task_migration)
-  : public PolymorphicSerializableObject<Task>,
+  : public serialization::PolymorphicSerializableObject<Task>,
 #endif
     public Closure
 {

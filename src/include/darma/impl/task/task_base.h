@@ -75,6 +75,7 @@
 #include <darma/interface/frontend/unpack_task.h>
 
 #include <darma/serialization/serializers/arithmetic_types.h>
+#include <darma/serialization/polymorphic/polymorphic_serialization_adapter.h>
 #include <darma/serialization/serializers/standard_library/string.h> // for task calling file and function
 
 #include <darma/impl/handle_fwd.h>
@@ -92,7 +93,6 @@
 #include <darma/impl/use.h>
 #include <darma/impl/util/smart_pointers.h>
 #include <darma/impl/capture.h>
-#include <darma/impl/polymorphic_serialization.h>
 #include <darma/keyword_arguments/parse.h>
 
 namespace darma_runtime {
@@ -575,7 +575,7 @@ class EmptyTask : public TaskBase {
 
 
 class NonMigratableTaskBase
-  : public PolymorphicSerializationAdapter<
+  : public serialization::PolymorphicSerializationAdapter<
       NonMigratableTaskBase,
       TaskBase
     >

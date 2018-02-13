@@ -45,13 +45,16 @@
 #ifndef DARMA_IMPL_USE_COLLECTION_H
 #define DARMA_IMPL_USE_COLLECTION_H
 
-#include <darma/interface/frontend/use_collection.h> // abstract::frontend::UseCollection
 
 #include <darma/impl/index_range/index_range_traits.h>
 #include <darma/impl/index_range/mapping_traits.h>
 
 #include <darma/impl/flow_handling.h> // flow_ptr
 #include <darma/impl/handle_use_base.h> // HandleUseBase
+
+#include <darma/interface/frontend/use_collection.h> // abstract::frontend::UseCollection
+
+#include <darma/serialization/polymorphic/polymorphic_serialization_adapter.h>
 
 namespace darma_runtime {
 
@@ -63,7 +66,7 @@ static constexpr struct cloning_ctor_tag_t { } cloning_ctor_tag { };
 template <typename IndexRange>
 class BasicUseCollection
   : public abstract::frontend::UseCollection,
-    public abstract::frontend::PolymorphicSerializableObject<BasicUseCollection<IndexRange>>
+    public serialization::PolymorphicSerializableObject<BasicUseCollection<IndexRange>>
 {
   public:  // All public for now, rather than dealing with making friend declarations for AccessHandleCollection and friends
 
@@ -156,14 +159,14 @@ class BasicUseCollection
 
 template <typename IndexRange>
 class UnmappedUseCollection final /* final for now, at least */
-  : public PolymorphicSerializationAdapter<
+  : public serialization::PolymorphicSerializationAdapter<
       UnmappedUseCollection<IndexRange>,
       BasicUseCollection<IndexRange>
     >
 {
   public:
 
-    using base_t = PolymorphicSerializationAdapter<
+    using base_t = serialization::PolymorphicSerializationAdapter<
       UnmappedUseCollection<IndexRange>,
       BasicUseCollection<IndexRange>
     >;
@@ -248,7 +251,7 @@ make_unmapped_use_collection(Args&&... args) {
 
 template <typename IndexRange, typename Mapping>
 class MappedUseCollection final /* final for now, at least */
-  : public PolymorphicSerializationAdapter<
+  : public serialization::PolymorphicSerializationAdapter<
       MappedUseCollection<IndexRange, Mapping>,
       BasicUseCollection<IndexRange>
     >
@@ -267,7 +270,7 @@ class MappedUseCollection final /* final for now, at least */
     mapping_t mapping_fe_handle_to_be_task_;
 
     using mapping_traits_t = darma_runtime::indexing::mapping_traits<Mapping>;
-    using base_t = PolymorphicSerializationAdapter<
+    using base_t = serialization::PolymorphicSerializationAdapter<
       MappedUseCollection<IndexRange, Mapping>,
       BasicUseCollection<IndexRange>
     >;
@@ -433,14 +436,14 @@ make_mapped_use_collection(UnmappedCollectionT&& clone_from, Args&&... args) {
 
 template <typename IndexRange>
 class BasicCollectionManagingUse final /* final for now, at least */
-  : public PolymorphicSerializationAdapter<
+  : public serialization::PolymorphicSerializationAdapter<
       BasicCollectionManagingUse<IndexRange>, HandleUseBase
     >
 {
 
   public:
 
-    using base_t = PolymorphicSerializationAdapter<
+    using base_t = serialization::PolymorphicSerializationAdapter<
       BasicCollectionManagingUse<IndexRange>, HandleUseBase
     >;
 
@@ -590,7 +593,7 @@ class BasicCollectionManagingUse final /* final for now, at least */
     static void unpack(void* allocated, Archive& ar) {
       auto* rv = new (allocated) BasicCollectionManagingUse();
       auto ptr_ar = serialization::PointerReferenceSerializationHandler<>::make_unpacking_archive_referencing(ar);
-      rv->collection_ = abstract::frontend::PolymorphicSerializableObject<BasicUseCollection<IndexRange>>
+      rv->collection_ = serialization::PolymorphicSerializableObject<BasicUseCollection<IndexRange>>
         ::unpack(*reinterpret_cast<char const**>(&ar.data_pointer_reference()));
       rv->HandleUseBase::do_serialize(ar);
     }

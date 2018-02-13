@@ -518,7 +518,7 @@ class AccessHandleCollection
         ::darma_runtime::detail::VariableHandle<value_type>
       >(key);
 
-      auto use_base = abstract::frontend::PolymorphicSerializableObject<detail::HandleUseBase>
+      auto use_base = serialization::PolymorphicSerializableObject<detail::HandleUseBase>
         ::unpack(*reinterpret_cast<char const**>(&ar.data_pointer_reference()));
 
       this->set_current_use(

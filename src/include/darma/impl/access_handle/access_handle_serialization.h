@@ -252,7 +252,7 @@ AccessHandle<T, Traits>::unpack_from_archive(Archive& ar) {
 
   var_handle_base_ = detail::make_shared<detail::VariableHandle<T>>(k);
 
-  auto use_base = abstract::frontend::PolymorphicSerializableObject<detail::HandleUseBase>
+  auto use_base = serialization::PolymorphicSerializableObject<detail::HandleUseBase>
     ::unpack(*reinterpret_cast<char const**>(&ar.data_pointer_reference()));
   use_base->set_handle(var_handle_base_);
 
