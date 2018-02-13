@@ -18,6 +18,8 @@ interested in both on-node tasking (MPI+X) or for distributed memory tasking.
 For installation directions (either custom or Spack), see the
 INSTALL file in the top-level directory.
 
+[![Build Status](https://travis-ci.org/DARMA-tasking/darma-frontend.svg?branch=devel)](https://travis-ci.org/DARMA-tasking/darma-frontend)
+[![Coverage Status](https://coveralls.io/repos/github/DARMA-tasking/darma-frontend/badge.svg?branch=devel)](https://coveralls.io/github/DARMA-tasking/darma-frontend?branch=devel)
 [![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 
 Under the terms of Contract DE-NA0003525 with Sandia Corporation, 
