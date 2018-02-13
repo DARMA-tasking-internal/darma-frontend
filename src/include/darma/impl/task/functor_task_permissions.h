@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      access_handle.impl.h
+//                      functor_task.h
 //                         DARMA
 //              Copyright (C) 2017 Sandia Corporation
 //
@@ -42,49 +42,43 @@
 //@HEADER
 */
 
-#ifndef DARMAFRONTEND_ACCESS_HANDLE_IMPL_H
-#define DARMAFRONTEND_ACCESS_HANDLE_IMPL_H
+#ifndef DARMA_FUNCTOR_PERMISSIONS_H
+#define DARMA_FUNCTOR_PERMISSIONS_H
 
-#include <darma/interface/app/access_handle.h>
-
-#include <darma/impl/access_handle/access_handle_base.impl.h>
-#include <darma/impl/access_handle/access_handle_capture_description.h>
+#include <darma/impl/create_work/capture_permissions.h>
 
 namespace darma_runtime {
+namespace detail {
 
-//==============================================================================
+namespace impl {
 
-template <typename T, typename Traits>
-AccessHandle<T, Traits>::AccessHandle(
-  AccessHandle<T, Traits> const& copied_from
-) : detail::BasicAccessHandle()
-{
+template <typename LastArg>
+void
+_apply_permissions_impl(LastArg&& last_arg) {
+   last_arg.do_source_permissions_modifications();
+};
 
-  auto result = this->copy_capture_handler_t::handle_copy_construct(
-    copied_from
-  );
+template <typename FirstArg, typename... LastArgs>
+void
+_apply_permissions_impl(FirstArg&& first_arg, LastArgs&&... last_args) {
+   first_arg.do_source_permissions_modifications();
+   _apply_permissions_impl(std::forward<LastArgs>(last_args)...);
+};
 
-  // If we didn't do a capture and the argument isn't garbage (e.g., from
-  // lambda serdes process), then we need to do the normal copy constructor
-  // operations
-  if(not result.did_capture and not result.argument_is_garbage) {
-    // then we need to propagate stuff here, since no capture handler was invoked
-    // in other words, we're acting like an assignment
-    this->detail::BasicAccessHandle::_do_assignment(copied_from);
-    other_private_members_ = copied_from.other_private_members_;
-  }
+} // end namespace impl
 
-  // added by gb -- 02-08-2018
-  if (result.required_permissions) {
-    this->detail::BasicAccessHandle::_reset_handles();
-    other_private_members_ = copied_from.other_private_members_;
-  }
 
-}
+template <typename... Args>
+void permissions_downgrades(Args&&... deferred_permissions_modifications) {
+   impl::_apply_permissions_impl(std::forward<Args>(deferred_permissions_modifications)...);
+};
 
-//==============================================================================
+template <typename... Args>
+void required_permissions(Args&&... deferred_permissions_modifications) {
+   impl::_apply_permissions_impl(std::forward<Args>(deferred_permissions_modifications)...);
+};
 
+} // end namespace detail
 } // end namespace darma_runtime
 
-
-#endif //DARMAFRONTEND_ACCESS_HANDLE_IMPL_H
+#endif // DARMAFRONTEND_PERMISSIONS_DOWNGRADES_H

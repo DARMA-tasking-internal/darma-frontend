@@ -111,7 +111,13 @@ class CopyCapturedObject {
     struct handle_copy_construct_result {
       bool did_capture;
       bool argument_is_garbage;
+      bool required_permissions; // added by gb -- 02-08-2018
     };
+
+    // added by gb -- 02-09-2018
+    Derived* get_source_object() const {
+      return const_cast<Derived*>(prev_copied_from_);
+    }
 
     CopyCapturedObject() = default;
     CopyCapturedObject(CopyCapturedObject const&) = default;
@@ -137,7 +143,20 @@ class CopyCapturedObject {
         prev_copied_from_ = &copied_from;
         return {
           /* did_capture = */ false,
-          /* argument_is_garbage = */ false
+          /* argument_is_garbage = */ false,
+          /* required_permissions = */ false // added by gb -- 02-08-2018
+        };
+      }
+
+      // added by gb -- 02-08-2018 -- check if permissions were specified
+      if (running_task->must_specify_permissions &&
+        CapturedObjectAttorney::captured_as_int(copied_from) == 0
+      ) {
+        prev_copied_from_ = &copied_from;
+        return {
+          /* did_capture = */ false,
+          /* argument_is_garbage = */ false,
+          /* required_permissions = */ true // added by gb -- 02-08-2018
         };
       }
 
@@ -151,7 +170,8 @@ class CopyCapturedObject {
         // might contain garbage pointers (in the unpack case, at least)
         return {
           /* did_capture = */ false,
-          /* argument_is_garbage = */ true
+          /* argument_is_garbage = */ true,
+          /* required_permissions = */ false // added by gb -- 02-08-2018
         };
       } // end if in Lambda serdes mode
 
@@ -175,7 +195,8 @@ class CopyCapturedObject {
 
       return {
         /* did_capture = */ true,
-        /* argument_is_garbage = */ false
+        /* argument_is_garbage = */ false,
+        /* required_permissions = */ false // added by gb -- 02-08-2018
       };
 
     }
@@ -197,7 +218,20 @@ class CopyCapturedObject {
       if(capturing_task == nullptr) {
         return {
           /* did_capture = */ false,
-          /* argument_is_garbage = */ false
+          /* argument_is_garbage = */ false,
+          /* required_permissions = */ false // added by gb -- 02-08-2018
+        };
+      }
+
+      // added by gb -- 02-08-2018 -- check if permissions were specified
+      if (running_task->must_specify_permissions &&
+        CapturedObjectAttorney::captured_as_int(copied_from) == 0
+      ) {
+
+        return {
+          /* did_capture = */ false,
+          /* argument_is_garbage = */ false,
+          /* required_permissions = */ true // added by gb -- 02-08-2018
         };
       }
 
@@ -209,7 +243,8 @@ class CopyCapturedObject {
 
       return {
         /* did_capture = */ true,
-        /* argument_is_garbage = */ false
+        /* argument_is_garbage = */ false,
+        /* required_permissions = */ false // added by gb -- 02-08-2018
       };
 
     }

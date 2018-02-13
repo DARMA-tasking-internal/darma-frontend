@@ -123,6 +123,12 @@ class AccessHandleBase
       current_use_base_ = other.current_use_base_;
     }
 
+    // added by gb -- 02-08-2018
+    void _reset_handles() {
+      var_handle_base_ = nullptr;
+      current_use_base_ = nullptr;
+    }
+
 
     // </editor-fold> end assignment operator implementation }}}2
     //------------------------------------------------------------------------------

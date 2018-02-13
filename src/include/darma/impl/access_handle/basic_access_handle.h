@@ -116,6 +116,11 @@ class BasicAccessHandle : public AccessHandleBase {
       this->AccessHandleBase::_do_assignment(std::move(other));
     }
 
+    // added by gb -- 02-08-2018
+    void _reset_handles() {
+      this->AccessHandleBase::_reset_handles();
+    }
+
 
   // </editor-fold> end assignment operator implementations }}}1
   //==============================================================================

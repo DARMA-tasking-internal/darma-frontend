@@ -289,12 +289,19 @@ class AccessHandle
       // There's no lambda serdes case to worry about here
       assert(not result.argument_is_garbage);
 
-      if(not result.did_capture and not result.argument_is_garbage) {
+      if(not result.did_capture and not result.argument_is_garbage and not result.required_permissions) {
         // then we need to propagate stuff here, since no capture handler was invoked
         // in other words, we're acting like an assignment
         this->base_t::_do_assignment(copied_from);
         other_private_members_ = copied_from.other_private_members_;
       }
+
+      // added by gb -- 02-08-2017 
+      if (result.required_permissions) {
+         this->base_t::_reset_handles();
+         other_private_members_ = copied_from.other_private_members_;
+      }
+
     }
 
     // </editor-fold> end Analogous type conversion constructor }}}2
@@ -358,6 +365,11 @@ class AccessHandle
 
 
   public:
+
+    // added by gb -- 02-09-2018
+    AccessHandle& get_source_access_handle() const {
+       return *(this->copy_capture_handler_t::get_source_object());
+    }
 
     template <
       typename _Ignored=void,

@@ -550,6 +550,7 @@ class TaskBase
 
     bool is_parallel_for_task_ = false;
     bool is_data_parallel_task_ = false;
+    bool must_specify_permissions = false; // added by gb -- 02-08-2018
 
   protected:
 
