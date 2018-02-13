@@ -59,14 +59,14 @@
 #include <darma/impl/index_range/index_range_traits.h>
 #include <darma/impl/util/managing_ptr.h>
 #include <darma/impl/handle_use_base.h>
-#include "polymorphic_serialization.h"
+#include <darma/serialization/polymorphic/polymorphic_serialization_adapter.h>
 
 namespace darma_runtime {
 
 namespace detail {
 
 class HandleUse
-  : public PolymorphicSerializationAdapter<HandleUse, HandleUseBase>
+  : public serialization::PolymorphicSerializationAdapter<HandleUse, HandleUseBase>
 {
   private:
 

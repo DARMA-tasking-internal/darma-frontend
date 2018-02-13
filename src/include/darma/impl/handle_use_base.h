@@ -68,7 +68,7 @@ class HandleUseBase
     public abstract::frontend::CollectionManagingUse,
     public abstract::frontend::UsePendingRegistration,
     public abstract::frontend::UsePendingRelease,
-    public abstract::frontend::PolymorphicSerializableObject<HandleUseBase>
+    public serialization::PolymorphicSerializableObject<HandleUseBase>
 {
   public:
 

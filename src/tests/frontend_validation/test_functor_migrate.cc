@@ -246,7 +246,7 @@ TEST_F_WITH_PARAMS(
     }));
 
   char const* unpack_spot = buffer;
-  auto migrated_task = darma_runtime::abstract::frontend
+  auto migrated_task = darma_runtime::serialization
     ::PolymorphicSerializableObject<darma_runtime::abstract::frontend::Task>
     ::unpack(unpack_spot);
 

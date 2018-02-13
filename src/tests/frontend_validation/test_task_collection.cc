@@ -666,7 +666,7 @@ TEST_F(TestCreateConcurrentWork, migrate_simple) {
 
 
   char const* unpack_buffer_spot = buffer;
-  auto copied_collection = abstract::frontend::PolymorphicSerializableObject<
+  auto copied_collection = serialization::PolymorphicSerializableObject<
     abstract::frontend::TaskCollection
   >::unpack(unpack_buffer_spot);
 

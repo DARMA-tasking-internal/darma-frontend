@@ -45,8 +45,9 @@
 #ifndef DARMA_IMPL_ARRAY_INDEX_RANGE_H
 #define DARMA_IMPL_ARRAY_INDEX_RANGE_H
 
+#include <darma/serialization/polymorphic/polymorphic_serialization_adapter.h>
+
 #include <darma/interface/frontend/index_range.h>
-#include <darma/impl/polymorphic_serialization.h>
 
 namespace darma_runtime {
 
@@ -116,7 +117,7 @@ operator+ (IntegerConvertible&& other, ContiguousIndex<Integer> const& idx) {
 
 template <typename Integer>
 class ContiguousIndexRange
-  : public detail::PolymorphicSerializationAdapter<
+  : public serialization::PolymorphicSerializationAdapter<
       ContiguousIndexRange<Integer>,
       abstract::frontend::IndexRange
     >

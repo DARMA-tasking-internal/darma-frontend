@@ -48,8 +48,7 @@
 #include <memory> // std::unique_ptr
 
 namespace darma_runtime {
-namespace abstract {
-namespace frontend {
+namespace serialization {
 
 template <typename AbstractType>
 struct PolymorphicSerializableObject {
@@ -64,8 +63,9 @@ struct PolymorphicSerializableObject {
 
 };
 
-} // end namespace frontend
-} // end namespace abstract
+} // end namespace serialization
 } // end namespace darma_runtime
+
+#include <darma/serialization/polymorphic/impl/polymorphic_serializable_object.impl.h>
 
 #endif //DARMA_ABSTRACT_FRONTEND_POLYMORPHIC_SERIALIZABLE_OBJECT_H
