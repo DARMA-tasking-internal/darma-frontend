@@ -51,12 +51,12 @@
 #include <darma/impl/util.h>
 #include <darma/impl/handle.h>
 #include <darma/impl/util/smart_pointers.h>
-#include <darma/serialization/polymorphic/polymorphic_serialization.h>
-
-#include <darma/serialization/serializers/standard_library/tuple.h>
 
 #include "task_base.h"
 #include "task_ctor_helper.h"
+
+#include <darma/serialization/serializers/standard_library/tuple.h>
+#include <darma/serialization/polymorphic/polymorphic_serialization_adapter.h>
 
 #include <type_traits>
 
@@ -151,7 +151,7 @@ template <
 >
 struct FunctorTask
 #if _darma_has_feature(task_migration)
-    : PolymorphicSerializationAdapter<
+    : serialization::PolymorphicSerializationAdapter<
         FunctorTask<Functor, Args...>,
         abstract::frontend::Task,
         TaskBase
@@ -164,7 +164,7 @@ struct FunctorTask
   public:
 
     #if _darma_has_feature(task_migration)
-    using base_t = PolymorphicSerializationAdapter<
+    using base_t = serialization::PolymorphicSerializationAdapter<
       FunctorTask<Functor, Args...>,
       abstract::frontend::Task,
       TaskBase

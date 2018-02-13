@@ -47,7 +47,8 @@
 
 #include <cstdlib>
 
-#include <darma/interface/frontend/polymorphic_serializable_object.h>
+#include <darma/serialization/polymorphic/polymorphic_serializable_object.h>
+
 #include <darma/interface/frontend/serialization_manager.h>
 #include <darma/interface/frontend/array_concept_manager.h>
 
@@ -55,7 +56,7 @@ namespace darma_runtime {
 namespace abstract {
 namespace frontend {
 
-class ReduceOp : public PolymorphicSerializableObject<ReduceOp> {
+class ReduceOp : public serialization::PolymorphicSerializableObject<ReduceOp> {
   public:
     virtual ~ReduceOp(){}
 

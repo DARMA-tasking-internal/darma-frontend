@@ -193,12 +193,15 @@ template <
   typename... StoredArgs
 >
 struct TaskCollectionTaskImpl
-  : PolymorphicSerializationAdapter<
+  : serialization::PolymorphicSerializationAdapter<
       TaskCollectionTaskImpl<Functor, Mapping, StoredArgs...>,
       abstract::frontend::TaskCollectionTask<TaskBase>
     >
 {
-  using base_t = abstract::frontend::TaskCollectionTask<TaskBase>;
+  using base_t = serialization::PolymorphicSerializationAdapter<
+    TaskCollectionTaskImpl<Functor, Mapping, StoredArgs...>,
+    abstract::frontend::TaskCollectionTask<TaskBase>
+  >;
 
   using args_tuple_t = std::tuple<StoredArgs...>;
 

@@ -46,7 +46,7 @@
 #define DARMA_IMPL_INDEX_RANGE_DENSE_RANGE_H
 
 #include <darma/interface/frontend/index_range.h>
-#include <darma/serialization/polymorphic/polymorphic_serialization.h>
+#include <darma/serialization/polymorphic/polymorphic_serialization_adapter.h>
 
 namespace darma_runtime {
 namespace indexing {
@@ -56,7 +56,7 @@ namespace detail {
 template <typename Integer>
 class basic_dense_index_range
   : public abstract::frontend::IndexRange,
-    public darma_runtime::detail::PolymorphicSerializationAdapter<
+    public serialization::PolymorphicSerializationAdapter<
       basic_dense_index_range<Integer>,
       abstract::frontend::IndexRange
     >

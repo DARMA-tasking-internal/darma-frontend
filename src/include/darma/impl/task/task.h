@@ -100,7 +100,7 @@ namespace frontend {
 inline
 abstract::backend::runtime_t::task_unique_ptr
 unpack_task(void const* packed_data) {
-  return darma_runtime::abstract::frontend::PolymorphicSerializableObject<
+  return serialization::PolymorphicSerializableObject<
     abstract::frontend::Task
   >::unpack(*reinterpret_cast<char const**>(&packed_data));
 }

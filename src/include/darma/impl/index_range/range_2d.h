@@ -48,7 +48,8 @@
 #include <cassert>
 #include <type_traits>
 
-#include <darma/serialization/polymorphic/polymorphic_serialization.h>
+#include <darma/serialization/polymorphic/polymorphic_serialization_adapter.h>
+#include <darma/interface/frontend/index_range.h>
 
 namespace darma_runtime {
 
@@ -77,7 +78,7 @@ struct Range2DDenseMapping;
 
 template <typename Integer>
 struct Range2D
-  : detail::PolymorphicSerializationAdapter<
+  : serialization::PolymorphicSerializationAdapter<
       Range2D<Integer>,
       abstract::frontend::IndexRange
     >

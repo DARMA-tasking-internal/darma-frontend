@@ -46,19 +46,19 @@
 #ifndef DARMA_IMPL_COLLECTIVE_REDUCE_OP_H
 #define DARMA_IMPL_COLLECTIVE_REDUCE_OP_H
 
-#include <cstdlib>
-#include <type_traits>
-#include <set>
-#include <unordered_set>
-
 #include <darma/interface/frontend/reduce_operation.h>
 
 #include <darma/impl/array/indexable.h>
 #include <darma/impl/array/concept.h>
 #include <darma/impl/meta/has_op.h>
-#include <darma/serialization/polymorphic/polymorphic_serialization.h>
 
 #include <darma/serialization/serializers/standard_library/set.h>
+#include <darma/serialization/polymorphic/polymorphic_serialization_adapter.h>
+
+#include <cstdlib>
+#include <type_traits>
+#include <set>
+#include <unordered_set>
 
 namespace darma_runtime {
 
@@ -67,7 +67,7 @@ namespace detail {
 
 template <typename Op, typename value_type>
 class ReduceOperationWrapper
-  : public darma_runtime::detail::PolymorphicSerializationAdapter<
+  : public serialization::PolymorphicSerializationAdapter<
       ReduceOperationWrapper<Op, value_type>,
       abstract::frontend::ReduceOp
     >,

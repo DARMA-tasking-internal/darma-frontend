@@ -48,7 +48,7 @@
 #include <darma/impl/feature_testing_macros.h>
 
 #if _darma_has_feature(create_concurrent_work)
-#include <darma/serialization/polymorphic/polymorphic_serialization.h>
+#include <darma/serialization/polymorphic/polymorphic_serialization_adapter.h>
 #include <darma/impl/handle.h>
 #include <darma/impl/task_collection/access_handle_collection.h>
 #include <darma/interface/frontend/task_collection.h>
@@ -77,7 +77,7 @@ template <
 >
 struct TaskCollectionImpl
 #if _darma_has_feature(task_migration)
-  : PolymorphicSerializationAdapter<
+  : serialization::PolymorphicSerializationAdapter<
       TaskCollectionImpl<Functor, IndexRangeT, Args...>,
       abstract::frontend::TaskCollection
     >

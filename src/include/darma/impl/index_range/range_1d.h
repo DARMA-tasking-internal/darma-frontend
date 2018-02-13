@@ -52,7 +52,7 @@
 
 #include <darma/interface/frontend/index_range.h>
 
-#include <darma/serialization/polymorphic/polymorphic_serialization.h>
+#include <darma/serialization/polymorphic/polymorphic_serialization_adapter.h>
 #include <darma/impl/meta/parse_properties.h>
 
 namespace darma_runtime {
@@ -129,7 +129,7 @@ template <
   typename... Properties
 >
 struct basic_integer_range_1d
-  : darma_runtime::detail::PolymorphicSerializationAdapter<
+  : serialization::PolymorphicSerializationAdapter<
       basic_integer_range_1d<Integer>,
       abstract::frontend::IndexRange
     >
