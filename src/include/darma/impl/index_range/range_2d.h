@@ -49,7 +49,7 @@
 #include <type_traits>
 
 #include <darma/serialization/polymorphic/polymorphic_serialization_adapter.h>
-#include <darma/interface/frontend/index_range.h>
+#include <darma/indexing/abstract/index_range.h>
 
 namespace darma_runtime {
 

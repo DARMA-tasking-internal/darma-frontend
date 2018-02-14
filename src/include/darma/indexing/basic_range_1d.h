@@ -2,11 +2,11 @@
 //@HEADER
 // ************************************************************************
 //
-//                      index_range.h
+//                      basic_range_1d.h
 //                         DARMA
-//              Copyright (C) 2017 NTESS, LLC
+//              Copyright (C) 2018 Sandia Corporation
 //
-// Under the terms of Contract DE-NA-0003525 with NTESS, LLC,
+// Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -36,43 +36,59 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Questions? Contact darma@sandia.gov
+// Questions? Contact David S. Hollman (dshollm@sandia.gov)
 //
 // ************************************************************************
 //@HEADER
 */
 
-#ifndef DARMA_INTERFACE_FRONTEND_INDEX_RANGE_H
-#define DARMA_INTERFACE_FRONTEND_INDEX_RANGE_H
+#ifndef DARMAFRONTEND_INDEXING_BASIC_RANGE_1D_H
+#define DARMAFRONTEND_INDEXING_BASIC_RANGE_1D_H
 
-#include <darma/serialization/polymorphic/polymorphic_serializable_object.h>
+#include <darma/serialization/polymorphic/polymorphic_serialization_adapter.h>
 
-#include <cstdlib> // size_t
+#include <darma/utility/wrap_iterator.h>
 
 namespace darma_runtime {
-namespace abstract {
-namespace frontend {
+namespace indexing {
 
-/** @todo
- *
- */
-class IndexRange
-  : public serialization::PolymorphicSerializableObject<IndexRange>
+template <typename Integer>
+class basic_range_1d
+  : public serialization::PolymorphicSerializationAdapter<
+      basic_range_1d<Integer>,
+      abstract::IndexRange
+    >
 {
-  public:
-    /** 
-     *
-     * @return
-     */
-    virtual size_t size() const =0;
+  private:
 
-    virtual ~IndexRange(){}
+    Integer size_;
+    Integer offset_;
+
+  public:
+
+    using is_index_range = std::true_type;
+    using iterator = utility::integer_wrap_iterator<Integer>;
+
+    size_t size() const override { return size_; }
+
+    template <typename ArchiveT>
+    void serialize(ArchiveT& ar) {
+      ar | size_ | offset_;
+    }
+
+    constexpr iterator begin() const {
+      return iterator(offset_);
+    }
+
+    constexpr iterator end() const {
+      return iterator(offset_ + size_);
+    }
 
 };
 
 
-} // end namespace frontend
-} // end namespace abstract
+
+} // end namespace indexing
 } // end namespace darma_runtime
 
-#endif //DARMA_INTERFACE_FRONTEND_INDEX_RANGE_H
+#endif //DARMAFRONTEND_INDEXING_BASIC_RANGE_1D_H

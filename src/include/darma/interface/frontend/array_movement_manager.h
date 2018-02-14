@@ -46,7 +46,7 @@
 #define DARMA_INTERFACE_FRONTEND_ARRAY_MOVEMENT_MANAGER_H
 
 #include <darma/interface/backend/serialization_policy.h>
-#include <darma/interface/frontend/index_range.h>
+#include <darma/indexing/abstract/index_range.h>
 
 namespace darma_runtime {
 namespace abstract {

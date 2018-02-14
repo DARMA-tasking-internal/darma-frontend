@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      region_context_handle.h
+//                      index_range.h
 //                         DARMA
 //              Copyright (C) 2017 NTESS, LLC
 //
@@ -42,26 +42,41 @@
 //@HEADER
 */
 
-#ifndef DARMA_INTERFACE_BACKEND_REGION_CONTEXT_HANDLE_H
-#define DARMA_INTERFACE_BACKEND_REGION_CONTEXT_HANDLE_H
+#ifndef DARMA_INTERFACE_FRONTEND_INDEX_RANGE_H
+#define DARMA_INTERFACE_FRONTEND_INDEX_RANGE_H
 
-#include <darma/indexing/abstract/index_range.h>
+#include <darma/serialization/polymorphic/polymorphic_serializable_object.h>
 
-#include "backend_fwd.h"
-
-// TODO delete this file
+#include <cstdlib> // size_t
+#include <type_traits> // std::true_type
 
 namespace darma_runtime {
+namespace indexing {
 namespace abstract {
-namespace backend {
 
-struct TaskCollectionContextHandle {
+/** @todo
+ *
+ */
+class IndexRange
+  : public serialization::PolymorphicSerializableObject<IndexRange>
+{
   public:
-    virtual size_t get_backend_index() const =0;
+
+    using is_index_range = std::true_type;
+
+    /** 
+     *
+     * @return
+     */
+    virtual size_t size() const =0;
+
+    virtual ~IndexRange(){}
+
 };
 
-} // end namespace backend
+
 } // end namespace abstract
+} // end namespace indexing
 } // end namespace darma_runtime
 
-#endif //DARMA_INTERFACE_BACKEND_REGION_CONTEXT_HANDLE_H
+#endif //DARMA_INTERFACE_FRONTEND_INDEX_RANGE_H

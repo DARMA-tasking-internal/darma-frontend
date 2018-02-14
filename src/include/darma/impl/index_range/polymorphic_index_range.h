@@ -45,7 +45,7 @@
 #ifndef DARMA_IMPL_INDEX_RANGE_POLYMORPHIC_INDEX_RANGE_H
 #define DARMA_IMPL_INDEX_RANGE_POLYMORPHIC_INDEX_RANGE_H
 
-#include <darma/interface/frontend/index_range.h>
+#include <darma/indexing/abstract/index_range.h>
 
 #include "polymorphic_mapping.h"
 

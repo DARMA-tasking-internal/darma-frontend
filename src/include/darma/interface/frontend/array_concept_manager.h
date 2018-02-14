@@ -46,7 +46,7 @@
 #define DARMA_INTERFACE_FRONTEND_ARRAY_CONCEPT_MANAGER_H
 
 #include "element_range.h"
-#include "index_range.h"
+#include "darma/indexing/abstract/index_range.h"
 #include <darma/utility/darma_assert.h>
 #include <darma/interface/defaults/pointers.h>
 
