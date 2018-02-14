@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      basic_range_1d.h
+//                      polymorphic.h
 //                         DARMA
 //              Copyright (C) 2018 Sandia Corporation
 //
@@ -42,65 +42,53 @@
 //@HEADER
 */
 
-#ifndef DARMAFRONTEND_INDEXING_BASIC_RANGE_1D_H
-#define DARMAFRONTEND_INDEXING_BASIC_RANGE_1D_H
+#ifndef DARMAFRONTEND_SERIALIZATION_SERIALIZERS_POLYMORPHIC_H
+#define DARMAFRONTEND_SERIALIZATION_SERIALIZERS_POLYMORPHIC_H
 
-#include <darma/serialization/serialization_traits.h> // is_directly_serializable
-#include <darma/serialization/serializers/arithmetic_types.h> // is_directly_serializable<Integer>
-#include <darma/serialization/serializers/const.h> // is_directly_serializable<const Integer>
+#include <darma/serialization/polymorphic/polymorphic_serializable_object.h>
+#include <darma/serialization/pointer_reference_handler.h>
 
-#include <darma/utility/wrap_iterator.h>
-
-#include <cstdint>
+#include <type_traits> // std::is_base_of
+#include <memory>
 
 namespace darma_runtime {
-namespace indexing {
+namespace serialization {
 
-template <typename Integer>
-class basic_range_1d {
+template <typename T>
+struct Serializer_enabled_if<
+  std::unique_ptr<T>,
+  std::enable_if_t<std::is_base_of<PolymorphicSerializableObject<T>, T>::value>
+>
+{
+  template <typename SizingArchive>
+  static void compute_size(std::unique_ptr<T> const& ptr, SizingArchive& ar) {
+    ar.add_to_size_raw(ptr->get_packed_size());
+  }
 
-  private:
+  template <typename PackingArchive>
+  static void pack(std::unique_ptr<T> const& ptr, PackingArchive& ar) {
+    auto ptr_ar = PointerReferenceSerializationHandler<>::make_packing_archive_referencing(ar);
+    ptr->pack(*reinterpret_cast<char const**>(&ptr_ar.data_pointer_reference()));
+  }
 
-    Integer size_;
-    Integer offset_;
+  template <typename UnpackingArchive>
+  static void unpack(void* allocated, UnpackingArchive& ar) {
 
-  public:
+    auto ptr_ar = PointerReferenceSerializationHandler<>::make_unpacking_archive_referencing(ar);
 
-    using is_index_range = std::true_type;
-    using iterator = utility::integer_wrap_iterator<Integer>;
-    using index_type = Integer;
+    // TODO allocator support? (Can't do this unless there's a deleter that references the same allocator)
+    new (allocated) std::unique_ptr<T>(
+      PolymorphicSerializableObject<T>::unpack(
+        *reinterpret_cast<char const**>(&ptr_ar.data_pointer_reference())
+      )
+    );
 
-    size_t size() const { return size_; }
-
-    template <typename ArchiveT>
-    void serialize(ArchiveT& ar) {
-      // Only used if Integer is not directly serializable
-      ar | size_ | offset_;
-    }
-
-    constexpr iterator begin() const {
-      return iterator(offset_);
-    }
-
-    constexpr iterator end() const {
-      return iterator(offset_ + size_);
-    }
+  }
 
 };
 
-using range_1d = basic_range_1d<int64_t>
-
-} // end namespace indexing
-
-namespace serialization {
-
-template <typename Integer>
-struct is_directly_serializable<indexing::basic_range_1d<Integer>>
-  : is_directly_serializable<Integer>
-{ };
 
 } // end namespace serialization
-
 } // end namespace darma_runtime
 
-#endif //DARMAFRONTEND_INDEXING_BASIC_RANGE_1D_H
+#endif //DARMAFRONTEND_SERIALIZATION_SERIALIZERS_POLYMORPHIC_H
