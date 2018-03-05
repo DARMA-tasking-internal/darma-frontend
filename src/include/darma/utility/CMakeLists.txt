@@ -8,6 +8,7 @@ set(DARMA_UTILITY_HEADERS
   macros.h
   managed_swap_storage.h
   not_a_type.h
+  optional_boolean.h
   safe_static_cast.h
   static_assertions.h
 )
