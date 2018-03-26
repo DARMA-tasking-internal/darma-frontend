@@ -52,6 +52,10 @@
 #include <darma/impl/handle.h>
 #include <darma/impl/util/smart_pointers.h>
 
+#include <darma/impl/task/functor_task_permissions.h>
+
+#include <darma/serialization/serializers/standard_library/tuple.h>
+
 #include "task_base.h"
 #include "task_ctor_helper.h"
 
