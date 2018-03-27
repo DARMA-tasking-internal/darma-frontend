@@ -45,8 +45,13 @@
 #ifndef DARMA_PIECEWISE_COLLECTION_HANDLE_H
 #define DARMA_PIECEWISE_COLLECTION_HANDLE_H
 
+#include <darma/impl/feature_testing_macros.h>
+
+#if _darma_has_feature(mpi_interop)
+
 #include <darma/keyword_arguments/parse.h>
 #include <darma/keyword_arguments/macros.h>
+#include <darma/impl/task_collection/access_handle_collection.h>
 
 DeclareDarmaTypeTransparentKeyword(piecewise_handle, index);
 DeclareDarmaTypeTransparentKeyword(piecewise_handle, copy_callback);
@@ -55,6 +60,10 @@ DeclareDarmaTypeTransparentKeyword(piecewise_handle, copy_back_callback);
 namespace darma_runtime {
 
 namespace detail {
+
+struct _default_callback {
+  auto operator()() {return nullptr;}
+};
 
 template <typename ValueType>
 struct 
@@ -82,8 +91,7 @@ _piecewise_collection_handle_impl {
       variadic_arguments_begin_tag, 
       ValueType& data
     ) { 
-      auto runtime = abstract::backend::get_backend_runtime();
-      runtime->register_piecewise_collection_piece(
+      register_piecewise_collection_piece(
         context_token_,
         collection_token_,
         index,
@@ -111,12 +119,20 @@ class PiecewiseCollectionHandle {
   private:
 
     // AccessHandleCollection type for conversion operator
+    using ah_analog_traits = typename detail::make_access_handle_traits<ValueType
+    >::template from_traits<
+      detail::make_access_handle_traits_t<ValueType,
+        detail::static_scheduling_permissions<detail::AccessHandlePermissions::Modify>,
+        detail::required_scheduling_permissions<detail::AccessHandlePermissions::Modify>
+      >
+    >::type;
+
     using access_handle_collection_t = AccessHandleCollection<
-      value_t, index_range_t,
-      access_handle_collection_traits<
-        value_t, std::decay_t<index_range_t>,
+      ValueType, IndexRangeT,
+      detail::access_handle_collection_traits<
+        ValueType, std::decay_t<IndexRangeT>,
         typename ah_analog_traits::permissions_traits,
-        ahc_traits::semantic_traits<
+        detail::ahc_traits::semantic_traits<
           /* IsOuter = */ OptionalBoolean::KnownTrue,
           typename ah_analog_traits::semantic_traits,
           /* IsMapped = */ OptionalBoolean::Unknown
@@ -145,7 +161,6 @@ class PiecewiseCollectionHandle {
 
   public:
  
-    // TODO: default callback and copy back callback
     template <typename... Args>
     void 
     acquire_access(Args&&... args) const {
@@ -166,8 +181,8 @@ class PiecewiseCollectionHandle {
 
       parser()
         .with_default_generators(
-          keyword_arguments_for_piecewise_handle::copy_callback=[]{return nullptr;}
-          keyword_arguments_for_piecewise_handle::copy_back_callback=[]{return nullptr;}
+          keyword_arguments_for_piecewise_handle::copy_callback=_default_callback{},
+          keyword_arguments_for_piecewise_handle::copy_back_callback=_default_callback{}
         )
         .parse_args(std::forward<Args>(args)...)
         .invoke(detail::_piecewise_collection_handle_impl<ValueType>(context_token_, collection_token_));
@@ -178,8 +193,11 @@ class PiecewiseCollectionHandle {
     operator access_handle_collection_t() {
 
       // TODO: change flow relationships
+      using namespace darma_runtime::detail;
+      using namespace darma_runtime::detail::flow_relationships;
+
       auto use_holder = detail::UseHolder<
-        BasicCollectionManagingUse<index_range_t>
+        BasicCollectionManagingUse<IndexRangeT>
       >::create(
         make_unmapped_use_collection(
           std::forward<IndexRangeT>(range_)
@@ -187,16 +205,16 @@ class PiecewiseCollectionHandle {
         var_handle_,
         darma_runtime::frontend::Permissions::Modify,
         darma_runtime::frontend::Permissions::None,
-        initial_flow().as_collection_relationship(),
+        initial_imported_flow().as_collection_relationship(),
         null_flow().as_collection_relationship(),
         insignificant_flow().as_collection_relationship(),
-        initial_anti_flow().as_collection_relationship(),
+        initial_imported_anti_flow().as_collection_relationship(),
         frontend::CoherenceMode::Sequential
       );
       use_holder->could_be_alias = true;
 
       return access_handle_collection_t(
-        var_handle, std::move(use_holder)
+        var_handle_, std::move(use_holder)
       );
     }
 
@@ -211,5 +229,7 @@ class PiecewiseCollectionHandle {
 };
 
 } // end namespace darma_runtime
+
+#endif // _darma_has_feature(mpi_interop)
 
 #endif //DARMA_PIECEWISE_COLLECTION_HANDLE_H
