@@ -270,6 +270,64 @@ namespace darma_runtime { namespace types {
 
 #include <darma/key/SSO_key.h>
 
+namespace mock_backend {
+
+struct MockRuntimeContextToken {
+  MockRuntimeContextToken() : token_(0) { }
+  MockRuntimeContextToken(size_t token) : token_(token) { }
+  MockRuntimeContextToken(MockRuntimeContextToken const& other) = default;
+  MockRuntimeContextToken(MockRuntimeContextToken&& other) = default;
+  MockRuntimeContextToken& operator=(MockRuntimeContextToken const& other) = default;
+  MockRuntimeContextToken& operator=(MockRuntimeContextToken&& other) = default;
+  size_t token_;
+  template <typename Archive> 
+  void serialize(Archive& ar) { ar | token_;}
+};
+
+} // end namespace mock_backend
+
+namespace darma_runtime { namespace types {
+  using runtime_context_token_t = mock_backend::MockRuntimeContextToken;
+}} // end namespace darma_runtime::types
+
+namespace mock_backend {
+
+struct MockRuntimePiecewiseCollectionToken {
+  MockRuntimePiecewiseCollectionToken() : token_(0) { }
+  MockRuntimePiecewiseCollectionToken(size_t token) : token_(token) { }
+  MockRuntimePiecewiseCollectionToken(MockRuntimePiecewiseCollectionToken const& other) = default;
+  MockRuntimePiecewiseCollectionToken(MockRuntimePiecewiseCollectionToken&& other) = default;
+  MockRuntimePiecewiseCollectionToken& operator=(MockRuntimePiecewiseCollectionToken const&other) = default;
+  MockRuntimePiecewiseCollectionToken& operator=(MockRuntimePiecewiseCollectionToken&& other) = default;
+  size_t token_;
+  template <typename Archive>
+  void serialize(Archive& ar) { ar | token_; }
+};
+
+} // end namespace mock_backend
+
+namespace darma_runtime { namespace types {
+using piecewise_collection_token_t = mock_backend::MockRuntimePiecewiseCollectionToken;
+}} // end namespace darma_runtime::types
+
+namespace mock_backend {
+
+struct MockRuntimeMPIComm {
+  MockRuntimeMPIComm() : token_(0) { }
+  MockRuntimeMPIComm(MockRuntimeMPIComm const& other) = default;
+  MockRuntimeMPIComm(MockRuntimeMPIComm&& other) = default;
+  MockRuntimeMPIComm& operator=(MockRuntimeMPIComm const& other) = default;
+  MockRuntimeMPIComm& operator=(MockRuntimeMPIComm&& other) = default;
+  size_t token_;
+  template <typename Archive>
+  void serialize(Archive& ar) { ar | token_; }
+};
+
+} // end namespace mock_backend
+
+namespace darma_runtime { namespace types {
+using MPI_Comm = mock_backend::MockRuntimeMPIComm;
+}} // end namespace darma_runtime::types
 
 
 #endif /* SRC_TESTS_FRONTEND_VALIDATION_DARMA_TYPES_H_ */

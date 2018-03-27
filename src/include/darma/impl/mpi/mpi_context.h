@@ -45,8 +45,15 @@
 #ifndef DARMA_MPI_H
 #define DARMA_MPI_H
 
+#include <darma/impl/feature_testing_macros.h>
+
+#if _darma_has_feature(mpi_interop)
+
+#include <tinympl/is_instantiation_of.hpp>
+
 #include <darma/keyword_arguments/parse.h>
 #include <darma/keyword_arguments/macros.h>
+#include <darma/impl/array/index_range.h>
 #include <darma/impl/mpi/piecewise_acquired_collection.h>
 
 DeclareDarmaTypeTransparentKeyword(mpi_context, data);
@@ -70,7 +77,8 @@ _piecewise_acquired_collection_creation_impl {
     template<typename IndexTupleDeducedT,
       typename DataTupleDeducedT,
       typename CopyCallbackT,
-      typename CopyBackCallbackT 
+      typename CopyBackCallbackT,
+      size_t... Idxs
     >
     void _register_piecewise_collection_pieces_impl( 
       types::piecewise_collection_token_t collection_token,
@@ -78,19 +86,21 @@ _piecewise_acquired_collection_creation_impl {
       DataTupleDeducedT&& data_tuple,
       std::index_sequence<Idxs...> /** unused **/,
       CopyCallbackT&& copy_callback,
-      CopyBackCallbackT&& copy_back_callback,
+      CopyBackCallbackT&& copy_back_callback
     ) {
 
       // Create functor
       auto functor = _piecewise_collection_handle_impl<ValueType>(context_token_, collection_token); 
 
       std::make_tuple( // fold emulation through comma operator
-        (functor(std::get<Idxs(index_tuple),
+        (functor(std::get<Idxs>(index_tuple),
            std::forward<CopyCallbackT>(copy_callback),
            std::forward<CopyBackCallbackT>(copy_back_callback),
+           variadic_arguments_begin_tag{},
            std::forward<decltype(std::get<Idxs>(data_tuple))>(std::get<Idxs>(data_tuple))           
         ), 0)...
       );
+
     }
 
   public:
@@ -99,14 +109,20 @@ _piecewise_acquired_collection_creation_impl {
       types::runtime_context_token_t context_token
     ) : context_token_(context_token) {}
 
+
+  public:
+
+    /* index_range keyword version */
     template <typename IndexRangeT, 
+      typename = std::enable_if_t<
+        std::is_base_of<abstract::frontend::IndexRange, IndexRangeT>::value
+      >,
       typename FirstArg,
       typename... LastArgs
     >
     auto
     operator()(
       IndexRangeT&& index_range,
-      size_t size,
       variadic_arguments_begin_tag,
       FirstArg&& arg,
       LastArgs&&... args
@@ -117,10 +133,10 @@ _piecewise_acquired_collection_creation_impl {
       auto var_handle = std::make_shared<VariableHandle<ValueType>>(key);
 
       // Register handle with the backend as part of a piecewise collection
-      auto collection_token = abstract::backend::get_backend_runtime()->register_piecewise_collection(
+      auto collection_token = register_piecewise_collection(
         context_token_,
         var_handle,
-        size
+        index_range.size()
       );    
 
       // Create a PiecewiseCollectionHandle object ...
@@ -134,10 +150,55 @@ _piecewise_acquired_collection_creation_impl {
       // ... and return it
       return piecewise_collection;
     }  
-  
+ 
+
+    /* size keyword version */
+    template <typename FirstArg,
+      typename... LastArgs
+    >
+    auto
+    operator()(
+      size_t size,
+      variadic_arguments_begin_tag,
+      FirstArg&& arg,
+      LastArgs&&... args
+    ) {
+
+      // Create key and handle
+      auto key = make_key(std::forward<FirstArg>(arg), std::forward<LastArgs>(args)...);
+      auto var_handle = std::make_shared<VariableHandle<ValueType>>(key);
+
+      // Register handle with the backend as part of a piecewise collection
+      auto collection_token = register_piecewise_collection(
+        context_token_,
+        var_handle,
+        size
+      );
+
+      // Create a one-dimension index range
+      auto index_range = Range1D<int>(size);
+
+      // Create a PiecewiseCollectionHandle object ...
+      auto piecewise_collection = PiecewiseCollectionHandle<ValueType, Range1D<int>>(
+        var_handle,
+        index_range,
+        context_token_,
+        collection_token
+      );
+
+      // ... and return it
+      return piecewise_collection;
+    }
+
+  public:
+
+    /* index_range keyword version */ 
     template <typename IndexRangeT, 
       typename CopyCallbackT,
       typename CopyBackCallbackT,
+      typename = std::enable_if_t<
+        std::is_base_of<abstract::frontend::IndexRange, IndexRangeT>::value
+      >,
       typename FirstArg, 
       typename... LastArgs
     >
@@ -146,7 +207,6 @@ _piecewise_acquired_collection_creation_impl {
       IndexRangeT&& index_range,
       ValueType& data,
       size_t index,
-      size_t size,
       CopyCallbackT&& copy_callback,
       CopyBackCallbackT&& copy_back_callback,
       variadic_arguments_begin_tag,
@@ -158,14 +218,11 @@ _piecewise_acquired_collection_creation_impl {
       auto key = make_key(std::forward<FirstArg>(arg), std::forward<LastArgs>(args)...);
       auto var_handle = std::make_shared<VariableHandle<ValueType>>(key);
 
-      // Get a handle to the runtime
-      auto runtime = abstract::backend::get_backend_runtime();
-
       // Register handle with the backend as part of a piecewise collection
-      auto collection_token = runtime->register_piecewise_collection(
+      auto collection_token = register_piecewise_collection(
         context_token_,
         var_handle,
-        size
+        index_range.size()
       );
 
       // Create a PiecewiseCollectionHandle object 
@@ -185,25 +242,77 @@ _piecewise_acquired_collection_creation_impl {
         data
       );
    
-      // Call register_piecewise_collection_piece -- This version is probably faster,
-//      runtime->register_piecewise_collection_piece(
-//        context_token_,
-//        collection_token,
-//        index,
-//        data,
-//        std::forward<CopyCallbackT>(copy_callback),
-//        std::forward<CopyBackCallbackT>(copy_back_callback)
-//      ); 
-
       // Return the PiecewiseCollectionHandle object created above
       return piecewise_collection;
     }
 
+
+    /* size keyword version */
+    template <typename CopyCallbackT,
+      typename CopyBackCallbackT,
+      typename FirstArg,
+      typename... LastArgs
+    >
+    auto
+    operator()(
+      size_t size,
+      ValueType& data,
+      size_t index,
+      CopyCallbackT&& copy_callback,
+      CopyBackCallbackT&& copy_back_callback,
+      variadic_arguments_begin_tag,
+      FirstArg&& arg,
+      LastArgs&&... args
+    ) {
+
+      // Create key and handle
+      auto key = make_key(std::forward<FirstArg>(arg), std::forward<LastArgs>(args)...);
+      auto var_handle = std::make_shared<VariableHandle<ValueType>>(key);
+
+      // Register handle with the backend as part of a piecewise collection
+      auto collection_token = register_piecewise_collection(
+        context_token_,
+        var_handle,
+        size
+      );
+
+      // Create a one-dimension index range
+      auto index_range = Range1D<int>(size);
+ 
+      // Create a PiecewiseCollectionHandle object 
+      auto piecewise_collection = PiecewiseCollectionHandle<ValueType, Range1D<int>>(
+        var_handle,
+        index_range,
+        context_token_,
+        collection_token
+      );
+  
+      // Register the piecewise collection piece
+      _piecewise_collection_handle_impl<ValueType>(context_token_, collection_token)(
+        index,
+        std::forward<CopyCallbackT>(copy_callback),
+        std::forward<CopyBackCallbackT>(copy_back_callback),
+        variadic_arguments_begin_tag{}, 
+        data
+      );
+  
+      // Return the PiecewiseCollectionHandle object created above
+      return piecewise_collection;
+    }
+
+
+  public:
+
+    /* index_range keyword version */
     template <typename IndexRangeT,
       typename DataTupleDeducedT,
       typename IndexTupleDeducedT,
       typename CopyCallbackT,
       typename CopyBackCallbackT,
+      typename = std::enable_if_t<
+        std::is_base_of<abstract::frontend::IndexRange, IndexRangeT>::value &&
+        tinympl::is_instantiation_of<std::tuple, DataTupleDeducedT>::value
+      >,
       typename FirstArg,
       typename... LastArgs
     >
@@ -214,7 +323,6 @@ _piecewise_acquired_collection_creation_impl {
       IndexTupleDeducedT&& index_tuple,
       CopyCallbackT&& copy_callback,
       CopyBackCallbackT&& copy_back_callback, 
-      size_t size,
       variadic_arguments_begin_tag,
       FirstArg&& arg,
       LastArgs&&... args 
@@ -222,22 +330,19 @@ _piecewise_acquired_collection_creation_impl {
 
       // Require data and index tuple to have the same number of elements
       static_assert(
-        std::tuple_size<std::decay_t<IndexTupleDeducedT>::value == std::tuple_size<std::decay_t<DataTupleDeducedT>>::value, 
-        "Error: data and index tuple passed to piecewise_acquired_collection must have the same number of elements. \n"
+        std::tuple_size<std::decay_t<IndexTupleDeducedT>>::value == std::tuple_size<std::decay_t<DataTupleDeducedT>>::value, 
+        "Error: data and index tuple passed to piecewise_acquired_collection must have the same number of elements !!"
       ); 
 
       // Create key and handle
       auto key = make_key(std::forward<FirstArg>(arg), std::forward<LastArgs>(args)...);
       auto var_handle = std::make_shared<VariableHandle<ValueType>>(key);
 
-      // Get a handle to the runtime
-      auto runtime = abstract::backend::get_backend_runtime();
-
       // Register handle with the backend as part of a piecewise collection
-      auto collection_token = runtime()->register_piecewise_collection(
+      auto collection_token = register_piecewise_collection(
         context_token_,
         var_handle,
-        size
+        index_range.size()
       );
 
       // Create a PiecewiseCollectionHandle object
@@ -262,6 +367,72 @@ _piecewise_acquired_collection_creation_impl {
       return piecewise_collection;
     }
 
+    
+    /* size keyword version */
+    template <typename DataTupleDeducedT,
+      typename IndexTupleDeducedT,
+      typename CopyCallbackT,
+      typename CopyBackCallbackT,
+      typename = std::enable_if_t<
+        tinympl::is_instantiation_of<std::tuple, DataTupleDeducedT>::value
+      >,
+      typename FirstArg,
+      typename... LastArgs
+    >
+    auto
+    operator()(
+      size_t size,
+      DataTupleDeducedT&& data_tuple,
+      IndexTupleDeducedT&& index_tuple,
+      CopyCallbackT&& copy_callback,
+      CopyBackCallbackT&& copy_back_callback,
+      variadic_arguments_begin_tag,
+      FirstArg&& arg,
+      LastArgs&&... args
+    ) {
+
+      // Require data and index tuple to have the same number of elements
+      static_assert(
+        std::tuple_size<std::decay_t<IndexTupleDeducedT>>::value == std::tuple_size<std::decay_t<DataTupleDeducedT>>::value, 
+        "Error: data and index tuple passed to piecewise_acquired_collection must have the same number of elements. \n"
+      ); 
+
+      // Create key and handle
+      auto key = make_key(std::forward<FirstArg>(arg), std::forward<LastArgs>(args)...);
+      auto var_handle = std::make_shared<VariableHandle<ValueType>>(key);
+
+      // Register handle with the backend as part of a piecewise collection
+      auto collection_token = register_piecewise_collection(
+        context_token_,
+        var_handle,
+        size
+      );
+
+      // Create a one-dimension index range
+      auto index_range = Range1D<int>(size);
+
+      // Create a PiecewiseCollectionHandle object
+      auto piecewise_collection = PiecewiseCollectionHandle<ValueType, Range1D<int>>(
+        var_handle,
+        index_range,
+        context_token_,
+        collection_token
+      );
+
+      // Call private helper method to register the piecewise collection pieces
+      _register_piecewise_collection_pieces_impl(
+        collection_token,
+        std::forward<IndexTupleDeducedT>(index_tuple),
+        std::forward<DataTupleDeducedT>(data_tuple),
+        std::make_index_sequence<std::tuple_size<std::decay_t<IndexTupleDeducedT>>::value>(),
+        std::forward<CopyCallbackT>(copy_callback),
+        std::forward<CopyBackCallbackT>(copy_back_callback) 
+      );
+
+      // Return the PiecewiseCollectionHandle created above
+      return piecewise_collection;
+    }  
+
   private:
  
     types::runtime_context_token_t context_token_;
@@ -280,8 +451,8 @@ class mpi_context {
 
   public:
 
-    explicit mpi_context(MPI_Comm comm) {
-      runtime_token_ = abstract::backend::get_backend_runtime()->create_runtime_context(comm);  
+    explicit mpi_context(types::MPI_Comm comm) {
+      runtime_token_ = create_runtime_context(comm); 
     } 
 
   public:
@@ -301,14 +472,22 @@ class mpi_context {
 
       using parser = kwarg_parser<
         variadic_positional_overload_description<
-          _keyword<deduced_parameter, index_range>,
-          _optional_keyword<size_t, size>
+          _keyword<deduced_parameter, index_range>
+        >,
+        variadic_positional_overload_description<
+          _keyword<size_t, size>
         >,
         variadic_positional_overload_description<
           _keyword<deduced_parameter, index_range>,
           _keyword<deduced_parameter, data>,
           _keyword<size_t, index>,
-          _optional_keyword<size_t, size>,
+          _optional_keyword<deduced_parameter, copy_callback>,
+          _optional_keyword<deduced_parameter, copy_back_callback>
+        >,
+        variadic_positional_overload_description<
+          _keyword<size_t, size>,
+          _keyword<deduced_parameter, data>,
+          _keyword<size_t, index>,
           _optional_keyword<deduced_parameter, copy_callback>,
           _optional_keyword<deduced_parameter, copy_back_callback>
         >,
@@ -316,19 +495,24 @@ class mpi_context {
           _keyword<deduced_parameter, index_range>,
           _keyword<converted_parameter, data>,
           _keyword<converted_parameter, indices>,
-          _optional_keyword<size_t, size>,
           _optional_keyword<deduced_parameter, copy_callback>,
           _optional_keyword<deduced_parameter, copy_back_callback> 
+        >,
+        variadic_positional_overload_description<
+          _keyword<size_t, size>,
+          _keyword<converted_parameter, data>,
+          _keyword<converted_parameter, indices>,
+          _optional_keyword<deduced_parameter, copy_callback>,
+          _optional_keyword<deduced_parameter, copy_back_callback>
         >
       >;
       using _______________see_calling_context_on_next_line________________ = typename parser::template static_assert_valid_invocation<Args...>;
 
-      // TODO: default callback and copy back callback
+      // Invoke parser
       return parser()
         .with_default_generators(
-          keyword_arguments_for_mpi_context::size=[]{return 0ul;},
-          keyword_arguments_for_mpi_context::copy_callback=[]{return nullptr; /* placeholder -- replace with actual default function */},
-          keyword_arguments_for_mpi_context::copy_back_callback=[]{return nullptr; /* placeholder -- replace with actual default function */}
+          keyword_arguments_for_mpi_context::copy_callback=_default_callback{},
+          keyword_arguments_for_mpi_context::copy_back_callback=_default_callback{}
         )
         .with_converters(
           [](auto&&... data_parts) {
@@ -347,14 +531,14 @@ class mpi_context {
     template <typename Callable>
     void
     run_distributed_region_blocking(Callable&& callable) {
-      abstract::backend::get_backend_runtime()->run_distributed_region(
+      run_distributed_region(
         runtime_token_,
         std::forward<Callable>(callable)
       );
     }
 
     void run_distributed_region_worker_blocking() {
-      // TODO: what should be done here? Ask Jonathan or David
+      run_distributed_region_worker(runtime_token_);
     }
 
   private:
@@ -363,5 +547,7 @@ class mpi_context {
 };
 
 } // end namespace darma_runtime
+
+#endif // _darma_has_feature(mpi_interop)
 
 #endif //DARMA_MPI_H 
