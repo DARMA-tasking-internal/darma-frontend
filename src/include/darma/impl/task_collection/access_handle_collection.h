@@ -77,6 +77,11 @@
 
 #include <darma/impl/collective/collective_fwd.h> // detail::op_not_given
 
+#if _darma_has_feature(mpi_interop)
+#include <darma/impl/mpi/piecewise_acquired_collection_fwd.h>
+#endif // _darma_has_feature(mpi_interop)
+
+
 namespace darma_runtime {
 
 //==============================================================================
@@ -410,6 +415,11 @@ class AccessHandleCollection
 
     template <typename>
     friend struct detail::CopyCapturedObject;
+
+#if _darma_has_feature(mpi_interop)
+    template <typename, typename>
+    friend struct PiecewiseCollectionHandle;
+#endif // _darma_has_feature(mpi_interop)
 
   // </editor-fold> end friends }}}1
   //============================================================================

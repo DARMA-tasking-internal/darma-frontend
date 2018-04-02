@@ -55,6 +55,7 @@ class UseHolderBase {
   public:
 
     bool could_be_alias = false;
+    bool is_use_registered = true;
     HandleUseBase* use_base = nullptr;
 
     virtual ~UseHolderBase() = default;
@@ -129,6 +130,18 @@ class UseHolder : public UseHolderBase {
       return rv;
     }
 
+    // create a UseHolder but without registering it
+    template <typename... UseCtorArgs>
+    static std::shared_ptr<UseHolder>
+    create_with_unregistered_use(UseCtorArgs&&... args) {
+      auto rv = std::make_shared<UseHolder>(
+        private_ctor_tag,
+        std::forward<UseCtorArgs>(args)...
+      );
+      rv->is_use_registered = false;
+      return rv;
+    }
+
 #if _darma_has_feature(task_migration)
     template <typename... UseCtorArgs>
     static std::shared_ptr<UseHolder>
@@ -160,6 +173,15 @@ class UseHolder : public UseHolderBase {
           abstract::backend::get_backend_runtime()->release_use(&to_be_released);
         }
       );
+    }
+
+    void 
+    register_unregistered_use() {
+      if (!is_use_registered) {
+        assert(use_ || !"Can't register Use when UseHolder doesn't contain a registered Use!");
+        is_use_registered = true;
+        abstract::backend::get_backend_runtime()->register_use(this->use_base);      
+      }
     }
 
     template <

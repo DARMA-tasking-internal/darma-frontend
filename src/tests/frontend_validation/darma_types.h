@@ -297,7 +297,7 @@ struct MockRuntimePiecewiseCollectionToken {
   MockRuntimePiecewiseCollectionToken(size_t token) : token_(token) { }
   MockRuntimePiecewiseCollectionToken(MockRuntimePiecewiseCollectionToken const& other) = default;
   MockRuntimePiecewiseCollectionToken(MockRuntimePiecewiseCollectionToken&& other) = default;
-  MockRuntimePiecewiseCollectionToken& operator=(MockRuntimePiecewiseCollectionToken const&other) = default;
+  MockRuntimePiecewiseCollectionToken& operator=(MockRuntimePiecewiseCollectionToken const& other) = default;
   MockRuntimePiecewiseCollectionToken& operator=(MockRuntimePiecewiseCollectionToken&& other) = default;
   size_t token_;
   template <typename Archive>
@@ -308,6 +308,26 @@ struct MockRuntimePiecewiseCollectionToken {
 
 namespace darma_runtime { namespace types {
 using piecewise_collection_token_t = mock_backend::MockRuntimePiecewiseCollectionToken;
+}} // end namespace darma_runtime::types
+
+namespace mock_backend {
+
+struct MockRuntimePersistentCollectionToken {
+  MockRuntimePersistentCollectionToken() : token_(0) { }
+  MockRuntimePersistentCollectionToken(size_t token) : token_(token) { }
+  MockRuntimePersistentCollectionToken(MockRuntimePersistentCollectionToken const& other) = default;
+  MockRuntimePersistentCollectionToken(MockRuntimePersistentCollectionToken&& other) = default;
+  MockRuntimePersistentCollectionToken& operator=(MockRuntimePersistentCollectionToken const& other) = default;
+  MockRuntimePersistentCollectionToken& operator=(MockRuntimePersistentCollectionToken&& other) = default;
+  size_t token_;
+  template <typename Archive>
+  void serialize(Archive& ar) { ar | token_; }
+};
+
+} // end namespace mock_backend
+
+namespace darma_runtime {namespace types {
+using persistent_collection_token_t = mock_backend::MockRuntimePersistentCollectionToken;
 }} // end namespace darma_runtime::types
 
 namespace mock_backend {
