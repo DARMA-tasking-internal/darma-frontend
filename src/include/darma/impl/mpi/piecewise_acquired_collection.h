@@ -157,7 +157,29 @@ class PiecewiseCollectionHandle {
         range_(std::forward<IndexRangeDeducedT>(range)), 
         context_token_(context_token),
         collection_token_(collection_token) 
-    { }
+    {
+
+      // TODO: change flow relationships
+      using namespace darma_runtime::detail;
+      using namespace darma_runtime::detail::flow_relationships;
+ 
+      use_holder_ = detail::UseHolder<
+        BasicCollectionManagingUse<IndexRangeT>
+      >::create_with_unregistered_use(
+        make_unmapped_use_collection(
+          std::forward<IndexRangeT>(range_)
+        ),
+        var_handle_,
+        darma_runtime::frontend::Permissions::Modify,
+        darma_runtime::frontend::Permissions::None,
+        initial_imported_flow().as_collection_relationship(),
+        null_flow().as_collection_relationship(),
+        insignificant_flow().as_collection_relationship(),
+        initial_imported_anti_flow().as_collection_relationship(),
+        frontend::CoherenceMode::Sequential
+      );
+      use_holder_->could_be_alias = true;
+    }
 
   public:
  
@@ -190,38 +212,27 @@ class PiecewiseCollectionHandle {
 
   public:
  
-    operator access_handle_collection_t() {
+    operator AccessHandleCollection<ValueType, IndexRangeT>() {
 
-      // TODO: change flow relationships
-      using namespace darma_runtime::detail;
-      using namespace darma_runtime::detail::flow_relationships;
-
-      auto use_holder = detail::UseHolder<
-        BasicCollectionManagingUse<IndexRangeT>
-      >::create(
-        make_unmapped_use_collection(
-          std::forward<IndexRangeT>(range_)
-        ),
-        var_handle_,
-        darma_runtime::frontend::Permissions::Modify,
-        darma_runtime::frontend::Permissions::None,
-        initial_imported_flow().as_collection_relationship(),
-        null_flow().as_collection_relationship(),
-        insignificant_flow().as_collection_relationship(),
-        initial_imported_anti_flow().as_collection_relationship(),
-        frontend::CoherenceMode::Sequential
-      );
-      use_holder->could_be_alias = true;
-
+      // Register use and return access handle collection
+      use_holder_->register_unregistered_use();
       return access_handle_collection_t(
-        var_handle_, std::move(use_holder)
+        var_handle_, use_holder_
       );
+    }
+
+  public: 
+
+    access_handle_collection_t collection() {
+      return access_handle_collection_t(
+        var_handle_, use_holder_);
     }
 
   private:
 
     IndexRangeT range_;
     std::shared_ptr<detail::VariableHandle<ValueType>> var_handle_;
+    std::shared_ptr<detail::UseHolder<detail::BasicCollectionManagingUse<IndexRangeT>>> use_holder_;
 
     mutable types::runtime_context_token_t context_token_;
     mutable types::piecewise_collection_token_t collection_token_;
