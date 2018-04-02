@@ -55,6 +55,7 @@
 #include <darma/keyword_arguments/macros.h>
 #include <darma/impl/array/index_range.h>
 #include <darma/impl/mpi/piecewise_acquired_collection.h>
+#include <darma/impl/mpi/persistent_collection.h>
 
 DeclareDarmaTypeTransparentKeyword(mpi_context, data);
 DeclareDarmaTypeTransparentKeyword(mpi_context, size);
@@ -67,6 +68,117 @@ DeclareDarmaTypeTransparentKeyword(mpi_context, copy_back_callback);
 namespace darma_runtime {
 
 namespace detail {
+
+template <typename ValueType>
+struct
+_persistent_collection_creation_impl {
+
+  public:
+
+    _persistent_collection_creation_impl(
+      types::runtime_context_token_t context_token
+    ) : context_token_(context_token) { } 
+
+  private:
+
+    // Variadic key generator
+    template <typename FirstArg,
+      typename... LastArgs
+    >
+    auto
+    _make_key_impl(FirstArg&& arg, LastArgs&&... args) {
+       return make_key(std::forward<FirstArg>(arg), std::forward<LastArgs>(args)...);
+    }
+
+    // Default key generator
+    auto
+    _make_key_impl() {
+       return darma_runtime::detail::key_traits<
+         darma_runtime::types::key_t
+       >::make_awaiting_backend_assignment_key();
+    } 
+
+  public:
+
+    /* index_range keyword version */
+    template <typename IndexRangeT,
+      typename = std::enable_if_t<
+        std::is_base_of<abstract::frontend::IndexRange, IndexRangeT>::value
+      >,
+      typename... Args
+    >
+    auto
+    operator()(
+      IndexRangeT&& index_range,
+      variadic_arguments_begin_tag,
+      Args&&... args
+    ) {
+
+      // Create key and handle
+      auto key = _make_key_impl(std::forward<Args>(args)...);
+      auto var_handle = std::make_shared<VariableHandle<ValueType>>(key);
+
+      // Register handle with the backend as part of a piecewise collection
+      auto persistent_collection_token = register_persistent_collection(
+        context_token_,
+        var_handle,
+        index_range.size()
+      );
+
+      // Create a PersistentCollectionHandle object...
+      auto persistent_collection = PersistentCollectionHandle<ValueType, std::decay_t<IndexRangeT>>(
+        var_handle,
+        std::forward<IndexRangeT>(index_range),
+        context_token_,
+        persistent_collection_token
+      );
+
+      // ... and return it
+      return persistent_collection;
+    }
+
+
+    /* size keyword version */
+    template <typename...Args>
+    auto
+    operator()(
+      size_t size,
+      variadic_arguments_begin_tag,
+      Args&&... args
+    ) {
+
+      // Create key and handle
+      auto key = _make_key_impl(std::forward<Args>(args)...);
+      auto var_handle = std::make_shared<VariableHandle<ValueType>>(key);
+
+      // Register handle with the backend as part of a piecewise collection
+      auto persistent_collection_token = register_persistent_collection(
+        context_token_,
+        var_handle,
+        size
+      );
+
+      // Create a one-dimension index range
+      auto index_range = Range1D<int>(size);
+
+      // Create a PersistentCollectionHandle object...
+      auto persistent_collection = PersistentCollectionHandle<ValueType, Range1D<int>>(
+        var_handle,
+        index_range,
+        context_token_,
+        persistent_collection_token
+      );
+
+      // ... and return it
+      return persistent_collection;
+    }
+
+  private:
+
+    types::runtime_context_token_t context_token_;
+
+
+};
 
 template <typename ValueType>
 struct 
@@ -524,6 +636,32 @@ class mpi_context {
         )
         .parse_args(std::forward<Args>(args)...)
         .invoke(detail::_piecewise_acquired_collection_creation_impl<T>(runtime_token_));
+    }
+
+  public:
+
+    template <typename T, typename... Args>
+    auto
+    persistent_collection(Args&&... args) const {
+
+      using namespace darma_runtime::detail;
+      using darma_runtime::keyword_tags_for_mpi_context::size;
+      using darma_runtime::keyword_tags_for_mpi_context::index_range;
+
+      using parser = kwarg_parser<
+        variadic_positional_overload_description<
+          _keyword<deduced_parameter, index_range>
+        >,
+        variadic_positional_overload_description<
+          _keyword<size_t, size>
+        >
+      >;
+      using _______________see_calling_context_on_next_line________________ = typename parser::template static_assert_valid_invocation<Args...>;
+
+      // Invoke parser
+      return parser()
+        .parse_args(std::forward<Args>(args)...)
+        .invoke(detail::_persistent_collection_creation_impl<T>(runtime_token_));
     }
 
   public:
