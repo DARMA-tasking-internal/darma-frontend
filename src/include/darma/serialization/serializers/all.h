@@ -56,5 +56,6 @@
 #include <darma/serialization/serializers/standard_library/vector.h>
 #include <darma/serialization/serializers/standard_library/pair.h>
 #include <darma/serialization/serializers/standard_library/tuple.h>
+#include <darma/serialization/serializers/standard_library/list.h>
 
 #endif //DARMAFRONTEND_SERIALIZATION_SERIALIZERS_ALL_H

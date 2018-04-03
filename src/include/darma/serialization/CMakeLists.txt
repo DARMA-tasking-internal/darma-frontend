@@ -18,4 +18,5 @@ set(DARMA_SERIALIZATION_HEADERS
 install (FILES ${DARMA_SERIALIZATION_HEADERS} DESTINATION include/darma/serialization)
 
 add_subdirectory(serializers)
+add_subdirectory(polymorphic)
 
