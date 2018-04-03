@@ -3,6 +3,7 @@ set(DARMA_SERIALIZATION_SERIALIZERS_HEADERS
   all.h
   arithmetic_types.h
   array.h
+  c_string.h
   const.h
   enum.h
 )

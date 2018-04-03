@@ -89,7 +89,7 @@ configure_file(
 )
 install (
   FILES ${CMAKE_CURRENT_BINARY_DIR}/config-generated.h
-  DESTINATION include/darma/impl
+  DESTINATION include/darma/utility
 )
 
 ################################################################################
