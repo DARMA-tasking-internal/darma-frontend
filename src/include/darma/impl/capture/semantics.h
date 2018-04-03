@@ -280,6 +280,32 @@ _darma_CAPTURE_CASE_NO_NEW_CONTINUATION_USE(
   false
 );
 
+// TODO Test this!!!
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%
+// %    MM -> { RN } -> MR   %
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%
+_darma_CAPTURE_CASE(
+  /* ---------- pattern parameters ---------- */
+  Sequential,
+  /* Source Permissions */
+  Modify, Modify,
+  /* captured permissions */
+  Read, None,
+  /* ---------- output for cases matching this pattern ----------*/
+  /* continuing permissions */
+  Modify, Read,
+  /* captured flows */
+  forwarding_flow(source_in), insignificant_flow(),
+  /* captured anti-flows */
+  insignificant_flow(), same_anti_flow(source_anti_out),
+  /* continuing flows */
+  same_flow(captured_in), same_flow(source_out),
+  /* continuing anti-flows */ /* Could be wrong about the anti-in flow?!?? */
+  insignificant_flow(), same_anti_flow(captured_anti_out),
+  /* could be alias: */
+  false
+);
+
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%
 // %    MM -> { NR } -> MR   %
 // %    MM -> { RR } -> MR   %

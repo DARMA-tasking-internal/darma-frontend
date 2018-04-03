@@ -171,8 +171,10 @@ make_captured_use_holder(
     // If a new use is made but it has access to the same data, pass the pointer
     // on to the new use
     if(capture_case.continuation_immediate != Permissions::None) {
-      assert(old_ptr);
-      source_and_continuing_holder->use()->data_ = old_ptr;
+      if(not source_and_continuing_holder->use()->manages_collection()) {
+        assert(old_ptr);
+        source_and_continuing_holder->use()->data_ = old_ptr;
+      }
     }
 
     // continuation can always be an alias if it's new
