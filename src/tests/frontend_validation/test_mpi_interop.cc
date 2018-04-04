@@ -47,8 +47,9 @@
 class TestCreateWork_mod_capture_MM_Test;
 #define DARMA_TEST_FRONTEND_VALIDATION_MPI_INTEROP 1
 
-#include "mock_free_functions.h"
+// #include "mock_free_functions.h"
 #include "test_frontend.h"
+#include "mock_free_functions.h"
 
 #include <darma/impl/mpi/mpi_context.h>
 #include <darma/impl/index_range/mapping.h>
