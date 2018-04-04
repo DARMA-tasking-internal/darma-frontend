@@ -52,6 +52,7 @@
 #include <darma/keyword_arguments/parse.h>
 #include <darma/keyword_arguments/macros.h>
 #include <darma/impl/task_collection/access_handle_collection.h>
+#include <darma/interface/backend/mpi_interop.h>
 
 DeclareDarmaTypeTransparentKeyword(piecewise_handle, index);
 DeclareDarmaTypeTransparentKeyword(piecewise_handle, copy_callback);
@@ -91,7 +92,7 @@ _piecewise_collection_handle_impl {
       variadic_arguments_begin_tag, 
       ValueType& data
     ) { 
-      register_piecewise_collection_piece(
+      darma_runtime::backend::register_piecewise_collection_piece(
         context_token_,
         collection_token_,
         index,
@@ -224,6 +225,9 @@ class PiecewiseCollectionHandle {
   public: 
 
     access_handle_collection_t collection() {
+     
+      // Register use and return access handle collection 
+      use_holder_->register_unregistered_use();
       return access_handle_collection_t(
         var_handle_, use_holder_);
     }
