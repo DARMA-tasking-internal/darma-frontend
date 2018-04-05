@@ -59,12 +59,19 @@ namespace backend {
 
 using namespace darma_runtime::types;
 
-runtime_context_token_t 
+runtime_context_token_t
 create_runtime_context(darma_runtime::types::MPI_Comm);
 
-piecewise_collection_token_t 
+piecewise_collection_token_t
 register_piecewise_collection(
-  runtime_context_token_t,  
+  runtime_context_token_t,
+  std::shared_ptr<darma_runtime::abstract::frontend::Handle>,
+  size_t
+);
+
+persistent_collection_token_t
+register_persistent_collection(
+  runtime_context_token_t,
   std::shared_ptr<darma_runtime::abstract::frontend::Handle>,
   size_t
 );
