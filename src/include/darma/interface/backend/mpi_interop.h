@@ -55,8 +55,9 @@ namespace darma_runtime {
 
 namespace backend {
 
-template <typename Serializable, 
-  typename CopyOutCallback, 
+template <
+  typename Serializable,
+  typename CopyOutCallback,
   typename CopyInCallback
 >
 void
@@ -66,7 +67,7 @@ register_piecewise_collection_piece(
   size_t piece_index,
   Serializable& piece,
   CopyOutCallback&& copy_out = nullptr,
-  CopyInCallback&& copy_in = nullptr   
+  CopyInCallback&& copy_in = nullptr
 ) {
     register_piecewise_collection_piece(context_token,
     collection_token,
@@ -74,9 +75,9 @@ register_piecewise_collection_piece(
     (void*)&piece,
     std::function<void(void const*, void*)>(std::forward<CopyOutCallback>(copy_out)),
     std::function<void(void const*, void*)>(std::forward<CopyInCallback>(copy_in))
-  ); 
+  );
 }
-     
+
 template <typename Callable>
 void
 run_distributed_region(
