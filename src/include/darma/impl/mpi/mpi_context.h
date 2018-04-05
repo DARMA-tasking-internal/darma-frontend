@@ -120,7 +120,7 @@ _persistent_collection_creation_impl {
       auto var_handle = std::make_shared<VariableHandle<ValueType>>(key);
 
       // Register handle with the backend as part of a piecewise collection
-      auto persistent_collection_token = register_persistent_collection(
+      auto persistent_collection_token = darma_runtime::backend::register_persistent_collection(
         context_token_,
         var_handle,
         index_range.size()
@@ -153,7 +153,7 @@ _persistent_collection_creation_impl {
       auto var_handle = std::make_shared<VariableHandle<ValueType>>(key);
 
       // Register handle with the backend as part of a piecewise collection
-      auto persistent_collection_token = register_persistent_collection(
+      auto persistent_collection_token = darma_runtime::backend::register_persistent_collection(
         context_token_,
         var_handle,
         size
