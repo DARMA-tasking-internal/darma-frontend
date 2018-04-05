@@ -51,3 +51,25 @@ endif()
 
 add_subdirectory(src)
 
+add_library(darma_frontend INTERFACE)
+target_include_directories(darma_frontend INTERFACE
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
+  $<INSTALL_INTERFACE:include>
+)
+install(TARGETS darma_frontend EXPORT darma_frontend)
+install(EXPORT darma_frontend DESTINATION cmake)
+
+configure_file(
+  cmake/darma_frontendConfig.cmake.in
+  "${PROJECT_BINARY_DIR}/darma_frontendConfig.cmake" @ONLY
+)
+install(
+  FILES
+  "${PROJECT_BINARY_DIR}/darma_frontendConfig.cmake" 
+  DESTINATION cmake 
+)
+ 
+
+
+
+
