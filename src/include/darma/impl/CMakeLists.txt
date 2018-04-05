@@ -37,6 +37,8 @@ FILE(GLOB impl_use_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
         "${CMAKE_CURRENT_SOURCE_DIR}/use/*.h")
 FILE(GLOB impl_util_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/util/*.h")
+FILE(GLOB impl_mpi_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/mpi/*.h")
 
 install (FILES ${impl_HEADERS} DESTINATION include/darma/impl)
 install (FILES ${impl_access_handle_HEADERS} DESTINATION include/darma/impl/access_handle)
@@ -57,4 +59,4 @@ install (FILES ${impl_task_collection_HEADERS} DESTINATION include/darma/impl/ta
 install (FILES ${impl_task_collection_impl_HEADERS} DESTINATION include/darma/impl/task_collection/impl)
 install (FILES ${impl_use_HEADERS} DESTINATION include/darma/impl/use)
 install (FILES ${impl_util_HEADERS} DESTINATION include/darma/impl/util)
-
+install (FILES ${impl_mpi_HEADERS} DESTINATION include/darma/impl/mpi)
