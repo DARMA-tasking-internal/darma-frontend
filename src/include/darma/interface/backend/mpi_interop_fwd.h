@@ -82,8 +82,8 @@ register_piecewise_collection_piece(
   piecewise_collection_token_t,
   size_t,
   void*,
-  std::function<void(void const*, void*)>,
-  std::function<void(void const*, void*)>
+  std::function<void(void const*, void*)> = nullptr,
+  std::function<void(void const*, void*)> = nullptr
 );
 
 void run_distributed_region(

@@ -419,6 +419,8 @@ class AccessHandleCollection
 #if _darma_has_feature(mpi_interop)
     template <typename, typename>
     friend struct PiecewiseCollectionHandle;
+    template <typename, typename>
+    friend struct PersistentCollectionHandle;
 #endif // _darma_has_feature(mpi_interop)
 
   // </editor-fold> end friends }}}1

@@ -146,7 +146,7 @@ initial_flow() {
 inline FlowRelationshipImpl
 initial_imported_flow() {
   return FlowRelationshipImpl(
-    abstract::frontend::FlowRelationship::InitialImported,
+    abstract::frontend::FlowRelationship::Imported,
     /* related flow = */ nullptr,
     /* related_is_in = */ false,
     /* version key = */ nullptr,
@@ -226,7 +226,7 @@ initial_anti_flow() {
 inline FlowRelationshipImpl
 initial_imported_anti_flow() {
   return FlowRelationshipImpl(
-    abstract::frontend::FlowRelationship::InitialImported,
+    abstract::frontend::FlowRelationship::ImportedCollection,
     /* related flow = */ nullptr,
     /* related_is_in = */ false,
     /* version key = */ nullptr,
