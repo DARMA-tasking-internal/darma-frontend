@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                       mock_free_functions.h
-//                         darma_new
+//                         mpi_interop.h
+//                            darma
 //              Copyright (C) 2017 NTESS, LLC
 //
 // Under the terms of Contract DE-NA-0003525 with NTESS, LLC,
@@ -42,64 +42,58 @@
 //@HEADER
 */
 
+#ifndef SRC_BACKEND_MPI_INTEROP_H_
+#define SRC_BACKEND_MPI_INTEROP_H_
 
-#ifndef SRC_TESTS_FRONTEND_VALIDATION_MOCK_FREE_FUNCTIONS_H_
-#define SRC_TESTS_FRONTEND_VALIDATION_MOCK_FREE_FUNCTIONS_H_
+#include <darma/interface/backend/mpi_interop_fwd.h>
 
-#include <utility>
+#if _darma_has_feature(mpi_interop)
 
-#include "mock_backend.h"
-#include <darma/interface/app/initial_access.h>
-#include <darma/interface/app/read_access.h>
-#include <darma/interface/app/create_work.h>
-#include <darma/impl/data_store.h>
-#include <darma/impl/task_collection/task_collection.h>
-#include <darma/impl/task_collection/access_handle_collection.h>
-#include <darma/impl/index_range/mapping.h>
-#include <darma/impl/array/index_range.h>
-#include <darma/impl/task_collection/create_concurrent_work.h>
-
-#include <darma/impl/access_handle/access_handle_collection.impl.h>
+#include <darma_types.h>
 
 namespace darma_runtime {
 
 namespace backend {
 
-using namespace darma_runtime::types;
-
-runtime_context_token_t create_runtime_context(darma_runtime::types::MPI_Comm) {return 0;}
-
-piecewise_collection_token_t register_piecewise_collection(runtime_context_token_t,
-  std::shared_ptr<darma_runtime::abstract::frontend::Handle>,
-  size_t
-) {
-  return piecewise_collection_token_t();
-}
-
-void 
+template <
+  typename Serializable,
+  typename CopyOutCallback,
+  typename CopyInCallback
+>
+void
 register_piecewise_collection_piece(
   runtime_context_token_t context_token,
-  piecewise_collection_token_t piecewise_token,
-  size_t index,
-  void*,
-  std::function<void(void const*, void*)>,
-  std::function<void(void const*, void*)>
+  piecewise_collection_token_t collection_token,
+  size_t piece_index,
+  Serializable& piece,
+  CopyOutCallback&& copy_out = nullptr,
+  CopyInCallback&& copy_in = nullptr
 ) {
-
+    register_piecewise_collection_piece(context_token,
+    collection_token,
+    piece_index,
+    (void*)&piece,
+    std::function<void(void const*, void*)>(std::forward<CopyOutCallback>(copy_out)),
+    std::function<void(void const*, void*)>(std::forward<CopyInCallback>(copy_in))
+  );
 }
 
-void 
+template <typename Callable>
+void
 run_distributed_region(
-  runtime_context_token_t,
-  std::function<void()>
-) { }
-
-void run_distributed_region_worker(darma_runtime::types::runtime_context_token_t) { }
-
-void conversion_to_ahc(double,darma_runtime::AccessHandleCollection<double,darma_runtime::Range1D<int>>) { }
+  runtime_context_token_t context_token,
+  Callable&& callable
+) {
+  run_distributed_region(
+    context_token,
+    std::function<void()>(std::forward<Callable>(callable))
+  );
+}
 
 } // end namespace backend
 
-} // end namespace mock_backend
+} // end namespace darma_runtime
 
-#endif /* SRC_TESTS_FRONTEND_VALIDATION_MOCK_BACKEND_H_ */
+#endif
+
+#endif /* SRC_BACKEND_MPI_INTEROP_H_ */

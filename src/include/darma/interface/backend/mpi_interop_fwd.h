@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 //
-//                       mock_free_functions.h
-//                         darma_new
+//                       mpi_interop_fwd.h
+//                            darma
 //              Copyright (C) 2017 NTESS, LLC
 //
 // Under the terms of Contract DE-NA-0003525 with NTESS, LLC,
@@ -42,24 +42,16 @@
 //@HEADER
 */
 
+#ifndef SRC_BACKEND_MPI_INTEROP_FWD_H_
+#define SRC_BACKEND_MPI_INTEROP_FWD_H_
 
-#ifndef SRC_TESTS_FRONTEND_VALIDATION_MOCK_FREE_FUNCTIONS_H_
-#define SRC_TESTS_FRONTEND_VALIDATION_MOCK_FREE_FUNCTIONS_H_
+#include <functional> // std::function
+#include <utility> // std::forward
+#include <darma/impl/feature_testing_macros.h>
 
-#include <utility>
+#if _darma_has_feature(mpi_interop)
 
-#include "mock_backend.h"
-#include <darma/interface/app/initial_access.h>
-#include <darma/interface/app/read_access.h>
-#include <darma/interface/app/create_work.h>
-#include <darma/impl/data_store.h>
-#include <darma/impl/task_collection/task_collection.h>
-#include <darma/impl/task_collection/access_handle_collection.h>
-#include <darma/impl/index_range/mapping.h>
-#include <darma/impl/array/index_range.h>
-#include <darma/impl/task_collection/create_concurrent_work.h>
-
-#include <darma/impl/access_handle/access_handle_collection.impl.h>
+#include <darma_types.h>
 
 namespace darma_runtime {
 
@@ -67,39 +59,45 @@ namespace backend {
 
 using namespace darma_runtime::types;
 
-runtime_context_token_t create_runtime_context(darma_runtime::types::MPI_Comm) {return 0;}
+runtime_context_token_t
+create_runtime_context(darma_runtime::types::MPI_Comm);
 
-piecewise_collection_token_t register_piecewise_collection(runtime_context_token_t,
+piecewise_collection_token_t
+register_piecewise_collection(
+  runtime_context_token_t,
   std::shared_ptr<darma_runtime::abstract::frontend::Handle>,
   size_t
-) {
-  return piecewise_collection_token_t();
-}
+);
 
-void 
+persistent_collection_token_t
+register_persistent_collection(
+  runtime_context_token_t,
+  std::shared_ptr<darma_runtime::abstract::frontend::Handle>,
+  size_t
+);
+
+void
 register_piecewise_collection_piece(
-  runtime_context_token_t context_token,
-  piecewise_collection_token_t piecewise_token,
-  size_t index,
+  runtime_context_token_t,
+  piecewise_collection_token_t,
+  size_t,
   void*,
   std::function<void(void const*, void*)>,
   std::function<void(void const*, void*)>
-) {
+);
 
-}
-
-void 
-run_distributed_region(
+void run_distributed_region(
   runtime_context_token_t,
   std::function<void()>
-) { }
+);
 
-void run_distributed_region_worker(darma_runtime::types::runtime_context_token_t) { }
-
-void conversion_to_ahc(double,darma_runtime::AccessHandleCollection<double,darma_runtime::Range1D<int>>) { }
+void
+run_distributed_region_worker(runtime_context_token_t);
 
 } // end namespace backend
 
-} // end namespace mock_backend
+} // end namespace darma_runtime
 
-#endif /* SRC_TESTS_FRONTEND_VALIDATION_MOCK_BACKEND_H_ */
+#endif
+
+#endif /* SRC_BACKEND_MPI_INTEROP_FWD_H_ */

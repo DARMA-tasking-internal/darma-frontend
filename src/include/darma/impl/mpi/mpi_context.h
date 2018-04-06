@@ -51,6 +51,7 @@
 
 #include <tinympl/is_instantiation_of.hpp>
 
+#include <darma/interface/backend/mpi_interop.h>
 #include <darma/keyword_arguments/parse.h>
 #include <darma/keyword_arguments/macros.h>
 #include <darma/impl/array/index_range.h>
@@ -119,7 +120,7 @@ _persistent_collection_creation_impl {
       auto var_handle = std::make_shared<VariableHandle<ValueType>>(key);
 
       // Register handle with the backend as part of a piecewise collection
-      auto persistent_collection_token = register_persistent_collection(
+      auto persistent_collection_token = darma_runtime::backend::register_persistent_collection(
         context_token_,
         var_handle,
         index_range.size()
@@ -152,7 +153,7 @@ _persistent_collection_creation_impl {
       auto var_handle = std::make_shared<VariableHandle<ValueType>>(key);
 
       // Register handle with the backend as part of a piecewise collection
-      auto persistent_collection_token = register_persistent_collection(
+      auto persistent_collection_token = darma_runtime::backend::register_persistent_collection(
         context_token_,
         var_handle,
         size
@@ -245,7 +246,7 @@ _piecewise_acquired_collection_creation_impl {
       auto var_handle = std::make_shared<VariableHandle<ValueType>>(key);
 
       // Register handle with the backend as part of a piecewise collection
-      auto collection_token = register_piecewise_collection(
+      auto collection_token = darma_runtime::backend::register_piecewise_collection(
         context_token_,
         var_handle,
         index_range.size()
@@ -281,7 +282,7 @@ _piecewise_acquired_collection_creation_impl {
       auto var_handle = std::make_shared<VariableHandle<ValueType>>(key);
 
       // Register handle with the backend as part of a piecewise collection
-      auto collection_token = register_piecewise_collection(
+      auto collection_token = darma_runtime::backend::register_piecewise_collection(
         context_token_,
         var_handle,
         size
@@ -331,7 +332,7 @@ _piecewise_acquired_collection_creation_impl {
       auto var_handle = std::make_shared<VariableHandle<ValueType>>(key);
 
       // Register handle with the backend as part of a piecewise collection
-      auto collection_token = register_piecewise_collection(
+      auto collection_token = darma_runtime::backend::register_piecewise_collection(
         context_token_,
         var_handle,
         index_range.size()
@@ -382,7 +383,7 @@ _piecewise_acquired_collection_creation_impl {
       auto var_handle = std::make_shared<VariableHandle<ValueType>>(key);
 
       // Register handle with the backend as part of a piecewise collection
-      auto collection_token = register_piecewise_collection(
+      auto collection_token = darma_runtime::backend::register_piecewise_collection(
         context_token_,
         var_handle,
         size
@@ -451,7 +452,7 @@ _piecewise_acquired_collection_creation_impl {
       auto var_handle = std::make_shared<VariableHandle<ValueType>>(key);
 
       // Register handle with the backend as part of a piecewise collection
-      auto collection_token = register_piecewise_collection(
+      auto collection_token = darma_runtime::backend::register_piecewise_collection(
         context_token_,
         var_handle,
         index_range.size()
@@ -514,7 +515,7 @@ _piecewise_acquired_collection_creation_impl {
       auto var_handle = std::make_shared<VariableHandle<ValueType>>(key);
 
       // Register handle with the backend as part of a piecewise collection
-      auto collection_token = register_piecewise_collection(
+      auto collection_token = darma_runtime::backend::register_piecewise_collection(
         context_token_,
         var_handle,
         size
@@ -564,7 +565,7 @@ class mpi_context {
   public:
 
     explicit mpi_context(types::MPI_Comm comm) {
-      runtime_token_ = create_runtime_context(comm); 
+      runtime_token_ = backend::create_runtime_context(comm); 
     } 
 
   public:
@@ -669,14 +670,14 @@ class mpi_context {
     template <typename Callable>
     void
     run_distributed_region_blocking(Callable&& callable) {
-      run_distributed_region(
+      backend::run_distributed_region(
         runtime_token_,
         std::forward<Callable>(callable)
       );
     }
 
     void run_distributed_region_worker_blocking() {
-      run_distributed_region_worker(runtime_token_);
+      backend::run_distributed_region_worker(runtime_token_);
     }
 
   private:
