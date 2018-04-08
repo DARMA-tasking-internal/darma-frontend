@@ -80,16 +80,16 @@ get_polymorphic_unpack_registry() {
 }
 
 struct SerializedPolymorphicObjectHeader {
-  size_t n_bases : 8;
+  size_t n_bases;
   // Pad to 128 bits for now to make alignment work out reasonably in the most
   // common case, where there's only one base
-  size_t _unused1 : 56;
-  size_t _unused2 : 64;
+  size_t _unused1;
+  size_t _unused2;
 };
 
 struct PolymorphicAbstractBasesTableEntry {
-  size_t abstract_index : 64;
-  size_t concrete_index : 64;
+  size_t abstract_index;
+  size_t concrete_index;
 };
 
 namespace _impl {
