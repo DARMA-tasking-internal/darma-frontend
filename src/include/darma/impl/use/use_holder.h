@@ -167,7 +167,7 @@ class UseHolder : public UseHolderBase {
         abstract::backend::get_backend_runtime()->release_use(use_.get());
       }
       else if(collection_token != nullptr) {
-        darma_runtime::backend::release_persistent_collection(context, collection_token, use_.get());
+        darma_runtime::backend::release_persistent_collection(context, collection_token);
       }
       else {
         assert(piecewise_token != nullptr);

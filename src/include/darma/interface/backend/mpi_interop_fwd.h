@@ -83,8 +83,7 @@ register_persistent_collection(
 void
 release_persistent_collection(
   types::runtime_context_token_t,
-  types::persistent_collection_token_t,
-  darma_runtime::abstract::frontend::UsePendingRelease*
+  types::persistent_collection_token_t
 );
 
 void
