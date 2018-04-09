@@ -67,7 +67,7 @@ namespace backend {
 
 using namespace darma_runtime::types;
 
-runtime_context_token_t create_runtime_context(darma_runtime::types::MPI_Comm) {return 0;}
+runtime_context_token_t create_runtime_context(darma_runtime::types::MPI_Comm) {return { 1 };}
 
 piecewise_collection_token_t register_piecewise_collection(runtime_context_token_t,
   std::shared_ptr<darma_runtime::abstract::frontend::Handle>,
@@ -95,6 +95,18 @@ run_distributed_region(
 ) { }
 
 void run_distributed_region_worker(darma_runtime::types::runtime_context_token_t) { }
+
+void
+release_piecewise_collection(
+  types::runtime_context_token_t,
+  types::piecewise_collection_token_t
+) { /* TODO trigger mock here */ }
+
+void
+release_persistent_collection(
+  types::runtime_context_token_t,
+  types::persistent_collection_token_t
+) { /* TODO trigger mock here */ }
 
 void conversion_to_ahc(double,darma_runtime::AccessHandleCollection<double,darma_runtime::Range1D<int>>) { }
 

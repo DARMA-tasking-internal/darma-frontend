@@ -254,6 +254,14 @@ struct MockRuntimeInstanceToken {
   std::string name;
   template <typename Archive>
   void serialize(Archive& ar) { ar | name; }
+  bool
+  operator==(MockRuntimeInstanceToken const& other) const {
+    return name == other.name;
+  }
+  bool
+  operator!=(MockRuntimeInstanceToken const& other) const {
+    return not operator==(other);
+  }
 };
 
 } // end namespace mock_backend
@@ -275,6 +283,9 @@ namespace mock_backend {
 struct MockRuntimeContextToken {
   MockRuntimeContextToken() : token_(0) { }
   MockRuntimeContextToken(size_t token) : token_(token) { }
+  MockRuntimeContextToken(std::nullptr_t)
+    : token_(std::numeric_limits<size_t>::max())
+  { }
   MockRuntimeContextToken(MockRuntimeContextToken const& other) = default;
   MockRuntimeContextToken(MockRuntimeContextToken&& other) = default;
   MockRuntimeContextToken& operator=(MockRuntimeContextToken const& other) = default;
@@ -282,6 +293,14 @@ struct MockRuntimeContextToken {
   size_t token_;
   template <typename Archive> 
   void serialize(Archive& ar) { ar | token_;}
+  bool
+  operator==(MockRuntimeContextToken const& other) const {
+    return token_ == other.token_;
+  }
+  bool
+  operator!=(MockRuntimeContextToken const& other) const {
+    return not operator==(other);
+  }
 };
 
 } // end namespace mock_backend
@@ -295,6 +314,9 @@ namespace mock_backend {
 struct MockRuntimePiecewiseCollectionToken {
   MockRuntimePiecewiseCollectionToken() : token_(0) { }
   MockRuntimePiecewiseCollectionToken(size_t token) : token_(token) { }
+  MockRuntimePiecewiseCollectionToken(std::nullptr_t)
+    : token_(std::numeric_limits<size_t>::max())
+  { }
   MockRuntimePiecewiseCollectionToken(MockRuntimePiecewiseCollectionToken const& other) = default;
   MockRuntimePiecewiseCollectionToken(MockRuntimePiecewiseCollectionToken&& other) = default;
   MockRuntimePiecewiseCollectionToken& operator=(MockRuntimePiecewiseCollectionToken const& other) = default;
@@ -302,6 +324,14 @@ struct MockRuntimePiecewiseCollectionToken {
   size_t token_;
   template <typename Archive>
   void serialize(Archive& ar) { ar | token_; }
+  bool
+  operator==(MockRuntimePiecewiseCollectionToken const& other) const {
+    return token_ == other.token_;
+  }
+  bool
+  operator!=(MockRuntimePiecewiseCollectionToken const& other) const {
+    return not operator==(other);
+  }
 };
 
 } // end namespace mock_backend
@@ -315,6 +345,9 @@ namespace mock_backend {
 struct MockRuntimePersistentCollectionToken {
   MockRuntimePersistentCollectionToken() : token_(0) { }
   MockRuntimePersistentCollectionToken(size_t token) : token_(token) { }
+  MockRuntimePersistentCollectionToken(std::nullptr_t)
+    : token_(std::numeric_limits<size_t>::max())
+  { }
   MockRuntimePersistentCollectionToken(MockRuntimePersistentCollectionToken const& other) = default;
   MockRuntimePersistentCollectionToken(MockRuntimePersistentCollectionToken&& other) = default;
   MockRuntimePersistentCollectionToken& operator=(MockRuntimePersistentCollectionToken const& other) = default;
@@ -322,6 +355,14 @@ struct MockRuntimePersistentCollectionToken {
   size_t token_;
   template <typename Archive>
   void serialize(Archive& ar) { ar | token_; }
+  bool
+  operator==(MockRuntimePersistentCollectionToken const& other) const {
+    return token_ == other.token_;
+  }
+  bool
+  operator!=(MockRuntimePersistentCollectionToken const& other) const {
+    return not operator==(other);
+  }
 };
 
 } // end namespace mock_backend
