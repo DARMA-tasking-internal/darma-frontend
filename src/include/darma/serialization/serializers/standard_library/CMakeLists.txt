@@ -1,5 +1,6 @@
 
 set(DARMA_SERIALIZATION_SERIALIZERS_STANDARD_LIBRARY_HEADERS
+  list.h
   map.h
   pair.h
   set.h
