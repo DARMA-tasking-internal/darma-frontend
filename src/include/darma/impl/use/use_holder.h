@@ -114,7 +114,7 @@ class UseHolder : public UseHolderBase {
     UseHolder(UseHolder const&) = delete;
 
     ~UseHolder() override {
-      if(use_) {
+      if(use_ and is_use_registered) {
         release_use();
       }
     }
