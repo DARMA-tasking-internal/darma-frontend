@@ -62,8 +62,8 @@ template <
 >
 void
 register_piecewise_collection_piece(
-  runtime_context_token_t context_token,
-  piecewise_collection_token_t collection_token,
+  types::runtime_context_token_t context_token,
+  types::piecewise_collection_token_t collection_token,
   size_t piece_index,
   Serializable& piece,
   CopyOutCallback&& copy_out = nullptr,
@@ -81,7 +81,7 @@ register_piecewise_collection_piece(
 template <typename Callable>
 void
 run_distributed_region(
-  runtime_context_token_t context_token,
+  types::runtime_context_token_t context_token,
   Callable&& callable
 ) {
   run_distributed_region(

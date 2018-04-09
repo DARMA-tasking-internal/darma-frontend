@@ -57,29 +57,40 @@ namespace darma_runtime {
 
 namespace backend {
 
-using namespace darma_runtime::types;
-
-runtime_context_token_t
+types::runtime_context_token_t
 create_runtime_context(darma_runtime::types::MPI_Comm);
 
-piecewise_collection_token_t
+types::piecewise_collection_token_t
 register_piecewise_collection(
-  runtime_context_token_t,
-  std::shared_ptr<darma_runtime::abstract::frontend::Handle>,
-  size_t
-);
-
-persistent_collection_token_t
-register_persistent_collection(
-  runtime_context_token_t,
+  types::runtime_context_token_t,
   std::shared_ptr<darma_runtime::abstract::frontend::Handle>,
   size_t
 );
 
 void
+release_piecewise_collection(
+  types::runtime_context_token_t,
+  types::piecewise_collection_token_t
+);
+
+types::persistent_collection_token_t
+register_persistent_collection(
+  types::runtime_context_token_t,
+  std::shared_ptr<darma_runtime::abstract::frontend::Handle>,
+  size_t
+);
+
+void
+release_persistent_collection(
+  types::runtime_context_token_t,
+  types::persistent_collection_token_t,
+  darma_runtime::abstract::frontend::UsePendingRelease*
+);
+
+void
 register_piecewise_collection_piece(
-  runtime_context_token_t,
-  piecewise_collection_token_t,
+  types::runtime_context_token_t,
+  types::piecewise_collection_token_t,
   size_t,
   void*,
   std::function<void(void const*, void*)> = nullptr,
@@ -87,12 +98,12 @@ register_piecewise_collection_piece(
 );
 
 void run_distributed_region(
-  runtime_context_token_t,
+  types::runtime_context_token_t,
   std::function<void()>
 );
 
 void
-run_distributed_region_worker(runtime_context_token_t);
+run_distributed_region_worker(types::runtime_context_token_t);
 
 } // end namespace backend
 

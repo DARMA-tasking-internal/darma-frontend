@@ -179,6 +179,8 @@ class PiecewiseCollectionHandle {
         initial_imported_anti_flow().as_collection_relationship(),
         frontend::CoherenceMode::Sequential
       );
+      use_holder_->context = context_token;
+      use_holder_->piecewise_token = collection_token;
       use_holder_->could_be_alias = true;
     }
 
