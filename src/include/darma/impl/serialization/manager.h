@@ -52,79 +52,6 @@ namespace darma_runtime {
 namespace serialization {
 namespace detail {
 
-////////////////////////////////////////////////////////////////////////////////
-// <editor-fold desc="DependencyHandle attorneys">
-
-
-//// TODO rename this, and move some of this functionality
-//namespace DependencyHandle_attorneys {
-//
-//struct ArchiveAccess {
-//  template <typename ArchiveT>
-//  static void set_buffer(ArchiveT& ar, void* const buffer) {
-//    // Assert that we're not overwriting a buffer, at least until
-//    // a use case for that sort of thing comes up
-//    assert(ar.start == nullptr);
-//    (char*&)(ar.start) = (char*&)(ar.spot) = (char* const)buffer;
-//  }
-//  template <typename ArchiveT>
-//  static void*& get_spot(ArchiveT& ar) {
-//    return reinterpret_cast<void*&>(ar.spot);
-//  }
-//  template <typename ArchiveT>
-//  static void const*& get_const_spot(ArchiveT& ar) {
-//    return const_cast<void const*&>(reinterpret_cast<void*&>(ar.spot));
-//  }
-//  template <typename ArchiveT>
-//  static size_t get_size(ArchiveT& ar) {
-//    assert(ar.is_sizing());
-//    return static_cast<char*>(ar.spot) - static_cast<char*>(ar.start);
-//  }
-//
-//  template <typename ArchiveT>
-//  static inline void
-//  start_sizing(ArchiveT& ar) {
-//    assert(not ar.is_sizing()); // for now, to avoid accidental resets
-//    ar.start = nullptr;
-//    ar.spot = nullptr;
-//    ar.mode = serialization::detail::SerializerMode::Sizing;
-//  }
-//
-//  template <typename ArchiveT>
-//  static inline void
-//  start_packing(ArchiveT& ar) {
-//    ar.mode = serialization::detail::SerializerMode::Packing;
-//    ar.spot = ar.start;
-//  }
-//
-//  template <typename ArchiveT>
-//  static inline void
-//  start_packing_with_buffer(ArchiveT& ar, void* const buffer) {
-//    ar.mode = serialization::detail::SerializerMode::Packing;
-//    ar.spot = ar.start = (char* const)(buffer);
-//  }
-//
-//  template <typename ArchiveT>
-//  static inline void
-//  start_unpacking(ArchiveT& ar) {
-//    ar.mode = serialization::detail::SerializerMode::Unpacking;
-//    ar.spot = ar.start;
-//  }
-//
-//  template <typename ArchiveT>
-//  static inline void
-//  start_unpacking_with_buffer(ArchiveT& ar, void const* buffer) {
-//    ar.mode = serialization::detail::SerializerMode::Unpacking;
-//    ar.spot = ar.start = (char* const)buffer;
-//  }
-//};
-//
-//} // end namespace DependencyHandle_attorneys
-
-
-// </editor-fold>
-////////////////////////////////////////////////////////////////////////////////
-
 static constexpr struct serialization_manager_default_construct_tag_t { }
   serialization_manager_default_construct_tag { };
 
@@ -133,10 +60,6 @@ class SerializationManagerForType
   : public abstract::frontend::SerializationManager
 {
   public:
-
-    //STATIC_ASSERT_SERIALIZABLE_WITH_ARCHIVE(T, serialization::SimplePackUnpackArchive,
-    //  "Handles to non-serializable types not yet supported"
-    //);
 
     size_t
     get_metadata_size() const override {

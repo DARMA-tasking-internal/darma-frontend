@@ -53,6 +53,9 @@
 #include <cassert>
 #include <sstream>
 
+// This is a debugging facility in and of itself that is allowed to spuriously
+// fail; we certainly don't need to test it separately
+// LCOV_EXCL_START
 #ifdef DARMA_HAVE_CXXABI_H
 
 #include <cxxabi.h>
@@ -129,5 +132,6 @@ struct try_demangle {
 } // end namespace darma_runtime
 
 #endif
+// LCOV_EXCL_STOP
 
 #endif //DARMA_IMPL_UTIL_DEMANGLE_H

@@ -83,7 +83,6 @@
 #include <darma/impl/access_handle_base.h>
 
 #include <darma/impl/util.h>
-#include <darma/impl/runnable/runnable.h>
 #include <darma/impl/runtime.h>
 #include <darma/impl/handle_fwd.h>
 #include <darma/impl/capture/callable_traits.h>
