@@ -71,42 +71,11 @@
 #include <darma/impl/runtime.h>
 #include <darma/impl/task/task.h>
 #include <darma/impl/util.h>
-#include <darma/impl/runnable/runnable.h>
 
 #include <darma/impl/meta/make_flattened_tuple.h>
 
 
 namespace darma_runtime {
-
-//namespace detail {
-//
-//template <typename... Args>
-//struct reads_decorator_parser {
-//  inline decltype(auto)
-//  operator()(Args&&... args) const {
-//    using detail::create_work_attorneys::for_AccessHandle;
-//
-//    // Mark this usage as a read-only capture
-//    // TODO this should be just a splatted tuple.  Order doesn't matter
-//    meta::tuple_for_each(
-//      get_positional_arg_tuple(std::forward<Args>(args)...),
-//      [&](auto const& ah) {
-//        static_assert(is_access_handle<std::decay_t<decltype(ah)>>::value,
-//          "Non-AccessHandle<> argument passed to reads() decorator"
-//        );
-//        for_AccessHandle::captured_as_info(ah) |= AccessHandleBase::ReadOnly;
-//      }
-//    );
-//
-//    // Return the (first) argument as a passthrough
-//    // TODO return a type that looks like a sensible compile-time error
-//    // (if more than one positional argument is given and the user tries to
-//    // use the return value for something like an argument to a functor create_work)
-//    return std::get<0>(std::forward_as_tuple(std::forward<Args>(args)...));
-//  }
-//};
-//
-//} // end namespace detail
 
 
 template <
