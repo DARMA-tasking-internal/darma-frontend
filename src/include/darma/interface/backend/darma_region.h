@@ -55,7 +55,10 @@ namespace backend {
 #if _darma_has_feature(darma_regions)
 
 void
-initialize_runtime_arguments(int& argc, char**& argv);
+initialize_with_arguments(int& argc, char**& argv);
+
+void
+finalize();
 
 types::runtime_instance_token_t
 initialize_runtime_instance();
