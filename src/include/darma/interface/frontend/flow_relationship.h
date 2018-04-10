@@ -68,6 +68,10 @@ class FlowRelationship {
       , Anti = 512
       , Insignificant = 1024
 #endif // _darma_has_feature(anti_flows)
+
+#if _darma_has_feature(mpi_interop)
+      , Imported = 2048 
+#endif // _darma_has_feature(mpi_interop)
       // TODO Move flow packing here
       // , Packed = 256 // Packed stands alone, mostly; it doesn't bitwise-or with
                    // other flags except for Collection
@@ -98,6 +102,11 @@ class FlowRelationship {
     static constexpr auto ForwardingCollection =
       flow_relationship_description_t(Forwarding)
         | flow_relationship_description_t(Collection);
+#if _darma_has_feature(mpi_interop)
+    static constexpr auto ImportedCollection =
+        flow_relationship_description_t(Imported)
+        | flow_relationship_description_t(Collection);
+#endif // _darma_has_feature(mpi_interop)
 #if _darma_has_feature(anti_flows)
     static constexpr auto InsignificantCollection =
       flow_relationship_description_t(Insignificant)

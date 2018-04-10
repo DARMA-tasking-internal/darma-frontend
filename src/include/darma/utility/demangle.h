@@ -114,13 +114,14 @@ namespace utility {
 template <typename T>
 struct try_demangle {
   static std::string name() {
-    std::type_info const& info = typeid(T);
-    std::stringstream sstr;
-    sstr << "[failed demangling";
-    sstr << ": couldn't include file cxxabi.h.";
-    sstr << "  std::type_info::name() returned:" << info.name();
-    sstr << "]";
-    return sstr.str();
+    // std::type_info const& info = typeid(T);
+    // std::stringstream sstr;
+    // sstr << "[failed demangling";
+    // sstr << ": couldn't include file cxxabi.h.";
+    // sstr << "  std::type_info::name() returned:" << info.name();
+    // sstr << "]";
+    // return sstr.str();
+    return std::string{};
   }
 };
 

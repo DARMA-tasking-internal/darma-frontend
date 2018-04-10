@@ -142,6 +142,21 @@ initial_flow() {
   );
 }
 
+#if _darma_has_feature(mpi_interop)
+inline FlowRelationshipImpl
+initial_imported_flow() {
+  return FlowRelationshipImpl(
+    abstract::frontend::FlowRelationship::Imported,
+    /* related flow = */ nullptr,
+    /* related_is_in = */ false,
+    /* version key = */ nullptr,
+    /* index = */ 0,
+    /* anti_related = */ nullptr,
+    /* anti_rel_is_in = */ false
+  );
+}
+#endif // _darma_has_feature(mpi_interop)
+
 inline FlowRelationshipImpl
 null_flow() {
   return FlowRelationshipImpl(
@@ -206,6 +221,21 @@ initial_anti_flow() {
     /* anti_rel_is_in = */ false
   );
 }
+
+#if _darma_has_feature(mpi_interop)
+inline FlowRelationshipImpl
+initial_imported_anti_flow() {
+  return FlowRelationshipImpl(
+    abstract::frontend::FlowRelationship::ImportedCollection,
+    /* related flow = */ nullptr,
+    /* related_is_in = */ false,
+    /* version key = */ nullptr,
+    /* index = */ 0,
+    /* anti_related = */ nullptr,
+    /* anti_rel_is_in = */ false
+  );
+}
+#endif // _darma_has_feature(mpi_interop)
 
 inline FlowRelationshipImpl
 anti_next_of_in_flow() {

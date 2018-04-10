@@ -635,7 +635,7 @@ struct access_handle_special_semantic_members
   void copy_conditional_members(
     access_handle_special_semantic_members<OtherTraits> const& other
   ) {
-    utility::constexpr_if<has_can_be_published_dynamic>(
+    utility::darma_constexpr_if<has_can_be_published_dynamic>(
       [](auto& this_) {
         this_.can_be_published_dynamic() =
           meta::get_conditional_member<_can_be_published_dynamic_index>(this_);
@@ -643,7 +643,7 @@ struct access_handle_special_semantic_members
       *this
     );
 #if _darma_has_feature(task_collection_token)
-    utility::constexpr_if<has_task_collection_token
+    utility::darma_constexpr_if<has_task_collection_token
       and access_handle_special_semantic_members<OtherTraits>::has_task_collection_token
     >(
       [](auto& this_, auto& other_) {
@@ -662,7 +662,7 @@ struct access_handle_special_semantic_members
   void move_conditional_members(
     access_handle_special_semantic_members<OtherTraits>&& other
   ) {
-    utility::constexpr_if<has_can_be_published_dynamic>(
+    utility::darma_constexpr_if<has_can_be_published_dynamic>(
       [](auto& this_) {
         this_.can_be_published_dynamic() =
           meta::get_conditional_member<_can_be_published_dynamic_index>(this_);
@@ -670,7 +670,7 @@ struct access_handle_special_semantic_members
       *this
     );
 #if _darma_has_feature(task_collection_token)
-    utility::constexpr_if<has_task_collection_token
+    utility::darma_constexpr_if<has_task_collection_token
       and access_handle_special_semantic_members<OtherTraits>::has_task_collection_token
     >(
       [](auto& this_, auto& other_) {
