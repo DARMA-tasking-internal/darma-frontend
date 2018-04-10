@@ -300,4 +300,6 @@ struct MockConcurrentRegionContextHandle
 
 } // end namespace mock_backend
 
+#include "mock_free_functions.h"
+
 #endif /* SRC_TESTS_FRONTEND_VALIDATION_MOCK_BACKEND_H_ */

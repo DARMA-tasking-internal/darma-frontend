@@ -67,16 +67,16 @@ namespace backend {
 
 using namespace darma_runtime::types;
 
-runtime_context_token_t create_runtime_context(darma_runtime::types::MPI_Comm) {return { 1 };}
+inline runtime_context_token_t create_runtime_context(darma_runtime::types::MPI_Comm) {return { 1 };}
 
-piecewise_collection_token_t register_piecewise_collection(runtime_context_token_t,
+inline piecewise_collection_token_t register_piecewise_collection(runtime_context_token_t,
   std::shared_ptr<darma_runtime::abstract::frontend::Handle>,
   size_t
 ) {
   return piecewise_collection_token_t();
 }
 
-void 
+inline void
 register_piecewise_collection_piece(
   runtime_context_token_t context_token,
   piecewise_collection_token_t piecewise_token,
@@ -88,27 +88,27 @@ register_piecewise_collection_piece(
 
 }
 
-void 
+inline void
 run_distributed_region(
   runtime_context_token_t,
   std::function<void()>
 ) { }
 
-void run_distributed_region_worker(darma_runtime::types::runtime_context_token_t) { }
+inline void run_distributed_region_worker(darma_runtime::types::runtime_context_token_t) { }
 
-void
+inline void
 release_piecewise_collection(
   types::runtime_context_token_t,
   types::piecewise_collection_token_t
 ) { /* TODO trigger mock here */ }
 
-void
+inline void
 release_persistent_collection(
   types::runtime_context_token_t,
   types::persistent_collection_token_t
 ) { /* TODO trigger mock here */ }
 
-void conversion_to_ahc(double,darma_runtime::AccessHandleCollection<double,darma_runtime::Range1D<int>>) { }
+inline void conversion_to_ahc(double,darma_runtime::AccessHandleCollection<double,darma_runtime::Range1D<int>>) { }
 
 } // end namespace backend
 
