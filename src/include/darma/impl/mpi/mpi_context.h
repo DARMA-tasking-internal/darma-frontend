@@ -52,6 +52,8 @@
 #include <tinympl/is_instantiation_of.hpp>
 
 #include <darma/interface/backend/mpi_interop.h>
+#include <darma/interface/app/keyword_arguments/index_range.h>
+
 #include <darma/keyword_arguments/parse.h>
 #include <darma/keyword_arguments/macros.h>
 #include <darma/impl/array/index_range.h>
@@ -62,7 +64,6 @@ DeclareDarmaTypeTransparentKeyword(mpi_context, data);
 DeclareDarmaTypeTransparentKeyword(mpi_context, size);
 DeclareDarmaTypeTransparentKeyword(mpi_context, index);
 DeclareDarmaTypeTransparentKeyword(mpi_context, indices);
-DeclareDarmaTypeTransparentKeyword(mpi_context, index_range);
 DeclareDarmaTypeTransparentKeyword(mpi_context, copy_callback);
 DeclareDarmaTypeTransparentKeyword(mpi_context, copy_back_callback);
 
@@ -579,7 +580,7 @@ class mpi_context {
       using darma_runtime::keyword_tags_for_mpi_context::size;
       using darma_runtime::keyword_tags_for_mpi_context::index; 
       using darma_runtime::keyword_tags_for_mpi_context::indices;
-      using darma_runtime::keyword_tags_for_mpi_context::index_range;
+      using darma_runtime::keyword_tags_for_create_concurrent_work::index_range;
       using darma_runtime::keyword_tags_for_mpi_context::copy_callback;
       using darma_runtime::keyword_tags_for_mpi_context::copy_back_callback;
 
