@@ -648,7 +648,7 @@ class mpi_context {
 
       using namespace darma_runtime::detail;
       using darma_runtime::keyword_tags_for_mpi_context::size;
-      using darma_runtime::keyword_tags_for_mpi_context::index_range;
+      using darma_runtime::keyword_tags_for_create_concurrent_work::index_range;
 
       using parser = kwarg_parser<
         variadic_positional_overload_description<
