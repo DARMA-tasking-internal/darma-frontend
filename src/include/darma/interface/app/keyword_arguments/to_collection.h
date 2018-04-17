@@ -2,9 +2,9 @@
 //@HEADER
 // ************************************************************************
 //
-//                      collective_fwd.h
+//                      to_collection.h
 //                         DARMA
-//              Copyright (C) 2017 Sandia Corporation
+//              Copyright (C) 2017 NTESS, LLC
 //
 // Under the terms of Contract DE-NA-0003525 with NTESS, LLC,
 // the U.S. Government retains certain rights in this software.
@@ -42,29 +42,14 @@
 //@HEADER
 */
 
-#ifndef DARMAFRONTEND_COLLECTIVE_FWD_H
-#define DARMAFRONTEND_COLLECTIVE_FWD_H
+#ifndef DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_TO_COLLECTION_H
+#define DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_TO_COLLECTION_H
 
-namespace darma_runtime {
-namespace detail {
-
-struct op_not_given { };
-
-} // end namespace detail
-} // end namespace darma_runtime
-
-
-// TODO move these to interface files!
 #include <darma/keyword_arguments/macros.h>
 
-#include <darma/interface/app/keyword_arguments/input.h>
-#include <darma/interface/app/keyword_arguments/output.h>
-#include <darma/interface/app/keyword_arguments/in_out.h>
-#include <darma/interface/app/keyword_arguments/tag.h>
+DeclareDarmaTypeTransparentKeyword(commutative_access, to_collection);
 
-// Deprecated:
-#include <darma/interface/app/keyword_arguments/piece.h>
-#include <darma/interface/app/keyword_arguments/n_pieces.h>
+DeclareStandardDarmaKeywordArgumentAliases(commutative_access, to_collection);
 
 
-#endif //DARMAFRONTEND_COLLECTIVE_FWD_H
+#endif //DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_TO_COLLECTION_H
