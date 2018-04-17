@@ -69,7 +69,7 @@ _get_default_instance_token_ptr() {
   return _rv;
 }
 
-auto&
+inline auto&
 get_default_instance_token() {
   return *_get_default_instance_token_ptr<>().get();
 }
@@ -129,9 +129,14 @@ darma_region(Callable&& callable) {
   return done_future;
 }
 
-auto
+inline auto
 darma_initialize(int& argc, char**& argv) {
-  backend::initialize_runtime_arguments(argc, argv);
+  backend::initialize_with_arguments(argc, argv);
+}
+
+inline auto
+darma_finalize() {
+  backend::finalize();
 }
 
 } // end namespace experimental

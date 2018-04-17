@@ -52,19 +52,20 @@
 #include <tinympl/is_instantiation_of.hpp>
 
 #include <darma/interface/backend/mpi_interop.h>
+#include <darma/interface/app/keyword_arguments/index.h>
+#include <darma/interface/app/keyword_arguments/indices.h>
+#include <darma/interface/app/keyword_arguments/data.h>
+#include <darma/interface/app/keyword_arguments/size.h>
+#include <darma/interface/app/keyword_arguments/index_range.h>
+#include <darma/interface/app/keyword_arguments/copy_callback.h>
+#include <darma/interface/app/keyword_arguments/copy_back_callback.h>
+
 #include <darma/keyword_arguments/parse.h>
 #include <darma/keyword_arguments/macros.h>
 #include <darma/impl/array/index_range.h>
 #include <darma/impl/mpi/piecewise_acquired_collection.h>
 #include <darma/impl/mpi/persistent_collection.h>
 
-DeclareDarmaTypeTransparentKeyword(mpi_context, data);
-DeclareDarmaTypeTransparentKeyword(mpi_context, size);
-DeclareDarmaTypeTransparentKeyword(mpi_context, index);
-DeclareDarmaTypeTransparentKeyword(mpi_context, indices);
-DeclareDarmaTypeTransparentKeyword(mpi_context, index_range);
-DeclareDarmaTypeTransparentKeyword(mpi_context, copy_callback);
-DeclareDarmaTypeTransparentKeyword(mpi_context, copy_back_callback);
 
 namespace darma_runtime {
 
@@ -579,7 +580,7 @@ class mpi_context {
       using darma_runtime::keyword_tags_for_mpi_context::size;
       using darma_runtime::keyword_tags_for_mpi_context::index; 
       using darma_runtime::keyword_tags_for_mpi_context::indices;
-      using darma_runtime::keyword_tags_for_mpi_context::index_range;
+      using darma_runtime::keyword_tags_for_create_concurrent_work::index_range;
       using darma_runtime::keyword_tags_for_mpi_context::copy_callback;
       using darma_runtime::keyword_tags_for_mpi_context::copy_back_callback;
 
@@ -647,7 +648,7 @@ class mpi_context {
 
       using namespace darma_runtime::detail;
       using darma_runtime::keyword_tags_for_mpi_context::size;
-      using darma_runtime::keyword_tags_for_mpi_context::index_range;
+      using darma_runtime::keyword_tags_for_create_concurrent_work::index_range;
 
       using parser = kwarg_parser<
         variadic_positional_overload_description<
