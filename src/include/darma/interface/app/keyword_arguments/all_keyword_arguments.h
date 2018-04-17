@@ -50,5 +50,11 @@
 #include <darma/interface/app/keyword_arguments/name.h>
 #include <darma/interface/app/keyword_arguments/index_range.h>
 #include <darma/interface/app/keyword_arguments/n_iterations.h>
+#include <darma/interface/app/keyword_arguments/copy_back_callback.h>
+#include <darma/interface/app/keyword_arguments/copy_callback.h>
+#include <darma/interface/app/keyword_arguments/size.h>
+#include <darma/interface/app/keyword_arguments/data.h>
+#include <darma/interface/app/keyword_arguments/index.h>
+#include <darma/interface/app/keyword_arguments/indices.h>
 
 #endif //DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_ALL_KEYWORD_ARGUMENTS_H
