@@ -52,7 +52,13 @@
 #include <tinympl/is_instantiation_of.hpp>
 
 #include <darma/interface/backend/mpi_interop.h>
+#include <darma/interface/app/keyword_arguments/index.h>
+#include <darma/interface/app/keyword_arguments/indices.h>
+#include <darma/interface/app/keyword_arguments/data.h>
+#include <darma/interface/app/keyword_arguments/size.h>
 #include <darma/interface/app/keyword_arguments/index_range.h>
+#include <darma/interface/app/keyword_arguments/copy_callback.h>
+#include <darma/interface/app/keyword_arguments/copy_back_callback.h>
 
 #include <darma/keyword_arguments/parse.h>
 #include <darma/keyword_arguments/macros.h>
@@ -60,12 +66,6 @@
 #include <darma/impl/mpi/piecewise_acquired_collection.h>
 #include <darma/impl/mpi/persistent_collection.h>
 
-DeclareDarmaTypeTransparentKeyword(mpi_context, data);
-DeclareDarmaTypeTransparentKeyword(mpi_context, size);
-DeclareDarmaTypeTransparentKeyword(mpi_context, index);
-DeclareDarmaTypeTransparentKeyword(mpi_context, indices);
-DeclareDarmaTypeTransparentKeyword(mpi_context, copy_callback);
-DeclareDarmaTypeTransparentKeyword(mpi_context, copy_back_callback);
 
 namespace darma_runtime {
 

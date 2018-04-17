@@ -49,14 +49,14 @@
 
 #if _darma_has_feature(mpi_interop)
 
+#include <darma/interface/app/keyword_arguments/index.h>
+#include <darma/interface/app/keyword_arguments/copy_callback.h>
+#include <darma/interface/app/keyword_arguments/copy_back_callback.h>
+
 #include <darma/keyword_arguments/parse.h>
 #include <darma/keyword_arguments/macros.h>
 #include <darma/impl/task_collection/access_handle_collection.h>
 #include <darma/interface/backend/mpi_interop.h>
-
-DeclareDarmaTypeTransparentKeyword(piecewise_handle, index);
-DeclareDarmaTypeTransparentKeyword(piecewise_handle, copy_callback);
-DeclareDarmaTypeTransparentKeyword(piecewise_handle, copy_back_callback);
 
 namespace darma_runtime {
 
@@ -191,9 +191,9 @@ class PiecewiseCollectionHandle {
     acquire_access(Args&&... args) const {
 
       using namespace darma_runtime::detail;
-      using darma_runtime::keyword_tags_for_piecewise_handle::index;
-      using darma_runtime::keyword_tags_for_piecewise_handle::copy_callback;
-      using darma_runtime::keyword_tags_for_piecewise_handle::copy_back_callback;
+      using darma_runtime::keyword_tags_for_mpi_context::index;
+      using darma_runtime::keyword_tags_for_mpi_context::copy_callback;
+      using darma_runtime::keyword_tags_for_mpi_context::copy_back_callback;
 
       using parser = kwarg_parser<
         variadic_positional_overload_description<
