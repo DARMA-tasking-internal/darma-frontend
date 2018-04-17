@@ -105,7 +105,7 @@ _persistent_collection_creation_impl {
     /* index_range keyword version */
     template <typename IndexRangeT,
       typename = std::enable_if_t<
-        std::is_base_of<abstract::frontend::IndexRange, IndexRangeT>::value
+        indexing::index_range_traits<std::decay_t<IndexRangeT>>::is_index_range
       >,
       typename... Args
     >
@@ -229,7 +229,7 @@ _piecewise_acquired_collection_creation_impl {
     /* index_range keyword version */
     template <typename IndexRangeT, 
       typename = std::enable_if_t<
-        std::is_base_of<abstract::frontend::IndexRange, IndexRangeT>::value
+        indexing::index_range_traits<std::decay_t<IndexRangeT>>::is_index_range
       >,
       typename FirstArg,
       typename... LastArgs
@@ -311,7 +311,7 @@ _piecewise_acquired_collection_creation_impl {
       typename CopyCallbackT,
       typename CopyBackCallbackT,
       typename = std::enable_if_t<
-        std::is_base_of<abstract::frontend::IndexRange, IndexRangeT>::value
+        indexing::index_range_traits<std::decay_t<IndexRangeT>>::is_index_range
       >,
       typename FirstArg, 
       typename... LastArgs
@@ -424,7 +424,7 @@ _piecewise_acquired_collection_creation_impl {
       typename CopyCallbackT,
       typename CopyBackCallbackT,
       typename = std::enable_if_t<
-        std::is_base_of<abstract::frontend::IndexRange, IndexRangeT>::value &&
+        indexing::index_range_traits<std::decay_t<IndexRangeT>>::is_index_range &&
         tinympl::is_instantiation_of<std::tuple, DataTupleDeducedT>::value
       >,
       typename FirstArg,
