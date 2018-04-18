@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      index_range.h
+//                      depth.h
 //                         DARMA
 //              Copyright (C) 2017 NTESS, LLC
 //
@@ -10,7 +10,7 @@
 // the U.S. Government retains certain rights in this software.
 //
 // Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
+// modification, are depthmitted provided that the following conditions are
 // met:
 //
 // 1. Redistributions of source code must retain the above copyright
@@ -22,7 +22,7 @@
 //
 // 3. Neither the name of the Corporation nor the names of the
 // contributors may be used to endorse or promote products derived from
-// this software without specific prior written permission.
+// this software without specific prior written depthmission.
 //
 // THIS SOFTWARE IS PROVIDED BY SANDIA CORPORATION "AS IS" AND ANY
 // EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -42,25 +42,14 @@
 //@HEADER
 */
 
-#ifndef DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_INDEX_RANGE_H
-#define DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_INDEX_RANGE_H
+#ifndef DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_DEPTH_H
+#define DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_DEPTH_H
 
 #include <darma/keyword_arguments/macros.h>
 
-DeclareDarmaTypeTransparentKeyword(create_concurrent_work, index_range);
+DeclareDarmaTypeTransparentKeyword(resource_count, depth);
 
-namespace darma_runtime {
-  namespace keyword_arguments_for_access_handle_collection {
-    AliasDarmaKeyword(create_concurrent_work, index_range);
-  } // end namespace keyword_arguments_for_access_handle_collection
-
-  namespace keyword_arguments_for_mpi_context {
-    AliasDarmaKeyword(create_concurrent_work, index_range);
-  } // end namespace keyword_arguments_for_mpi_context
-
-} // end namespace darma_runtime
-
-DeclareStandardDarmaKeywordArgumentAliases(create_concurrent_work, index_range);
+DeclareStandardDarmaKeywordArgumentAliases(resource_count, depth);
 
 
-#endif //DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_INDEX_RANGE_H
+#endif //DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_DEPTH_H

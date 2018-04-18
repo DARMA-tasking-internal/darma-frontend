@@ -50,5 +50,21 @@
 #include <darma/interface/app/keyword_arguments/name.h>
 #include <darma/interface/app/keyword_arguments/index_range.h>
 #include <darma/interface/app/keyword_arguments/n_iterations.h>
+#include <darma/interface/app/keyword_arguments/copy_back_callback.h>
+#include <darma/interface/app/keyword_arguments/copy_callback.h>
+#include <darma/interface/app/keyword_arguments/size.h>
+#include <darma/interface/app/keyword_arguments/data.h>
+#include <darma/interface/app/keyword_arguments/index.h>
+#include <darma/interface/app/keyword_arguments/indices.h>
+#include <darma/interface/app/keyword_arguments/input.h>
+#include <darma/interface/app/keyword_arguments/output.h>
+#include <darma/interface/app/keyword_arguments/in_out.h>
+#include <darma/interface/app/keyword_arguments/tag.h>
+#include <darma/interface/app/keyword_arguments/is_parallel.h>
+#include <darma/interface/app/keyword_arguments/allow_aliasing.h>
+#include <darma/interface/app/keyword_arguments/per.h>
+#include <darma/interface/app/keyword_arguments/depth.h>
+#include <darma/interface/app/keyword_arguments/to_handle.h>
+#include <darma/interface/app/keyword_arguments/to_collection.h>
 
 #endif //DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_ALL_KEYWORD_ARGUMENTS_H

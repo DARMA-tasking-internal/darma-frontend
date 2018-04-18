@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      index_range.h
+//                      allow_aliasing.h
 //                         DARMA
 //              Copyright (C) 2017 NTESS, LLC
 //
@@ -42,25 +42,29 @@
 //@HEADER
 */
 
-#ifndef DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_INDEX_RANGE_H
-#define DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_INDEX_RANGE_H
+#ifndef DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_ALLOW_ALIASING_H
+#define DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_ALLOW_ALIASING_H
 
 #include <darma/keyword_arguments/macros.h>
 
-DeclareDarmaTypeTransparentKeyword(create_concurrent_work, index_range);
+DeclareDarmaTypeTransparentKeyword(task_creation, allow_aliasing);
 
 namespace darma_runtime {
-  namespace keyword_arguments_for_access_handle_collection {
-    AliasDarmaKeyword(create_concurrent_work, index_range);
-  } // end namespace keyword_arguments_for_access_handle_collection
-
-  namespace keyword_arguments_for_mpi_context {
-    AliasDarmaKeyword(create_concurrent_work, index_range);
-  } // end namespace keyword_arguments_for_mpi_context
-
+  namespace keyword_arguments_for_create_work {
+    AliasDarmaKeyword(task_creation, allow_aliasing);
+  } // end namespace keyword_arguments_for_create_work
+  namespace keyword_arguments_for_create_concurrent_work {
+    AliasDarmaKeyword(task_creation, allow_aliasing);
+  } // end namespace keyword_arguments_for_create_concurrent_work
+  namespace keyword_arguments_for_create_work_if {
+    AliasDarmaKeyword(task_creation, allow_aliasing);
+  } // end namespace keyword_arguments_for_create_work_if
+  namespace keyword_arguments_for_create_work_while {
+    AliasDarmaKeyword(task_creation, allow_aliasing);
+  } // end namespace keyword_arguments_for_create_work_while
 } // end namespace darma_runtime
 
-DeclareStandardDarmaKeywordArgumentAliases(create_concurrent_work, index_range);
+DeclareStandardDarmaKeywordArgumentAliases(task_creation, allow_aliasing);
 
 
-#endif //DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_INDEX_RANGE_H
+#endif //DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_ALLOW_ALIASING_H

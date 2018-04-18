@@ -2,7 +2,7 @@
 //@HEADER
 // ************************************************************************
 //
-//                      index_range.h
+//                      n_pieces.h
 //                         DARMA
 //              Copyright (C) 2017 NTESS, LLC
 //
@@ -42,25 +42,22 @@
 //@HEADER
 */
 
-#ifndef DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_INDEX_RANGE_H
-#define DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_INDEX_RANGE_H
+#ifndef DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_N_PIECES_H
+#define DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_N_PIECES_H
 
 #include <darma/keyword_arguments/macros.h>
 
-DeclareDarmaTypeTransparentKeyword(create_concurrent_work, index_range);
+// DEPRECATED
+
+DeclareDarmaTypeTransparentKeyword(collectives, n_pieces);
 
 namespace darma_runtime {
-  namespace keyword_arguments_for_access_handle_collection {
-    AliasDarmaKeyword(create_concurrent_work, index_range);
-  } // end namespace keyword_arguments_for_access_handle_collection
-
-  namespace keyword_arguments_for_mpi_context {
-    AliasDarmaKeyword(create_concurrent_work, index_range);
-  } // end namespace keyword_arguments_for_mpi_context
-
+  namespace keyword_arguments_for_allreduce {
+    AliasDarmaKeyword(collectives, n_pieces);
+  } // end namespace keyword_arguments_for_allreduce
 } // end namespace darma_runtime
 
-DeclareStandardDarmaKeywordArgumentAliases(create_concurrent_work, index_range);
+DeclareStandardDarmaKeywordArgumentAliases(collectives, n_pieces);
 
 
-#endif //DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_INDEX_RANGE_H
+#endif //DARMA_INTERFACE_APP_KEYWORD_ARGUMENTS_N_PIECES_H

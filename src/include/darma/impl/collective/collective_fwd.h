@@ -57,11 +57,14 @@ struct op_not_given { };
 // TODO move these to interface files!
 #include <darma/keyword_arguments/macros.h>
 
-DeclareDarmaTypeTransparentKeyword(collectives, input);
-DeclareDarmaTypeTransparentKeyword(collectives, output);
-DeclareDarmaTypeTransparentKeyword(collectives, in_out);
-DeclareDarmaTypeTransparentKeyword(collectives, piece);
-DeclareDarmaTypeTransparentKeyword(collectives, n_pieces);
-DeclareDarmaTypeTransparentKeyword(collectives, tag);
+#include <darma/interface/app/keyword_arguments/input.h>
+#include <darma/interface/app/keyword_arguments/output.h>
+#include <darma/interface/app/keyword_arguments/in_out.h>
+#include <darma/interface/app/keyword_arguments/tag.h>
+
+// Deprecated:
+#include <darma/interface/app/keyword_arguments/piece.h>
+#include <darma/interface/app/keyword_arguments/n_pieces.h>
+
 
 #endif //DARMAFRONTEND_COLLECTIVE_FWD_H
