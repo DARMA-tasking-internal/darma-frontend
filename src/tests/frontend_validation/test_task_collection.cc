@@ -1566,10 +1566,7 @@ TEST_F(TestCreateConcurrentWork, handle_reduce)
   using namespace ::testing;
   using namespace darma_runtime;
   using namespace darma_runtime::frontend;
-  using namespace darma_runtime::keyword_arguments_for_publication;
-  using namespace darma_runtime::keyword_arguments_for_task_creation;
-  using namespace darma_runtime::keyword_arguments_for_collectives;
-  using namespace darma_runtime::keyword_arguments_for_access_handle_collection;
+  using namespace darma_runtime::keyword_arguments;
   using namespace mock_backend;
 
   mock_runtime->save_tasks = true;
