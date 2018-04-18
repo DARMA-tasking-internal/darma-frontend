@@ -46,6 +46,10 @@
 #define DARMA_INTERFACE_APP_RESOURCE_COUNT_H
 
 #include <darma/impl/meta/tagged_constant.h>
+
+#include <darma/interface/app/keyword_arguments/per.h>
+#include <darma/interface/app/keyword_arguments/depth.h>
+
 #include <darma/keyword_arguments/parse.h>
 
 namespace darma_runtime {
@@ -73,20 +77,6 @@ static constexpr auto HardwareThreads = HardwareThread;
 
 } // end namespace constants_for_resource_count
 
-} // end namespace darma_runtime
-
-DeclareDarmaTypeTransparentKeyword(resource_count, depth);
-namespace darma_runtime {
-namespace keyword_arguments {
-static constexpr auto depth = ::darma_runtime::keyword_arguments_for_resource_count::depth;
-} // end namespace keyword_arguments
-} // end namespace darma_runtime
-
-DeclareDarmaTypeTransparentKeyword(resource_count, per);
-namespace darma_runtime {
-namespace keyword_arguments {
-static constexpr auto per = ::darma_runtime::keyword_arguments_for_resource_count::per;
-} // end namespace keyword_arguments
 } // end namespace darma_runtime
 
 namespace darma_runtime {

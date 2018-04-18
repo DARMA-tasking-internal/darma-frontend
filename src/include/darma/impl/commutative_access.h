@@ -52,15 +52,14 @@
 #include <darma/impl/commutative_access_fwd.h>
 
 #include <darma/impl/meta/detection.h> // nonesuch
+#include <darma/app/interface/keyword_arguments/to_handle.h>
+#include <darma/app/interface/keyword_arguments/to_collection.h>
 #include <darma/keyword_arguments/macros.h>
 #include <darma/keyword_arguments/parse.h>
 #include <darma/impl/handle.h> // is_access_handle
 #include "flow_handling.h"
 #include "use.h"
 
-
-DeclareDarmaTypeTransparentKeyword(commutative_access, to_handle);
-DeclareDarmaTypeTransparentKeyword(commutative_access, to_collection);
 
 namespace darma_runtime {
 
