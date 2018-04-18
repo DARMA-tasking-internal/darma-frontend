@@ -65,6 +65,7 @@ std::map<TestFrontend::use_t const *, _impl::UseDescription>
 ::testing::StrictMock<MockSequenceMarker>* sequence_marker = nullptr;
 
 std::unique_ptr<mock_backend::MockRuntime> mock_runtime { nullptr };
+std::unique_ptr<mock_backend::MockMPIBackend> mock_mpi_backend { nullptr };
 
 static int main_return_value = 0;
 

@@ -298,6 +298,139 @@ struct MockConcurrentRegionContextHandle
     MOCK_CONST_METHOD0(get_backend_index, size_t());
 };
 
+
+// Add mock classes to test calls to mpi_interop_backend
+class MockBaseMPIBackend {
+
+  public:
+
+    virtual ~MockBaseMPIBackend() {};
+
+    virtual 
+    darma_runtime::types::runtime_context_token_t 
+    create_runtime_context(darma_runtime::types::MPI_Comm) = 0;
+
+    virtual 
+    darma_runtime::types::piecewise_collection_token_t 
+    register_piecewise_collection(darma_runtime::types::runtime_context_token_t,
+      std::shared_ptr<darma_runtime::abstract::frontend::Handle>,
+      size_t
+    ) = 0;
+
+    virtual
+    void 
+    release_piecewise_collection(
+      darma_runtime::types::runtime_context_token_t,
+      darma_runtime::types::piecewise_collection_token_t
+    ) = 0;
+
+    virtual
+    darma_runtime::types::persistent_collection_token_t
+    register_persistent_collection(
+      darma_runtime::types::runtime_context_token_t,
+      std::shared_ptr<darma_runtime::abstract::frontend::Handle>,
+      size_t
+    ) = 0;
+
+    virtual
+    void
+    release_persistent_collection(
+      darma_runtime::types::runtime_context_token_t,
+      darma_runtime::types::persistent_collection_token_t
+    ) = 0;
+  
+    virtual
+    void
+    register_piecewise_collection_piece(
+      darma_runtime::types::runtime_context_token_t,
+      darma_runtime::types::piecewise_collection_token_t,
+      size_t,
+      void*,
+      std::function<void(void const*, void*)> = nullptr,
+      std::function<void(void const*, void*)> = nullptr
+    ) = 0;
+
+    virtual 
+    void
+    run_distributed_region(
+      darma_runtime::types::runtime_context_token_t,
+      std::function<void()>
+    ) = 0;
+
+    virtual
+    void
+    run_distributed_region_worker(
+      darma_runtime::types::runtime_context_token_t
+    ) = 0;
+};
+
+class MockMPIBackend 
+  : public MockBaseMPIBackend {
+
+  public:
+
+    MOCK_METHOD1(create_runtime_context, 
+      darma_runtime::types::runtime_context_token_t(
+        darma_runtime::types::MPI_Comm
+      )
+    );
+ 
+    MOCK_METHOD3(register_piecewise_collection,
+      darma_runtime::types::piecewise_collection_token_t(
+        darma_runtime::types::runtime_context_token_t,
+        std::shared_ptr<darma_runtime::abstract::frontend::Handle>,
+        size_t
+      )
+    );
+
+    MOCK_METHOD2(release_piecewise_collection,
+      void(
+        darma_runtime::types::runtime_context_token_t,
+        darma_runtime::types::piecewise_collection_token_t
+      )
+    );
+
+    MOCK_METHOD3(register_persistent_collection,
+      darma_runtime::types::persistent_collection_token_t(
+        darma_runtime::types::runtime_context_token_t,
+        std::shared_ptr<darma_runtime::abstract::frontend::Handle>,
+        size_t
+      )
+    );
+
+    MOCK_METHOD2(release_persistent_collection,
+      void(
+        darma_runtime::types::runtime_context_token_t,
+        darma_runtime::types::persistent_collection_token_t
+      )
+    );
+
+    MOCK_METHOD6(register_piecewise_collection_piece,
+      void(
+        darma_runtime::types::runtime_context_token_t,
+        darma_runtime::types::piecewise_collection_token_t,
+        size_t,
+        void*,
+        std::function<void(void const*, void*)>,
+        std::function<void(void const*, void*)>
+      )
+    );
+
+    MOCK_METHOD2(run_distributed_region,
+      void(
+        darma_runtime::types::runtime_context_token_t,
+        std::function<void()>
+      )
+    );        
+
+    MOCK_METHOD1(run_distributed_region_worker,
+      void(
+        darma_runtime::types::runtime_context_token_t
+      )
+    );
+};
+
+
 } // end namespace mock_backend
 
 #include "mock_free_functions.h"

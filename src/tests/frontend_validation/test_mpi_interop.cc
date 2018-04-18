@@ -79,80 +79,99 @@ class TestMPIInterop
 
 ////////////////////////////////////////////////////////////////////////////////
 
-TEST_F(TestMPIInterop, baseline_test) {
+TEST_F(TestMPIInterop, piecewise_collection_test) {
   using namespace ::testing;
   using namespace darma_runtime;
   using namespace darma_runtime::keyword_arguments_for_mpi_context;
   using namespace mock_backend;
 
-/*
-  DECLARE_MOCK_FLOWS(finit1, finit2, fnull1, fnull2, fout1, fout2);
-  use_t *use_1, *use_2, *init_use_1, *init_use_2, *cont_use_1, *cont_use_2;
+  types::MPI_Comm mpi_comm{};
 
-  EXPECT_INITIAL_ACCESS(finit1, fnull1, init_use_1, make_key("hello"));
-  EXPECT_INITIAL_ACCESS(finit2, fnull2, init_use_2, make_key("world"));
+  EXPECT_CALL(*mock_mpi_backend, create_runtime_context(_)).WillOnce(::testing::Return(types::runtime_context_token_t{}));
 
-  EXPECT_MOD_CAPTURE_MN_OR_MR(finit1, fout1, use_1, fnull1, cont_use_1);
-
-  EXPECT_RELEASE_USE(init_use_1);
-
-  EXPECT_MOD_CAPTURE_MN_OR_MR(finit2, fout2, use_2, fnull2, cont_use_2);
-
-  EXPECT_RELEASE_USE(init_use_2);
-
-  EXPECT_REGISTER_TASK(use_1, use_2);
-
-  EXPECT_FLOW_ALIAS(fout1, fnull1);
-
-  EXPECT_RELEASE_USE(cont_use_1);
-
-  EXPECT_FLOW_ALIAS(fout2, fnull2);
-
-  EXPECT_RELEASE_USE(cont_use_2);
-*/
+  EXPECT_CALL(*mock_mpi_backend, register_piecewise_collection(_, _, _)).WillOnce(::testing::Return(types::piecewise_collection_token_t{}));
 
   //============================================================================
   // Actual code being tested
   {
 
-/*
-    std::vector<AccessHandle<int>> handles;
+    auto context = mpi_context(types::MPI_Comm{});
 
-    handles.push_back(initial_access<int>("hello"));
-    handles.emplace_back(initial_access<int>("world"));
+    auto piecewise_collection = context.piecewise_acquired_collection<double>("Hello", index_range = Range1D<int>(4));
 
-    create_work([=]{
-      handles[0].set_value(5);
-      FAIL() << "This code block shouldn't be running in this example";
-    });
-*/
+  } 
+  //============================================================================
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST_F(TestMPIInterop, acquire_access_test) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_mpi_context;
+  using namespace mock_backend;
+
+  double buffer_data = 1.0;
+  types::MPI_Comm mpi_comm{};
+
+  EXPECT_CALL(*mock_mpi_backend, create_runtime_context(_)).WillOnce(::testing::Return(types::runtime_context_token_t{}));
+
+  EXPECT_CALL(*mock_mpi_backend, register_piecewise_collection(_, _, _)).WillOnce(::testing::Return(types::piecewise_collection_token_t{}));
+
+  EXPECT_CALL(*mock_mpi_backend, register_piecewise_collection_piece(_, _, 0, &buffer_data, _, _));
+
+  //============================================================================
+  // Actual code being tested
+  {
 
     auto context = mpi_context(types::MPI_Comm{});
 
-    double gb = 4;
-    double gb1 = 1;
-    double gb2 = 3;  
-    double gb3 = 6;
-    auto p1 = context.piecewise_acquired_collection<double>("Giulio", index_range = Range1D<int>(4));
-    auto p2 = context.piecewise_acquired_collection<double>("Giulio2", size = 10);
-    auto token3 = context.piecewise_acquired_collection<double>("Giulio3", index_range = Range1D<int>(5), darma_runtime::keyword_arguments_for_mpi_context::index = 2, data = gb);
-    auto token4 = context.piecewise_acquired_collection<double>("Giulio4", size = 10, darma_runtime::keyword_arguments_for_mpi_context::index = 2, data = gb);
-    auto token5 = context.piecewise_acquired_collection<double>("Giulio5", index_range = Range1D<int>(6), indices(1,2,3),data(gb1,gb2,gb3));
-    auto token6 = context.piecewise_acquired_collection<double>("Giulio6", size = 10, indices(1,2,3),data(gb1,gb2,gb3));
+    auto piecewise_collection = context.piecewise_acquired_collection<double>("Hello", index_range = Range1D<int>(4));
 
-    p1.acquire_access(gb,darma_runtime::keyword_arguments_for_piecewise_handle::index = 2);
-    //conversion_to_ahc(gb,p1);
+    piecewise_collection.acquire_access(buffer_data, darma_runtime::keyword_arguments_for_piecewise_handle::index = 0);
 
-  } // handles deleted
+  }
   //============================================================================
 
-/*
-  EXPECT_RELEASE_USE(use_1);
+}
 
-  EXPECT_RELEASE_USE(use_2);
+////////////////////////////////////////////////////////////////////////////////
 
-  mock_runtime->registered_tasks.clear();
-*/
+TEST_F(TestMPIInterop, piecewise_collection_with_data_test) {
+  using namespace ::testing;
+  using namespace darma_runtime;
+  using namespace darma_runtime::keyword_arguments_for_mpi_context;
+  using namespace mock_backend;
+
+  double buffer_data_1 = 1.0;
+  double buffer_data_2 = 2.0;
+  types::MPI_Comm mpi_comm{};
+
+  EXPECT_CALL(*mock_mpi_backend, create_runtime_context(_)).WillOnce(::testing::Return(types::runtime_context_token_t{}));
+
+  EXPECT_CALL(*mock_mpi_backend, register_piecewise_collection(_, _, _)).WillOnce(::testing::Return(types::piecewise_collection_token_t{}));
+
+  EXPECT_CALL(*mock_mpi_backend, register_piecewise_collection_piece(_, _, 0, &buffer_data_1, _, _));
+
+  EXPECT_CALL(*mock_mpi_backend, register_piecewise_collection_piece(_, _, 1, &buffer_data_2, _, _));
+
+  //============================================================================
+  // Actual code being tested
+  {
+
+    auto context = mpi_context(types::MPI_Comm{});
+
+    auto piecewise_collection = context.piecewise_acquired_collection<double>(
+      "Hello", 
+      index_range = Range1D<int>(4),
+      data(buffer_data_1, buffer_data_2),
+      indices(0, 1)
+    );
+
+  }
+  //============================================================================
 
 }
+
 

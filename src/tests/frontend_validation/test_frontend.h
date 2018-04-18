@@ -90,6 +90,7 @@ class MockSequenceMarker {
 extern ::testing::StrictMock<MockSequenceMarker>* sequence_marker;
 
 extern std::unique_ptr<mock_backend::MockRuntime> mock_runtime;
+extern std::unique_ptr<mock_backend::MockMPIBackend> mock_mpi_backend;
 
 namespace darma_runtime {
 namespace abstract {
@@ -600,10 +601,23 @@ class TestFrontend
       mock_runtime_setup_done = true;
     }
 
+    template <template <class...> class Strictness = ::testing::StrictMock>
+    void setup_mock_mpi_backend() {
+      assert(mock_mpi_backend == nullptr);
+      mock_mpi_backend = std::make_unique<Strictness<mock_backend::MockMPIBackend>>();
+
+      mock_mpi_backend_setup_done = true;
+    }
+ 
     virtual void SetUp() {
       if(not mock_runtime_setup_done) {
         setup_mock_runtime();
       }
+
+      if(not mock_mpi_backend_setup_done) {
+        setup_mock_mpi_backend();
+      }
+
       sequence_marker = new StrictMock<MockSequenceMarker>();
     }
 
@@ -612,6 +626,11 @@ class TestFrontend
       if(mock_runtime_setup_done) {
         mock_runtime = nullptr;
         mock_runtime_setup_done = false;
+      }
+
+      if(mock_mpi_backend_setup_done) {
+        mock_mpi_backend = nullptr;
+        mock_mpi_backend_setup_done = false;
       }
 
       described_uses_.clear();
@@ -658,6 +677,7 @@ class TestFrontend
 
     mock_backend::MockRuntime::top_level_task_unique_ptr top_level_task;
     bool mock_runtime_setup_done = false;
+    bool mock_mpi_backend_setup_done = false;
 };
 
 

@@ -61,19 +61,30 @@
 
 #include <darma/impl/access_handle/access_handle_collection.impl.h>
 
+extern std::unique_ptr<mock_backend::MockMPIBackend> mock_mpi_backend;
+
 namespace darma_runtime {
 
 namespace backend {
 
 using namespace darma_runtime::types;
 
-inline runtime_context_token_t create_runtime_context(darma_runtime::types::MPI_Comm) {return { 1 };}
+inline runtime_context_token_t create_runtime_context(darma_runtime::types::MPI_Comm comm) {
+   return mock_mpi_backend->create_runtime_context(comm);
+}
 
-inline piecewise_collection_token_t register_piecewise_collection(runtime_context_token_t,
-  std::shared_ptr<darma_runtime::abstract::frontend::Handle>,
-  size_t
+inline piecewise_collection_token_t register_piecewise_collection(runtime_context_token_t context_token,
+  std::shared_ptr<darma_runtime::abstract::frontend::Handle> handle,
+  size_t size_range
 ) {
-  return piecewise_collection_token_t();
+  return mock_mpi_backend->register_piecewise_collection(context_token, handle, size_range);
+}
+
+inline persistent_collection_token_t register_persistent_collection(runtime_context_token_t context_token,
+  std::shared_ptr<darma_runtime::abstract::frontend::Handle> handle,
+  size_t size_range
+) {
+  return mock_mpi_backend->register_persistent_collection(context_token, handle, size_range);
 }
 
 inline void
@@ -81,34 +92,53 @@ register_piecewise_collection_piece(
   runtime_context_token_t context_token,
   piecewise_collection_token_t piecewise_token,
   size_t index,
-  void*,
-  std::function<void(void const*, void*)>,
-  std::function<void(void const*, void*)>
+  void* pData,
+  std::function<void(void const*, void*)> copy_callback,
+  std::function<void(void const*, void*)> copy_back_callback
 ) {
-
+  return mock_mpi_backend->register_piecewise_collection_piece(
+    context_token, 
+    piecewise_token,
+    index,
+    pData, 
+    copy_callback,
+    copy_back_callback
+  );
 }
 
 inline void
 run_distributed_region(
-  runtime_context_token_t,
-  std::function<void()>
-) { }
+  runtime_context_token_t context_token,
+  std::function<void()> foo
+) { 
+  mock_mpi_backend->run_distributed_region(context_token, foo);
+}
 
-inline void run_distributed_region_worker(darma_runtime::types::runtime_context_token_t) { }
+inline void run_distributed_region_worker(runtime_context_token_t context_token) { 
+  mock_mpi_backend->run_distributed_region_worker(context_token);
+}
 
 inline void
 release_piecewise_collection(
-  types::runtime_context_token_t,
-  types::piecewise_collection_token_t
-) { /* TODO trigger mock here */ }
+  runtime_context_token_t context_token,
+  piecewise_collection_token_t piecewise_token
+) { 
+  mock_mpi_backend->release_piecewise_collection(
+    context_token,
+    piecewise_token
+  );
+}
 
 inline void
 release_persistent_collection(
-  types::runtime_context_token_t,
-  types::persistent_collection_token_t
-) { /* TODO trigger mock here */ }
-
-inline void conversion_to_ahc(double,darma_runtime::AccessHandleCollection<double,darma_runtime::Range1D<int>>) { }
+  runtime_context_token_t context_token,
+  persistent_collection_token_t persistent_token
+) { 
+  mock_mpi_backend->release_persistent_collection(
+    context_token,
+    persistent_token
+  );
+}
 
 } // end namespace backend
 
