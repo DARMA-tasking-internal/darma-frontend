@@ -50,8 +50,42 @@
 #if _darma_has_feature(mpi_interop)
 
 #include <darma_types.h>
+#include <tinympl/detection.hpp>
+
+#include <iostream>
 
 namespace darma_runtime {
+
+namespace detail {
+
+template <typename Serializable>
+struct
+_convert_cb_to_std_fun {
+
+  typedef std::function<void(void const*, void*)> fooT;
+
+  // nullptr_t variant
+  fooT operator()(nullptr_t) {
+    return fooT(nullptr);
+  }
+
+  // Lambda and function pointer variants
+  template <typename LambdaT>
+  fooT
+  operator()(LambdaT&& lambda) {
+    auto wrap = [cb=std::move(lambda)](void const* src, void* dst) {
+      cb(
+        *reinterpret_cast<Serializable const*>(src),
+        *reinterpret_cast<Serializable*>(dst)
+      ); 
+    };
+    return fooT(wrap);     
+  }  
+
+};
+
+} // end namespace detail
+
 
 namespace backend {
 
@@ -69,12 +103,19 @@ register_piecewise_collection_piece(
   CopyOutCallback&& copy_out = nullptr,
   CopyInCallback&& copy_in = nullptr
 ) {
+
+    // Wrap callbacks around std::function objects
+    auto convert_cb = darma_runtime::detail::_convert_cb_to_std_fun<Serializable>{};
+    auto copy_out_func = convert_cb(std::forward<decltype(copy_out)>(copy_out));
+    auto copy_in_func = convert_cb(std::forward<decltype(copy_in)>(copy_in));
+
+    // Call mpi backend API
     register_piecewise_collection_piece(context_token,
     collection_token,
     piece_index,
     (void*)&piece,
-    std::function<void(void const*, void*)>(std::forward<CopyOutCallback>(copy_out)),
-    std::function<void(void const*, void*)>(std::forward<CopyInCallback>(copy_in))
+    copy_out_func,
+    copy_in_func
   );
 }
 
