@@ -74,8 +74,10 @@ namespace darma = darma_runtime;
   using darma_runtime::keyword_arguments_for_collectives::output
 
 #define darma_import_publish \
+  namespace kw { \
   using keyword_arguments_for_publish::n_readers; \
-  using darma_runtime::keyword_arguments_for_publish::version
+  using darma_runtime::keyword_arguments_for_publish::version; \
+  }
 
 #define darma_import_ahc darma_import_access_handle_collection
 #define darma_import_ah darma_import_access_handle
@@ -90,13 +92,19 @@ namespace darma = darma_runtime;
 
 #if DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
 #define darma_import_create_work \
+  namespace kw { \
+    using darma_runtime::keyword_arguments_for_create_work::name; \
+  } \
   using darma_runtime::_create_work_creation_context; \
   using darma_runtime::_create_work_if_creation_context; \
   using darma_runtime::_create_work_while_creation_context; \
   using darma_runtime::create_concurrent_work 
 #else
 #define darma_import_create_work \
-  using darma_runtime::create_work\
+  namespace kw { \
+    using darma_runtime::keyword_arguments_for_create_work::name; \
+  } \
+  using darma_runtime::create_work; \
   using darma_runtime::create_work_if; \
   using darma_runtime::create_work_while; \
   using darma_runtime::create_concurrent_work 

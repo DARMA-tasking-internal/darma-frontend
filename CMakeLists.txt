@@ -47,8 +47,6 @@ else()
   message("DARMA frontend tests will be skipped.")
 endif()
 
-# indicate that CMAKE was used, so config-generated.h can be used
-set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DDARMA_CONFIG_GENERATED_H_AVAILABLE" )
 
 
 if (DARMA_ENABLE_COVERALLS)
@@ -79,6 +77,10 @@ target_include_directories(darma_frontend INTERFACE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
   $<INSTALL_INTERFACE:include>
 )
+
+# indicate that CMAKE was used, so config-generated.h can be used
+target_compile_options(darma_frontend INTERFACE -DDARMA_CONFIG_GENERATED_H_AVAILABLE)
+
 install(TARGETS darma_frontend EXPORT darma_frontend)
 install(EXPORT darma_frontend DESTINATION cmake)
 

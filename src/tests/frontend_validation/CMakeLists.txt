@@ -7,12 +7,14 @@ endif()
 
 find_package ( Threads REQUIRED )
 
-include_directories( ${DARMA_FE_REPO_ROOT}/src/tests/frontend_validation )
 function(add_unit_test test_name)
   set(frontendtestfiles "${frontendtestfiles};${test_name}.cc" PARENT_SCOPE)
   add_executable(${test_name} ${test_name}.cc gtest_main.cc)
+  target_include_directories(${test_name} PUBLIC 
+   $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src/tests/frontend_validation>)
   # GMock links to GTest, so all we need is GMock
-  target_link_libraries(${test_name} ${DARMA_BACKEND_LIBNAME} ${GMOCK_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+  target_link_libraries(${test_name} darma_frontend ${DARMA_BACKEND_LIBNAME})
+  target_link_libraries(${test_name} ${GMOCK_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
   add_test(${test_name} ${CMAKE_CURRENT_BINARY_DIR}/${test_name} "")
   set_tests_properties(${test_name} PROPERTIES TIMEOUT 30
     FAIL_REGULAR_EXPRESSION "FAILED;should be deleted but never is"
@@ -43,8 +45,10 @@ add_unit_test(test_darma_region)
 add_unit_test(test_lambda_migrate)
 
 add_executable(run_all_frontend_tests ${frontendtestfiles} gtest_main.cc)
+target_include_directories(run_all_frontend_tests PUBLIC 
+   $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src/tests/frontend_validation>)
 
-target_link_libraries(run_all_frontend_tests ${DARMA_BACKEND_LIBNAME} ${GMOCK_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(run_all_frontend_tests darma_frontend ${DARMA_BACKEND_LIBNAME} ${GMOCK_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 if (DARMA_COVERAGE)
 setup_target_for_coverage(frontend_coverage run_all_frontend_tests coverage)
 endif()
