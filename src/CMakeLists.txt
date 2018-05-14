@@ -2,6 +2,3 @@ include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_BINARY_
 
 add_subdirectory(include)
 
-if (DARMA_TESTS)
-  add_subdirectory(tests)
-endif()

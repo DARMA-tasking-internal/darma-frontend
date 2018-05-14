@@ -1,21 +1,23 @@
 
-if (NOT GTEST_FOUND)
-  message("It is recommended to define the prefix install dir for GoogleTest via -DGTEST_DIR=")
-else()
-  include_directories( ${GTEST_INCLUDE_DIRS} ${GMOCK_INCLUDE_DIRS} )
-endif()
+find_package(GTest REQUIRED)
+find_package(GMock REQUIRED)
 
-find_package ( Threads REQUIRED )
+include(GoogleTest)
 
-include_directories( ${DARMA_FE_REPO_ROOT}/src/tests/frontend_validation )
+include_directories(${CMAKE_CURRENT_LIST_DIR})
 function(add_unit_test test_name)
+
   set(frontendtestfiles "${frontendtestfiles};${test_name}.cc" PARENT_SCOPE)
+
   add_executable(${test_name} ${test_name}.cc gtest_main.cc)
-  # GMock links to GTest, so all we need is GMock
-  target_link_libraries(${test_name} ${DARMA_BACKEND_LIBNAME} ${GMOCK_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+  target_link_libraries(${test_name} darma_frontend::darma_frontend)
+  target_link_libraries(${test_name} GTest::GTest GTest::Main)
+  target_link_libraries(${test_name} ${GMOCK_BOTH_LIBRARIES})
+
   add_test(${test_name} ${CMAKE_CURRENT_BINARY_DIR}/${test_name} "")
+
   set_tests_properties(${test_name} PROPERTIES TIMEOUT 30
-    FAIL_REGULAR_EXPRESSION "FAILED;should be deleted but never is"
+    FAIL_REGULAR_EXPRESSION "FAILED;timeout"
     PASS_REGULAR_EXPRESSION "PASSED")
 endfunction()
 
@@ -42,9 +44,9 @@ add_unit_test(test_anti_flows)
 add_unit_test(test_darma_region)
 add_unit_test(test_lambda_migrate)
 
-add_executable(run_all_frontend_tests ${frontendtestfiles} gtest_main.cc)
+#add_executable(run_all_frontend_tests ${frontendtestfiles} gtest_main.cc)
 
-target_link_libraries(run_all_frontend_tests ${DARMA_BACKEND_LIBNAME} ${GMOCK_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
-if (DARMA_COVERAGE)
-setup_target_for_coverage(frontend_coverage run_all_frontend_tests coverage)
-endif()
+#target_link_libraries(run_all_frontend_tests ${DARMA_BACKEND_LIBNAME} ${GMOCK_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+#if (DARMA_COVERAGE)
+#setup_target_for_coverage(frontend_coverage run_all_frontend_tests coverage)
+#endif()
