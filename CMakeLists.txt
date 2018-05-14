@@ -47,9 +47,6 @@ else()
   message("DARMA frontend tests will be skipped.")
 endif()
 
-# indicate that CMAKE was used, so config-generated.h can be used
-set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DDARMA_CONFIG_GENERATED_H_AVAILABLE" )
-
 
 if (DARMA_ENABLE_COVERALLS)
   if (!DARMA_FE_ENABLE_TESTS)
@@ -78,6 +75,10 @@ add_library(darma_frontend INTERFACE)
 target_include_directories(darma_frontend INTERFACE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
   $<INSTALL_INTERFACE:include>
+)
+target_link_libraries(darma_frontend INTERFACE
+  tinympl::tinympl
+  darma::utility
 )
 install(TARGETS darma_frontend EXPORT darma_frontend)
 install(EXPORT darma_frontend DESTINATION cmake)
