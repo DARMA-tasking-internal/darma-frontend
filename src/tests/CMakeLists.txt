@@ -12,7 +12,7 @@ include (../../cmake-modules/SetDarmaCompilerFlags.cmake)
 set_darma_compiler_flags()
 
 if (DARMA_FE_ENABLE_TESTS)
-add_subdirectory(meta)
+#add_subdirectory(meta)
 add_subdirectory(frontend_validation)
 endif()
 

@@ -19,6 +19,9 @@ function(add_unit_test test_name)
   set_tests_properties(${test_name} PROPERTIES TIMEOUT 30
     FAIL_REGULAR_EXPRESSION "FAILED;timeout"
     PASS_REGULAR_EXPRESSION "PASSED")
+  if (DARMA_COVERAGE)
+    setup_target_for_coverage(frontend_coverage ${test_name} coverage)
+  endif()
 endfunction()
 
 add_unit_test(test_read_access)
