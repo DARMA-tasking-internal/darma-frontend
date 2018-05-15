@@ -45,7 +45,7 @@
 #ifndef DARMA_HANDLE_FWD_H
 #define DARMA_HANDLE_FWD_H
 
-namespace darma_runtime {
+namespace darma {
 
 namespace detail {
 
@@ -76,6 +76,6 @@ typedef enum AccessHandleTaskCollectionCaptureMode {
 
 } // end namespace detail
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_HANDLE_FWD_H

@@ -47,7 +47,7 @@
 
 #include <darma/key/SSO_key_fwd.h>
 
-namespace darma_runtime {
+namespace darma {
 
 namespace detail {
 
@@ -56,6 +56,6 @@ struct bytes_convert;
 
 } // end namespace detail
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_KEY_KEY_FWD_H

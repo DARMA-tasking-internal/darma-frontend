@@ -48,7 +48,7 @@
 #include <cstdint>
 #include <darma/interface/frontend/use.h>
 
-namespace darma_runtime {
+namespace darma {
 namespace detail {
 
 struct CapturedObjectAttorney;
@@ -437,7 +437,7 @@ class CaptureDescriptionBase {
 template <typename... Args>
 auto
 reads(Args&&... args) {
-  return darma_runtime::detail::make_deferred_permissions_modifications(
+  return darma::detail::make_deferred_permissions_modifications(
     [&](auto const& arg){
       detail::CapturedObjectAttorney::captured_as_info(
         std::forward<decltype(arg)>(arg)
@@ -450,7 +450,7 @@ reads(Args&&... args) {
 template <typename... Args>
 auto
 schedule_only(Args&&... args) {
-  return darma_runtime::detail::make_deferred_permissions_modifications(
+  return darma::detail::make_deferred_permissions_modifications(
     [&](auto const& arg){
       detail::CapturedObjectAttorney::captured_as_info(
         std::forward<decltype(arg)>(arg)
@@ -460,6 +460,6 @@ schedule_only(Args&&... args) {
   );
 }
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMAFRONTEND_IMPL_CREATE_WORK_CAPTURE_PERMISSIONS_H

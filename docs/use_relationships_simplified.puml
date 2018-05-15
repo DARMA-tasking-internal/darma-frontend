@@ -31,7 +31,7 @@ AccessHandle -right-> GenericUseHolder
 
 class HandleUseBase {
   <i>Implements most of the functionality for
-  darma_runtime::abstract::frontend::Use
+  darma::abstract::frontend::Use
   ..
 }
 

@@ -49,7 +49,7 @@
 
 #include "is_callable.h"
 
-namespace darma_runtime {
+namespace darma {
 
 namespace meta {
 
@@ -173,6 +173,6 @@ struct ambiguous_if_by_value {
 
 } // end namespace meta
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_META_ANY_CONVERTIBLE_H

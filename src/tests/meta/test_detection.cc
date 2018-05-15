@@ -48,8 +48,8 @@
 
 #include <tinympl/lambda.hpp>
 
-using namespace darma_runtime;
-using namespace darma_runtime::meta;
+using namespace darma;
+using namespace darma::meta;
 namespace m = tinympl;
 namespace mp = tinympl::placeholders;
 

@@ -72,7 +72,7 @@
 
 
 
-namespace darma_runtime {
+namespace darma {
 
 
 namespace detail {
@@ -83,7 +83,7 @@ template <typename Op, typename InputHandle, typename OutputHandle>
 using _get_collective_details_t = SimpleCollectiveDetails<
   std::conditional_t<
     std::is_same<Op, op_not_given>::value,
-    typename darma_runtime::default_reduce_op<
+    typename darma::default_reduce_op<
       typename std::decay_t<OutputHandle>::value_type
     >::type,
     Op
@@ -105,7 +105,7 @@ struct all_reduce_impl {
   {
     #if _darma_has_feature(task_collection_token)
     auto* running_task =
-      utility::safe_static_cast<darma_runtime::detail::TaskBase*>(
+      utility::safe_static_cast<darma::detail::TaskBase*>(
         abstract::backend::get_backend_context()->get_running_task()
       );
     if(running_task->parent_token_available) {
@@ -274,7 +274,7 @@ void allreduce(
   KWArgs&&... kwargs
 ) {
 
-  using namespace darma_runtime::detail;
+  using namespace darma::detail;
   using parser = detail::kwarg_parser<
     overload_description<
       _positional_or_keyword<deduced_parameter, keyword_tags_for_collectives::input>,
@@ -315,7 +315,7 @@ void allreduce(
 
 };
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif // _darma_has_feature(simple_collectives)
 

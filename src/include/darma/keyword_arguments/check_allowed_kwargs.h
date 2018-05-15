@@ -54,7 +54,7 @@
 #include <tinympl/lambda.hpp>
 #include <tinympl/detection.hpp>
 
-namespace darma_runtime {
+namespace darma {
 namespace detail {
 
 template <typename... KWTags>
@@ -124,7 +124,7 @@ struct only_allowed_kwargs_given {
 
 
 } // end namespace detail
-} // end namespace darma_runtime
+} // end namespace darma
 
 
 #endif /* SRC_INCLUDE_DARMA_IMPL_KEYWORD_ARGUMENTS_CHECK_ALLOWED_KWARGS_H_ */

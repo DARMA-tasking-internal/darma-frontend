@@ -59,7 +59,7 @@
 #include <functional>
 
 
-namespace darma_runtime {
+namespace darma {
 
 namespace detail {
 
@@ -98,10 +98,10 @@ struct TopLevelCallableRegistrar<ReturnType (*)(Args...)> {
 
 #define DARMA_REGISTER_TOP_LEVEL_FUNCTOR(...) \
   static const auto _darma__top_level_task_registration \
-    = ::darma_runtime::detail::_impl::TopLevelCallableRegistrar<__VA_ARGS__>();
+    = ::darma::detail::_impl::TopLevelCallableRegistrar<__VA_ARGS__>();
 #define DARMA_REGISTER_TOP_LEVEL_FUNCTION(...) \
   static const auto _darma__top_level_task_registration \
-    = ::darma_runtime::detail::_impl::TopLevelCallableRegistrar<decltype(&(__VA_ARGS__))>(&(__VA_ARGS__));
+    = ::darma::detail::_impl::TopLevelCallableRegistrar<decltype(&(__VA_ARGS__))>(&(__VA_ARGS__));
 
 
 struct TopLevelTaskImpl
@@ -141,26 +141,26 @@ namespace frontend {
 
 
 inline
-std::unique_ptr<abstract::frontend::TopLevelTask<darma_runtime::detail::TaskBase>>
+std::unique_ptr<abstract::frontend::TopLevelTask<darma::detail::TaskBase>>
 darma_top_level_setup(int& argc, char**& argv) {
   std::vector<std::string> cl_args;
   cl_args.reserve(argc);
   for(int i = 0; i < argc; ++i) cl_args.emplace_back(argv[i]);
-  auto tlt = std::make_unique<darma_runtime::detail::TopLevelTaskImpl>();
+  auto tlt = std::make_unique<darma::detail::TopLevelTaskImpl>();
   tlt->set_command_line_arguments(std::move(cl_args));
   return { std::move(tlt) };
 }
 
 inline
-std::unique_ptr<abstract::frontend::TopLevelTask<darma_runtime::detail::TaskBase>>
+std::unique_ptr<abstract::frontend::TopLevelTask<darma::detail::TaskBase>>
 darma_top_level_setup(std::vector<std::string>&& args) {
-  auto tlt = std::make_unique<darma_runtime::detail::TopLevelTaskImpl>();
+  auto tlt = std::make_unique<darma::detail::TopLevelTaskImpl>();
   tlt->set_command_line_arguments(std::move(args));
   return { std::move(tlt) };
 }
 
 
 } // end namespace frontend
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_TOP_LEVEL_H

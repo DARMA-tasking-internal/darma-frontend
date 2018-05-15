@@ -51,7 +51,7 @@
 #include <darma/serialization/simple_handler.h>
 #include <darma/serialization/pointer_reference_handler.h>
 
-namespace darma_runtime {
+namespace darma {
 namespace detail {
 
 template <typename Derived>
@@ -59,9 +59,9 @@ class CopyCapturedObject {
 
   private:
 
-    using serialization_handler_t = darma_runtime::serialization::SimpleSerializationHandler<std::allocator<char>>;
+    using serialization_handler_t = darma::serialization::SimpleSerializationHandler<std::allocator<char>>;
     using ptr_serialization_handler_t =
-      darma_runtime::serialization::PointerReferenceSerializationHandler<serialization_handler_t>;
+      darma::serialization::PointerReferenceSerializationHandler<serialization_handler_t>;
 
     Derived const* prev_copied_from_ = nullptr;
     CaptureManager* capturing_task = nullptr;
@@ -253,6 +253,6 @@ class CopyCapturedObject {
 };
 
 } // end namespace detail
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMAFRONTEND_IMPL_ACCESS_HANDLE_COPY_CAPTURED_OBJECT_H

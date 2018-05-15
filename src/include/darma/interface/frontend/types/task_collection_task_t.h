@@ -48,7 +48,7 @@
 #include <darma/interface/frontend/task_collection_task.h>
 #include "concrete_task_t.h"
 
-namespace darma_runtime {
+namespace darma {
 
 namespace types {
 
@@ -56,6 +56,6 @@ using task_collection_task_t = abstract::frontend::TaskCollectionTask<concrete_t
 
 } // end namespace types
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_TASK_COLLECTION_TASK_T_H

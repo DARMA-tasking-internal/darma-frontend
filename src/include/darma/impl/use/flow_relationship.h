@@ -47,7 +47,7 @@
 
 #include <darma/interface/frontend/flow_relationship.h>
 
-namespace darma_runtime {
+namespace darma {
 namespace detail {
 
 //==============================================================================
@@ -439,6 +439,6 @@ next_anti_flow_of_anti_in() {
 } // end namespace flow_relationships
 
 } // end namespace detail
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMAFRONTEND_FLOW_RELATIONSHIP_H

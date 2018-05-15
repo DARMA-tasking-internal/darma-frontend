@@ -50,8 +50,8 @@
 #include <darma/impl/array/indexable.h>
 #include <darma/impl/serialization/manager.h>
 
-using namespace darma_runtime;
-using namespace darma_runtime::detail;
+using namespace darma;
+using namespace darma::detail;
 
 TEST(TestIndexDecomposition, vector_simple) {
   using namespace ::testing;
@@ -80,7 +80,7 @@ TEST(TestIndexDecomposition, vector_pack) {
   std::vector<int> v = { 3, 1, 4, 1, 5, 9 };
 
   serialization::SimplePackUnpackArchive ar;
-  using darma_runtime::serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
+  using darma::serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
   ArchiveAccess::start_sizing(ar);
   traits::get_packed_size(v, ar, 1, 5);
 

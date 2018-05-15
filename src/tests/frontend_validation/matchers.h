@@ -53,8 +53,8 @@
 #include <darma/interface/frontend/use.h>
 
 inline std::string
-relationship_to_string(darma_runtime::abstract::frontend::FlowRelationship::flow_relationship_description_t rel) {
-#define _flow_rel_str_case(rel) case darma_runtime::abstract::frontend::FlowRelationship::rel : return #rel
+relationship_to_string(darma::abstract::frontend::FlowRelationship::flow_relationship_description_t rel) {
+#define _flow_rel_str_case(rel) case darma::abstract::frontend::FlowRelationship::rel : return #rel
   switch(rel) {
     _flow_rel_str_case(Same);
     _flow_rel_str_case(Initial);
@@ -80,8 +80,8 @@ relationship_to_string(darma_runtime::abstract::frontend::FlowRelationship::flow
 using namespace ::testing;
 
 //bool operator==(
-//  darma_runtime::abstract::frontend::Use const* const a,
-//  darma_runtime::abstract::frontend::Use const* const b
+//  darma::abstract::frontend::Use const* const a,
+//  darma::abstract::frontend::Use const* const b
 //) {
 //  return a->get_in_flow() == b->get_in_flow()
 //    and  a->get_out_flow() == b->get_out_flow()
@@ -110,10 +110,10 @@ MATCHER_P3(IsUseWithInFlow, f_in, scheduling_permissions, immediate_permissions,
 
   using namespace mock_backend;
   if(f_in != arg->get_in_flow()) return false;
-  if(immediate_permissions != ::darma_runtime::frontend::Permissions::_notGiven) {
+  if(immediate_permissions != ::darma::frontend::Permissions::_notGiven) {
     if(immediate_permissions != (arg->immediate_permissions())) return false;
   }
-  if(scheduling_permissions != ::darma_runtime::frontend::Permissions::_notGiven) {
+  if(scheduling_permissions != ::darma::frontend::Permissions::_notGiven) {
     if(scheduling_permissions != (arg->scheduling_permissions())) return false;
   }
   return true;
@@ -129,7 +129,7 @@ MATCHER_P4(IsUseWithFlows, f_in, f_out, scheduling_permissions, immediate_permis
     return false;
   }
 
-  auto* arg_cast = darma_runtime::abstract::frontend::use_cast<darma_runtime::abstract::frontend::RegisteredUse*>(arg);
+  auto* arg_cast = darma::abstract::frontend::use_cast<darma::abstract::frontend::RegisteredUse*>(arg);
 
 #if DARMA_SAFE_TEST_FRONTEND_PRINTERS
   *result_listener << "arg (unprinted for safety)";
@@ -143,10 +143,10 @@ MATCHER_P4(IsUseWithFlows, f_in, f_out, scheduling_permissions, immediate_permis
   using namespace mock_backend;
   if(f_in != arg_cast->get_in_flow()) return false;
   if(f_out != arg_cast->get_out_flow()) return false;
-  if(immediate_permissions != ::darma_runtime::frontend::Permissions::_notGiven) {
+  if(immediate_permissions != ::darma::frontend::Permissions::_notGiven) {
     if(immediate_permissions != (arg->immediate_permissions())) return false;
   }
-  if(scheduling_permissions != ::darma_runtime::frontend::Permissions::_notGiven) {
+  if(scheduling_permissions != ::darma::frontend::Permissions::_notGiven) {
     if(scheduling_permissions != (arg->scheduling_permissions())) return false;
   }
   return true;
@@ -275,10 +275,10 @@ MATCHER_P7(IsUseWithFlowRelationships, f_in_rel, f_in, f_out_rel, f_out, out_rel
   }
   if(arg->get_out_flow_relationship().use_corresponding_in_flow_as_related() xor out_rel_is_in) return false;
 
-  if(immediate_permissions != darma_runtime::frontend::Permissions::_notGiven) {
+  if(immediate_permissions != darma::frontend::Permissions::_notGiven) {
     if(immediate_permissions != arg->immediate_permissions()) return false;
   }
-  if(scheduling_permissions != darma_runtime::frontend::Permissions::_notGiven) {
+  if(scheduling_permissions != darma::frontend::Permissions::_notGiven) {
     if(scheduling_permissions != arg->scheduling_permissions()) return false;
   }
   return true;
@@ -354,8 +354,8 @@ MATCHER_P(UseRefIsNonNull, use, "Use* reference is non-null at time of invocatio
 MATCHER_P(UseInGetDependencies, use, "task->get_dependencies() contains " + PrintToString(use)) {
   auto deps = arg->get_dependencies();
   if(deps.find(
-    ::darma_runtime::abstract::frontend::use_cast<
-      ::darma_runtime::abstract::frontend::DependencyUse*
+    ::darma::abstract::frontend::use_cast<
+      ::darma::abstract::frontend::DependencyUse*
     >(use)
   ) != deps.end()) {
     return true;
@@ -375,8 +375,8 @@ MATCHER_P(UseInGetDependencies, use, "task->get_dependencies() contains " + Prin
 MATCHER_P(CollectionUseInGetDependencies, use, "task->get_dependencies() contains " + PrintToString(use)) {
   auto deps = arg->get_dependencies();
   if(deps.find(
-    ::darma_runtime::abstract::frontend::use_cast<
-      ::darma_runtime::abstract::frontend::DependencyUse*
+    ::darma::abstract::frontend::use_cast<
+      ::darma::abstract::frontend::DependencyUse*
     >(use)
   ) != deps.end()) {
     return true;
@@ -428,8 +428,8 @@ MATCHER_P(UsesInGetDependencies, uses,
     }
     try {
       if (deps.find(
-        ::darma_runtime::utility::try_dynamic_cast<
-          ::darma_runtime::abstract::frontend::DependencyUse*
+        ::darma::utility::try_dynamic_cast<
+          ::darma::abstract::frontend::DependencyUse*
         >(*use)
       ) == deps.end()) {
         *result_listener << "at least one use not found; ";
@@ -455,7 +455,7 @@ MATCHER_P(UsesInGetDependencies, uses,
 
 MATCHER_P(HasName, name_key, "object has name key " + PrintToString(name_key)) {
   auto arg_name = arg->get_name();
-  if(darma_runtime::detail::key_traits<darma_runtime::types::key_t>::key_equal()(arg_name, name_key)) {
+  if(darma::detail::key_traits<darma::types::key_t>::key_equal()(arg_name, name_key)) {
     return true;
   }
   else {

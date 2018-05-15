@@ -50,7 +50,7 @@
 
 #include <darma/interface/app/access_handle.h> // is_access_handle
 
-namespace darma_runtime {
+namespace darma {
 
 namespace detail {
 
@@ -248,7 +248,7 @@ namespace detail {
 //make_permissions_downgrade_description(
 //  std::tuple<Args...>&& tup
 //) {
-//  return darma_runtime::detail::_make_permissions_downgrade_description_tuple_helper<
+//  return darma::detail::_make_permissions_downgrade_description_tuple_helper<
 //    SchedulingDowngrade, ImmediateDowngrade
 //  >(
 //    std::move(tup), std::index_sequence_for<Args...>{}
@@ -257,6 +257,6 @@ namespace detail {
 
 } // end namespace detail
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMAFRONTEND_PERMISSIONS_DOWNGRADES_H

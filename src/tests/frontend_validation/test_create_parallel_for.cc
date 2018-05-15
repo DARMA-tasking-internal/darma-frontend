@@ -80,9 +80,9 @@ class TestCreateParallelFor
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestCreateParallelFor, simple_lambda) {
-  using namespace darma_runtime;
+  using namespace darma;
   using namespace ::testing;
-  using namespace darma_runtime::keyword_arguments_for_parallel_for;
+  using namespace darma::keyword_arguments_for_parallel_for;
   using namespace mock_backend;
 
   mock_runtime->save_tasks = true;
@@ -103,9 +103,9 @@ TEST_F(TestCreateParallelFor, simple_lambda) {
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestCreateParallelFor, simple_lambda_capture) {
-  using namespace darma_runtime;
+  using namespace darma;
   using namespace ::testing;
-  using namespace darma_runtime::keyword_arguments_for_parallel_for;
+  using namespace darma::keyword_arguments_for_parallel_for;
   using namespace mock_backend;
 
   mock_runtime->save_tasks = true;
@@ -154,9 +154,9 @@ TEST_F(TestCreateParallelFor, simple_lambda_capture) {
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestCreateParallelFor, simple_functor) {
-  using namespace darma_runtime;
+  using namespace darma;
   using namespace ::testing;
-  using namespace darma_runtime::keyword_arguments_for_parallel_for;
+  using namespace darma::keyword_arguments_for_parallel_for;
   using namespace mock_backend;
 
   mock_runtime->save_tasks = true;
@@ -181,9 +181,9 @@ TEST_F(TestCreateParallelFor, simple_functor) {
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestCreateParallelFor, simple_functor_args) {
-  using namespace darma_runtime;
+  using namespace darma;
   using namespace ::testing;
-  using namespace darma_runtime::keyword_arguments_for_parallel_for;
+  using namespace darma::keyword_arguments_for_parallel_for;
   using namespace mock_backend;
 
   mock_runtime->save_tasks = true;
@@ -210,9 +210,9 @@ TEST_F(TestCreateParallelFor, simple_functor_args) {
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestCreateParallelFor, functor_args) {
-  using namespace darma_runtime;
+  using namespace darma;
   using namespace ::testing;
-  using namespace darma_runtime::keyword_arguments_for_parallel_for;
+  using namespace darma::keyword_arguments_for_parallel_for;
   using namespace mock_backend;
 
   mock_runtime->save_tasks = true;
@@ -266,9 +266,9 @@ TEST_F(TestCreateParallelFor, functor_args) {
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestCreateParallelFor, resource_pack_passthrough) {
-  using namespace darma_runtime;
+  using namespace darma;
   using namespace ::testing;
-  using namespace darma_runtime::keyword_arguments_for_task_creation;
+  using namespace darma::keyword_arguments_for_task_creation;
   using namespace mock_backend;
 
   mock_runtime->save_tasks = true;

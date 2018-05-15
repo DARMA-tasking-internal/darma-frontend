@@ -11,7 +11,7 @@
 
 \paragraph{Syntax}\mbox{}\\
 \begin{CppCode}
-/* unspecified */ darma_runtime::darma_spmd_rank();
+/* unspecified */ darma::darma_spmd_rank();
 \end{CppCode}
 
 \paragraph{Positional Arguments} \mbox{}\\
@@ -44,7 +44,7 @@ migrated.
 #include <darma.h>
 int darma_main(int argc, char** argv)
 {
-  using namespace darma_runtime;
+  using namespace darma;
   darma_init(argc, argv);
 
   // get my rank

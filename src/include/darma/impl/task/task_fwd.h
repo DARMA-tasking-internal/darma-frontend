@@ -45,7 +45,7 @@
 #ifndef SRC_TASK_FWD_H_
 #define SRC_TASK_FWD_H_
 
-namespace darma_runtime {
+namespace darma {
 
 namespace detail {
 
@@ -62,7 +62,7 @@ struct FunctorTask;
 
 } // end namespace detail
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 
 

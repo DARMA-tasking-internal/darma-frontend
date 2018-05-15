@@ -47,7 +47,7 @@
 
 #include "task_base.h"
 
-namespace darma_runtime {
+namespace darma {
 namespace detail {
 
 struct CaptureSetupHelperBase {
@@ -99,6 +99,6 @@ struct CaptureSetupHelperBase {
 
 
 } // end namespace detail
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMAFRONTEND_TASK_CTOR_HELPER_H

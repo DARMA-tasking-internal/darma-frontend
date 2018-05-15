@@ -50,7 +50,7 @@
 #include <vector>
 #include <list>
 
-using namespace darma_runtime::meta;
+using namespace darma::meta;
 
 static_assert(
   iterator_traits<

@@ -49,7 +49,7 @@
 
 #include <darma_types.h>
 
-namespace darma_runtime {
+namespace darma {
 
 namespace detail {
 
@@ -127,6 +127,6 @@ make_unique(Args&&... args) {
 
 } // end namespace detail
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_UTIL_SMART_POINTERS_H

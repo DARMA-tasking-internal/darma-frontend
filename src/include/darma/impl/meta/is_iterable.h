@@ -52,7 +52,7 @@
 #include <darma/impl/meta/detection.h>
 #include <darma/impl/meta/is_iterator.h>
 
-namespace darma_runtime {
+namespace darma {
 namespace meta {
 
 template <typename T>
@@ -164,6 +164,6 @@ class iterable_traits {
 };
 
 } // end namespace meta
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_META_IS_ITERABLE_H

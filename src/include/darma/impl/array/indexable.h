@@ -49,7 +49,7 @@
 #include "index_decomposition.h"
 
 
-namespace darma_runtime {
+namespace darma {
 
 namespace detail {
 
@@ -154,6 +154,6 @@ struct IndexingTraits {
 
 } // end namespace detail
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_ARRAY_INDEXABLE_H

@@ -59,10 +59,10 @@
 #include <darma/interface/backend/types.h>
 
 
-namespace darma_runtime {
+namespace darma {
 namespace detail {
 
-using create_work_argument_parser = darma_runtime::detail::kwarg_parser<
+using create_work_argument_parser = darma::detail::kwarg_parser<
   variadic_positional_overload_description<
     _optional_keyword<
       converted_parameter, keyword_tags_for_task_creation::name
@@ -80,23 +80,23 @@ inline auto setup_create_work_argument_parser() {
   return create_work_argument_parser()
     .with_converters(
       [](auto&& ... parts) {
-        return darma_runtime::make_key(std::forward<decltype(parts)>(parts)...);
+        return darma::make_key(std::forward<decltype(parts)>(parts)...);
       },
       [](auto&&... aliasing_desc) {
-        return std::make_unique<darma_runtime::detail::TaskBase::allowed_aliasing_description>(
-          darma_runtime::detail::allowed_aliasing_description_ctor_tag_t(),
+        return std::make_unique<darma::detail::TaskBase::allowed_aliasing_description>(
+          darma::detail::allowed_aliasing_description_ctor_tag_t(),
           std::forward<decltype(aliasing_desc)>(aliasing_desc)...
         );
       }
     )
     .with_default_generators(
-      darma_runtime::keyword_arguments_for_task_creation::name = [] {
+      darma::keyword_arguments_for_task_creation::name = [] {
         // TODO this should actually return a "pending backend assignment" key
-        return darma_runtime::make_key();
+        return darma::make_key();
       },
       keyword_arguments_for_task_creation::allow_aliasing = [] {
-        return std::make_unique<darma_runtime::detail::TaskBase::allowed_aliasing_description>(
-          darma_runtime::detail::allowed_aliasing_description_ctor_tag_t(),
+        return std::make_unique<darma::detail::TaskBase::allowed_aliasing_description>(
+          darma::detail::allowed_aliasing_description_ctor_tag_t(),
           false
         );
       },
@@ -105,6 +105,6 @@ inline auto setup_create_work_argument_parser() {
 }
 
 } // end namespace detail
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMAFRONTEND_CREATE_WORK_ARGUMENT_PARSER_H

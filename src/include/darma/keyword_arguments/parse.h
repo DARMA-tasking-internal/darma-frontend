@@ -122,7 +122,7 @@ struct ___expected_positional_argument_only_ {
 } // end namespace _darma__errors
 #endif
 
-namespace darma_runtime {
+namespace darma {
 
 namespace detail {
 
@@ -1613,6 +1613,6 @@ struct kwarg_parser {
 
 } // end namespace detail
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_KEYWORD_ARGUMENTS_PARSE_H

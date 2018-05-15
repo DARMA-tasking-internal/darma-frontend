@@ -45,7 +45,7 @@
 #ifndef DARMAFRONTEND_CREATE_WORK_WHILE_FWD_H
 #define DARMAFRONTEND_CREATE_WORK_WHILE_FWD_H
 
-namespace darma_runtime {
+namespace darma {
 namespace detail {
 
 template <typename...>
@@ -60,6 +60,6 @@ template <
 struct WhileDoCaptureManager;
 
 } // end namespace detail
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMAFRONTEND_CREATE_WORK_WHILE_FWD_H

@@ -50,7 +50,7 @@
 
 #include <darma/utility/optional_boolean.h>
 
-namespace darma_runtime {
+namespace darma {
 
 namespace detail {
 
@@ -213,7 +213,7 @@ namespace advanced {
 namespace access_handle_collection_traits {
 
 template <typename NewPermissionsTraits>
-using permissions_traits = ::darma_runtime::advanced
+using permissions_traits = ::darma::advanced
   ::access_handle_traits::permissions_traits<NewPermissionsTraits>;
 
 namespace internal {
@@ -237,6 +237,6 @@ struct is_mapped
 
 } // end namespace advanced
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_TASK_COLLECTION_ACCESS_HANDLE_COLLECTION_TRAITS_H

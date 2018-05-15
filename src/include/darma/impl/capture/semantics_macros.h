@@ -63,44 +63,44 @@ _darma_CAPTURE_CASE_BASIC_IMPL( \
   (_coherence_mode), (_source_sched), (_source_immed), (_capt_sched), (_capt_immed), \
   (_capt_in), (_capt_out), (_capt_anti_in), (_capt_anti_out), _could_be_alias \
 ) /* { */ \
-  static constexpr auto ContinuationScheduling() { return darma_runtime::frontend::Permissions::_cont_sched; } \
-  static constexpr auto ContinuationImmediate() { return darma_runtime::frontend::Permissions::_cont_immed; } \
-  static constexpr auto continuation_scheduling() { return darma_runtime::frontend::Permissions::_cont_sched; } \
-  static constexpr auto continuation_immediate() { return darma_runtime::frontend::Permissions::_cont_immed; } \
+  static constexpr auto ContinuationScheduling() { return darma::frontend::Permissions::_cont_sched; } \
+  static constexpr auto ContinuationImmediate() { return darma::frontend::Permissions::_cont_immed; } \
+  static constexpr auto continuation_scheduling() { return darma::frontend::Permissions::_cont_sched; } \
+  static constexpr auto continuation_immediate() { return darma::frontend::Permissions::_cont_immed; } \
   static constexpr auto needs_new_continuation_use() { return true; } \
   static constexpr auto is_valid_capture_case() { return true; } \
   static auto continuation_in_flow_relationship( \
-    darma_runtime::types::flow_t* source_in, \
-    darma_runtime::types::flow_t* source_out, \
-    darma_runtime::types::flow_t* captured_in, \
-    darma_runtime::types::flow_t* captured_out \
-  ) { using namespace darma_runtime::detail::flow_relationships; return _cont_in; } \
+    darma::types::flow_t* source_in, \
+    darma::types::flow_t* source_out, \
+    darma::types::flow_t* captured_in, \
+    darma::types::flow_t* captured_out \
+  ) { using namespace darma::detail::flow_relationships; return _cont_in; } \
   static auto continuation_out_flow_relationship( \
-    darma_runtime::types::flow_t* source_in, \
-    darma_runtime::types::flow_t* source_out, \
-    darma_runtime::types::flow_t* captured_in, \
-    darma_runtime::types::flow_t* captured_out \
-  ) { using namespace darma_runtime::detail::flow_relationships; return _cont_out; } \
+    darma::types::flow_t* source_in, \
+    darma::types::flow_t* source_out, \
+    darma::types::flow_t* captured_in, \
+    darma::types::flow_t* captured_out \
+  ) { using namespace darma::detail::flow_relationships; return _cont_out; } \
   static auto continuation_anti_in_flow_relationship( \
-    darma_runtime::types::flow_t* source_in, \
-    darma_runtime::types::flow_t* source_out, \
-    darma_runtime::types::flow_t* captured_in, \
-    darma_runtime::types::flow_t* captured_out, \
-    darma_runtime::types::anti_flow_t* source_anti_in, \
-    darma_runtime::types::anti_flow_t* source_anti_out, \
-    darma_runtime::types::anti_flow_t* captured_anti_in, \
-    darma_runtime::types::anti_flow_t* captured_anti_out \
-  ) { using namespace darma_runtime::detail::flow_relationships; return _cont_anti_in; } \
+    darma::types::flow_t* source_in, \
+    darma::types::flow_t* source_out, \
+    darma::types::flow_t* captured_in, \
+    darma::types::flow_t* captured_out, \
+    darma::types::anti_flow_t* source_anti_in, \
+    darma::types::anti_flow_t* source_anti_out, \
+    darma::types::anti_flow_t* captured_anti_in, \
+    darma::types::anti_flow_t* captured_anti_out \
+  ) { using namespace darma::detail::flow_relationships; return _cont_anti_in; } \
   static auto continuation_anti_out_flow_relationship( \
-    darma_runtime::types::flow_t* source_in, \
-    darma_runtime::types::flow_t* source_out, \
-    darma_runtime::types::flow_t* captured_in, \
-    darma_runtime::types::flow_t* captured_out, \
-    darma_runtime::types::anti_flow_t* source_anti_in, \
-    darma_runtime::types::anti_flow_t* source_anti_out, \
-    darma_runtime::types::anti_flow_t* captured_anti_in, \
-    darma_runtime::types::anti_flow_t* captured_anti_out \
-  ) { using namespace darma_runtime::detail::flow_relationships; return _cont_anti_out; } \
+    darma::types::flow_t* source_in, \
+    darma::types::flow_t* source_out, \
+    darma::types::flow_t* captured_in, \
+    darma::types::flow_t* captured_out, \
+    darma::types::anti_flow_t* source_anti_in, \
+    darma::types::anti_flow_t* source_anti_out, \
+    darma::types::anti_flow_t* captured_anti_in, \
+    darma::types::anti_flow_t* captured_anti_out \
+  ) { using namespace darma::detail::flow_relationships; return _cont_anti_out; } \
   static size_t _make_index_to_force_registration() { \
     return capture_semantics::register_capture_case<CaptureCase>(); \
   } \
@@ -120,8 +120,8 @@ _darma_CAPTURE_CASE_BASIC_IMPL( \
   (_coherence_mode), (_source_sched), (_source_immed), (_capt_sched), (_capt_immed), \
   (_capt_in), (_capt_out), (_capt_anti_in), (_capt_anti_out), _could_be_alias \
 ) /* { */ \
-  static constexpr auto continuation_scheduling() { return darma_runtime::frontend::Permissions::_invalid; } \
-  static constexpr auto continuation_immediate() { return darma_runtime::frontend::Permissions::_invalid; } \
+  static constexpr auto continuation_scheduling() { return darma::frontend::Permissions::_invalid; } \
+  static constexpr auto continuation_immediate() { return darma::frontend::Permissions::_invalid; } \
   static constexpr auto needs_new_continuation_use() { return false; } \
   static constexpr auto is_valid_capture_case() { return true; } \
     static auto _case_not_implemented() { \
@@ -135,36 +135,36 @@ _darma_CAPTURE_CASE_BASIC_IMPL( \
       return FlowRelationshipImpl(); /* unreachable, but needed for return type deduction*/ \
     } \
   static auto continuation_in_flow_relationship( \
-    darma_runtime::types::flow_t* source_in, \
-    darma_runtime::types::flow_t* source_out, \
-    darma_runtime::types::flow_t* captured_in, \
-    darma_runtime::types::flow_t* captured_out \
+    darma::types::flow_t* source_in, \
+    darma::types::flow_t* source_out, \
+    darma::types::flow_t* captured_in, \
+    darma::types::flow_t* captured_out \
   ) { return _case_not_implemented(); } \
   static auto continuation_out_flow_relationship( \
-    darma_runtime::types::flow_t* source_in, \
-    darma_runtime::types::flow_t* source_out, \
-    darma_runtime::types::flow_t* captured_in, \
-    darma_runtime::types::flow_t* captured_out \
+    darma::types::flow_t* source_in, \
+    darma::types::flow_t* source_out, \
+    darma::types::flow_t* captured_in, \
+    darma::types::flow_t* captured_out \
   ) { return _case_not_implemented(); } \
   static auto continuation_anti_in_flow_relationship( \
-    darma_runtime::types::flow_t* source_in, \
-    darma_runtime::types::flow_t* source_out, \
-    darma_runtime::types::flow_t* captured_in, \
-    darma_runtime::types::flow_t* captured_out, \
-    darma_runtime::types::anti_flow_t* source_anti_in, \
-    darma_runtime::types::anti_flow_t* source_anti_out, \
-    darma_runtime::types::anti_flow_t* captured_anti_in, \
-    darma_runtime::types::anti_flow_t* captured_anti_out \
+    darma::types::flow_t* source_in, \
+    darma::types::flow_t* source_out, \
+    darma::types::flow_t* captured_in, \
+    darma::types::flow_t* captured_out, \
+    darma::types::anti_flow_t* source_anti_in, \
+    darma::types::anti_flow_t* source_anti_out, \
+    darma::types::anti_flow_t* captured_anti_in, \
+    darma::types::anti_flow_t* captured_anti_out \
   ) { return _case_not_implemented(); } \
   static auto continuation_anti_out_flow_relationship( \
-    darma_runtime::types::flow_t* source_in, \
-    darma_runtime::types::flow_t* source_out, \
-    darma_runtime::types::flow_t* captured_in, \
-    darma_runtime::types::flow_t* captured_out, \
-    darma_runtime::types::anti_flow_t* source_anti_in, \
-    darma_runtime::types::anti_flow_t* source_anti_out, \
-    darma_runtime::types::anti_flow_t* captured_anti_in, \
-    darma_runtime::types::anti_flow_t* captured_anti_out \
+    darma::types::flow_t* source_in, \
+    darma::types::flow_t* source_out, \
+    darma::types::flow_t* captured_in, \
+    darma::types::flow_t* captured_out, \
+    darma::types::anti_flow_t* source_anti_in, \
+    darma::types::anti_flow_t* source_anti_out, \
+    darma::types::anti_flow_t* captured_anti_in, \
+    darma::types::anti_flow_t* captured_anti_out \
   ) { return _case_not_implemented(); } \
   static size_t _make_index_to_force_registration() { \
     return capture_semantics::register_capture_case<CaptureCase>(); \
@@ -188,10 +188,10 @@ _darma_CAPTURE_CASE_BASIC_IMPL( \
 
 #define _darma_impl_PERMISSIONS_SET(...) _darma_PP_FOR_EACH(_darma_impl_PREFIX_PERMISSIONS, __VA_ARGS__)
 #define _darma_impl_COHERENCE_MODE_SET(...) _darma_PP_FOR_EACH(_darma_impl_PREFIX_COHERENCE_MODE, __VA_ARGS__)
-#define _darma_impl_PREFIX_PERMISSIONS(perm) darma_runtime::frontend::Permissions::perm
-#define _darma_impl_PREFIX_COHERENCE_MODE(mode) darma_runtime::frontend::CoherenceMode::mode
-#define _darma_impl_TYPE_WRAP_PERMISSIONS(perm) std::integral_constant<darma_runtime::frontend::permissions_t, darma_runtime::frontend::Permissions::perm>
-#define _darma_impl_TYPE_WRAP_COHERENCE_MODE(mode) std::integral_constant<darma_runtime::frontend::coherence_mode_t, darma_runtime::frontend::CoherenceMode::mode>
+#define _darma_impl_PREFIX_PERMISSIONS(perm) darma::frontend::Permissions::perm
+#define _darma_impl_PREFIX_COHERENCE_MODE(mode) darma::frontend::CoherenceMode::mode
+#define _darma_impl_TYPE_WRAP_PERMISSIONS(perm) std::integral_constant<darma::frontend::permissions_t, darma::frontend::Permissions::perm>
+#define _darma_impl_TYPE_WRAP_COHERENCE_MODE(mode) std::integral_constant<darma::frontend::coherence_mode_t, darma::frontend::CoherenceMode::mode>
 
 #define _darma_CAPTURE_CASE_BASIC_IMPL( \
    _coherence_mode, \
@@ -224,25 +224,25 @@ _darma_CAPTURE_CASE_BASIC_IMPL( \
    static constexpr auto coherence_mode() { return CoherenceModeIn; } \
    static constexpr auto could_be_alias() { return _could_be_alias; } \
    static auto captured_in_flow_relationship( \
-     darma_runtime::types::flow_t* source_in, \
-     darma_runtime::types::flow_t* source_out \
-   ) { using namespace darma_runtime::detail::flow_relationships; return _darma_REMOVE_PARENS _capt_in ; } \
+     darma::types::flow_t* source_in, \
+     darma::types::flow_t* source_out \
+   ) { using namespace darma::detail::flow_relationships; return _darma_REMOVE_PARENS _capt_in ; } \
    static auto captured_out_flow_relationship( \
-     darma_runtime::types::flow_t* source_in, \
-     darma_runtime::types::flow_t* source_out \
-   ) { using namespace darma_runtime::detail::flow_relationships; return _darma_REMOVE_PARENS _capt_out ; } \
+     darma::types::flow_t* source_in, \
+     darma::types::flow_t* source_out \
+   ) { using namespace darma::detail::flow_relationships; return _darma_REMOVE_PARENS _capt_out ; } \
    static auto captured_anti_in_flow_relationship( \
-     darma_runtime::types::flow_t* source_in, \
-     darma_runtime::types::flow_t* source_out, \
-     darma_runtime::types::anti_flow_t* source_anti_in, \
-     darma_runtime::types::anti_flow_t* source_anti_out \
-   ) { using namespace darma_runtime::detail::flow_relationships; return _darma_REMOVE_PARENS _capt_anti_in ; } \
+     darma::types::flow_t* source_in, \
+     darma::types::flow_t* source_out, \
+     darma::types::anti_flow_t* source_anti_in, \
+     darma::types::anti_flow_t* source_anti_out \
+   ) { using namespace darma::detail::flow_relationships; return _darma_REMOVE_PARENS _capt_anti_in ; } \
    static auto captured_anti_out_flow_relationship( \
-     darma_runtime::types::flow_t* source_in, \
-     darma_runtime::types::flow_t* source_out, \
-     darma_runtime::types::anti_flow_t* source_anti_in, \
-     darma_runtime::types::anti_flow_t* source_anti_out \
-   ) { using namespace darma_runtime::detail::flow_relationships; return _darma_REMOVE_PARENS _capt_anti_out ; } \
+     darma::types::flow_t* source_in, \
+     darma::types::flow_t* source_out, \
+     darma::types::anti_flow_t* source_anti_in, \
+     darma::types::anti_flow_t* source_anti_out \
+   ) { using namespace darma::detail::flow_relationships; return _darma_REMOVE_PARENS _capt_anti_out ; } \
  /* } */
 
 

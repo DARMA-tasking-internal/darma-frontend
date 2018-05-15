@@ -50,7 +50,7 @@
 
 #include <darma/utility/compatibility.h>
 
-namespace darma_runtime {
+namespace darma {
 namespace detail {
 
 template <typename _ignored = void>
@@ -71,13 +71,13 @@ register_user_main(T main_fxn) {
 }
 
 } // end namespace detail
-} // end namespace darma_runtime
+} // end namespace darma
 
 #define darma_main(...) \
   _darma__ignore_this = 42; \
   int _darma__user_main(__VA_ARGS__); \
   int _darma__ignore_this_too = \
-    ::darma_runtime::detail::register_user_main((int(*)(__VA_ARGS__))_darma__user_main); \
+    ::darma::detail::register_user_main((int(*)(__VA_ARGS__))_darma__user_main); \
   int _darma__user_main(__VA_ARGS__)
 
 

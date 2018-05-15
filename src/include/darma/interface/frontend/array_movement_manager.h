@@ -48,7 +48,7 @@
 #include <darma/interface/backend/serialization_policy.h>
 #include <darma/interface/frontend/index_range.h>
 
-namespace darma_runtime {
+namespace darma {
 namespace abstract {
 namespace frontend {
 
@@ -173,7 +173,7 @@ class ArrayMovementManager {
 
 } // end namespace frontend
 } // end namespace abstract
-} // end namespace darma_runtime
+} // end namespace darma
 
 
 #endif //DARMA_INTERFACE_FRONTEND_ARRAY_MOVEMENT_MANAGER_H

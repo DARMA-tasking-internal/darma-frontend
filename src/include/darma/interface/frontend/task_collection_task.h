@@ -45,7 +45,7 @@
 #ifndef DARMA_TASK_COLLECTION_TASK_H
 #define DARMA_TASK_COLLECTION_TASK_H
 
-namespace darma_runtime {
+namespace darma {
 
 namespace abstract {
 
@@ -63,6 +63,6 @@ class TaskCollectionTask : public TaskImpl {
 
 } // end namespace abstract
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_TASK_COLLECTION_TASK_H

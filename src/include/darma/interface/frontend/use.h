@@ -58,7 +58,7 @@
 
 #include <darma/utility/safe_static_cast.h>
 
-namespace darma_runtime {
+namespace darma {
 namespace frontend {
 
 /**
@@ -87,9 +87,9 @@ typedef enum struct Permissions {
 } permissions_t;
 
 inline std::string
-permissions_to_string(darma_runtime::frontend::permissions_t per) {
+permissions_to_string(darma::frontend::permissions_t per) {
   switch(per) {
-#define _DARMA__perm_case(val) case darma_runtime::frontend::Permissions::val: return #val;
+#define _DARMA__perm_case(val) case darma::frontend::Permissions::val: return #val;
     _DARMA__perm_case(None)
     _DARMA__perm_case(Read)
     _DARMA__perm_case(Modify)
@@ -210,9 +210,9 @@ typedef enum struct CoherenceMode {
 } coherence_mode_t;
 
 inline std::string
-coherence_mode_to_string(darma_runtime::frontend::coherence_mode_t mode) {
+coherence_mode_to_string(darma::frontend::coherence_mode_t mode) {
   switch(mode) {
-#define _DARMA__coh_case(val) case darma_runtime::frontend::CoherenceMode::val: return #val;
+#define _DARMA__coh_case(val) case darma::frontend::CoherenceMode::val: return #val;
     _DARMA__coh_case(Sequential)
     _DARMA__coh_case(Commutative)
     _DARMA__coh_case(Relaxed)
@@ -262,7 +262,7 @@ namespace frontend {
 class Use {
   public:
 
-    using permissions_t = darma_runtime::frontend::permissions_t;
+    using permissions_t = darma::frontend::permissions_t;
 
     /** @brief Return a pointer to the handle that this object encapsulates a
      *  use of.
@@ -278,7 +278,7 @@ class Use {
      *
      *  @return
      */
-    virtual darma_runtime::frontend::permissions_t
+    virtual darma::frontend::permissions_t
     immediate_permissions() const =0;
 
     /** @brief Get the scheduling permissions needed for the Flow returned by
@@ -286,10 +286,10 @@ class Use {
      *
      *  @return
      */
-    virtual darma_runtime::frontend::permissions_t
+    virtual darma::frontend::permissions_t
     scheduling_permissions() const =0;
 
-    virtual darma_runtime::frontend::coherence_mode_t
+    virtual darma::frontend::coherence_mode_t
     coherence_mode() const =0;
 
     /** @brief Whether or not the Use manages the outer scope control flow for
@@ -486,7 +486,7 @@ ToUse
 use_cast(
   Use* from_use
 ) {
-  return darma_runtime::utility::safe_dynamic_cast<ToUse>(
+  return darma::utility::safe_dynamic_cast<ToUse>(
     from_use
   );
 }
@@ -496,7 +496,7 @@ ToUse
 use_cast(
   Use const* from_use
 ) {
-  return darma_runtime::utility::safe_dynamic_cast<ToUse>(
+  return darma::utility::safe_dynamic_cast<ToUse>(
     from_use
   );
 }
@@ -506,13 +506,13 @@ use_cast(
 //use_pointer_cast(
 //  Use const* from_use
 //) {
-//    return darma_runtime::detail::safe_dynamic_pointer_cast<ToUse>(
+//    return darma::detail::safe_dynamic_pointer_cast<ToUse>(
 //      from_use
 //    );
 //}
 
 } // end namespace frontend
 } // end namespace abstract
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPLEMENTATION_FRONTEND_USE_H

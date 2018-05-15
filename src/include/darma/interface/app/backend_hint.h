@@ -45,7 +45,7 @@
 #ifndef DARMA_INTERFACE_APP_BACKEND_HINT_H
 #define DARMA_INTERFACE_APP_BACKEND_HINT_H
 
-namespace darma_runtime { namespace experimental { namespace backend_hint {
+namespace darma { namespace experimental { namespace backend_hint {
   enum TaskHintIdentifier {
      // a task that groups together CCWs
     CCWGroupingTask = 2993421,

@@ -81,7 +81,7 @@
 
 #include "handle_fwd.h"
 
-namespace darma_runtime {
+namespace darma {
 
 ////////////////////////////////////////////////////////////////////////////////
 // <editor-fold desc="KeyedObject">
@@ -230,7 +230,7 @@ class VariableHandle
 
     // just use simple archive and handler for now
     using serialization_handler_t =
-      darma_runtime::serialization::SimpleSerializationHandler<std::allocator<T>>;
+      darma::serialization::SimpleSerializationHandler<std::allocator<T>>;
 
     size_t
     get_packed_size(
@@ -253,7 +253,7 @@ class VariableHandle
     ) const override {
       auto ar = serialization_handler_t::make_packing_archive(
         // Capacity unknown, but it doesn't matter
-        darma_runtime::serialization::NonOwningSerializationBuffer(
+        darma::serialization::NonOwningSerializationBuffer(
           buffer, std::numeric_limits<size_t>::max()
         )
       );
@@ -272,7 +272,7 @@ class VariableHandle
     {
       auto ar = serialization_handler_t::make_unpacking_archive(
         // Capacity unknown, but it doesn't matter
-        darma_runtime::serialization::ConstNonOwningSerializationBuffer(
+        darma::serialization::ConstNonOwningSerializationBuffer(
           buffer, std::numeric_limits<size_t>::max()
         )
       );
@@ -439,7 +439,7 @@ using value_type_if_access_handle_t = typename value_type_if_access_handle<T, Ot
 //==============================================================================
 
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 
 #endif /* DARMA_IMPL_HANDLE_H_ */

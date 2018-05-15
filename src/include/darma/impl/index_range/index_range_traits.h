@@ -51,7 +51,7 @@
 #include <darma/impl/meta/detection.h>
 #include <tinympl/type_traits.hpp>
 
-namespace darma_runtime {
+namespace darma {
 namespace indexing {
 
 template <typename T>
@@ -181,6 +181,6 @@ using index_range_type_from_arguments_t = typename
   >::type;
 
 } // end namespace indexing
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_INDEX_RANGE_INDEX_RANGE_TRAITS_H

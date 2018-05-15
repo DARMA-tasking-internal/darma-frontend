@@ -65,9 +65,9 @@ struct MockResourcePack {
 
 } // end namespace mock backend
 
-namespace darma_runtime { namespace types {
+namespace darma { namespace types {
 using resource_pack_t = ::mock_backend::MockResourcePack;
-}} // end namespace darma_runtime::types
+}} // end namespace darma::types
 
 namespace mock_backend {
 class MockFlow {
@@ -214,12 +214,12 @@ class MockAntiFlow {
 
 #include <darma/interface/defaults/pointers.h>
 
-namespace darma_runtime { namespace types {
+namespace darma { namespace types {
 typedef ::mock_backend::MockFlow flow_t;
 #if _darma_has_feature(anti_flows)
 using anti_flow_t = ::mock_backend::MockAntiFlow;
 #endif // _darma_has_feature(anti_flows)
-}} // end namespace darma_runtime::types
+}} // end namespace darma::types
 
 namespace mock_backend {
 
@@ -238,9 +238,9 @@ struct MockTaskCollectionToken {
 } // end namespace mock_backend
 
 
-namespace darma_runtime { namespace types {
+namespace darma { namespace types {
 using task_collection_token_t = mock_backend::MockTaskCollectionToken;
-}} // end namespace darma_runtime::types
+}} // end namespace darma::types
 
 namespace mock_backend {
 
@@ -258,15 +258,15 @@ struct MockRuntimeInstanceToken {
 
 } // end namespace mock_backend
 
-namespace darma_runtime { namespace types {
+namespace darma { namespace types {
 using runtime_instance_token_t = mock_backend::MockRuntimeInstanceToken;
-}} // end namespace darma_runtime::types
+}} // end namespace darma::types
 
 #include <darma/impl/key/SSO_key_fwd.h>
 
-namespace darma_runtime { namespace types {
-  typedef darma_runtime::detail::SSOKey<> key_t;
-}} // end namespace darma_runtime::types
+namespace darma { namespace types {
+  typedef darma::detail::SSOKey<> key_t;
+}} // end namespace darma::types
 
 #include <darma/impl/key/SSO_key.h>
 

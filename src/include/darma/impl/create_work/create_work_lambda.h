@@ -53,7 +53,7 @@
 #include "create_work.h"
 #include "record_line_numbers.h"
 
-namespace darma_runtime {
+namespace darma {
 namespace detail {
 
 
@@ -72,10 +72,10 @@ struct _create_work_impl<detail::_create_work_uses_lambda_tag, tinympl::vector<A
   ) const {
     using _______________see_calling_context_on_next_line________________ = typename create_work_argument_parser::template static_assert_valid_invocation<Args...>;
 
-    auto* parent_task = darma_runtime::detail::get_running_task_impl();
+    auto* parent_task = darma::detail::get_running_task_impl();
 
     auto task = std::make_unique<
-      darma_runtime::detail::LambdaTask<std::decay_t<Lambda>>
+      darma::detail::LambdaTask<std::decay_t<Lambda>>
     >(
       // Perfect forward the lambda here; the copy ctors will get invoked
       // in the constructor of LambdaTask (after everything is set up)
@@ -91,13 +91,13 @@ struct _create_work_impl<detail::_create_work_uses_lambda_tag, tinympl::vector<A
     );
 #endif
 
-    return darma_runtime::abstract::backend::get_backend_runtime()->register_task(
+    return darma::abstract::backend::get_backend_runtime()->register_task(
       std::move(task)
     );
   }
 };
 
 } // end namespace detail
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMAFRONTEND_CREATE_WORK_LAMBDA_H

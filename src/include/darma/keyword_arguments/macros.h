@@ -3,7 +3,7 @@
 // ************************************************************************
 //
 //                   keyword_arguments/macros.h
-//                         darma_runtime
+//                         darma
 //              Copyright (C) 2015 Sandia Corporation
 //
 // Under the terms of Contract DE-NA-0003525 with NTESS, LLC,
@@ -57,21 +57,21 @@
 #define _darma_detail_remove_parens(...) __VA_ARGS__
 
 #define _darma_declare_keyword_tag_typeless(argument_for, name)                                     \
-namespace darma_runtime {                                                                           \
+namespace darma {                                                                           \
 namespace keyword_tags_for_##argument_for {                                                         \
                                                                                                     \
 class name : public detail::keyword_tag                                                             \
 {                                                                                                   \
   public:                                                                                           \
     typedef std::true_type is_tag_t;                                                                \
-    typedef _darma_detail_remove_parens (darma_runtime::detail::unknown_type) value_t;              \
+    typedef _darma_detail_remove_parens (darma::detail::unknown_type) value_t;              \
 };                                                                                                  \
                                                                                                     \
 } /* end keyword_tags_for_<argument_for> */                                                         \
 namespace keyword_arguments_for_##argument_for {                                                    \
                                                                                                     \
 typedef detail::typeless_keyword_argument_name<                                                              \
-  darma_runtime::keyword_tags_for_##argument_for::name                                              \
+  darma::keyword_tags_for_##argument_for::name                                              \
 > name##_keyword_name_t;                                                                            \
                                                                                                     \
 namespace {                                                                                         \
@@ -79,27 +79,27 @@ namespace {                                                                     
 static constexpr name##_keyword_name_t name;                                                        \
 } /* end of anonymous namespace */                                                                  \
 } /* end keyword_arguments_for_<argument_for> */                                                    \
-} /* end namespace darma_runtime */
+} /* end namespace darma */
 
 #define _darma_declare_keyword_tag_data(argument_for, name, argtype)                                \
-namespace darma_runtime {                                                                           \
+namespace darma {                                                                           \
 namespace detail {                                                                                  \
 template<>                                                                                          \
-struct tag_data<darma_runtime::keyword_tags_for_##argument_for::name>                               \
+struct tag_data<darma::keyword_tags_for_##argument_for::name>                               \
 {                                                                                                   \
   typedef keyword_arguments_for_##argument_for::name##_keyword_name_t keyword_name_t;               \
   typedef _darma_detail_remove_parens argtype value_t;                                              \
   static constexpr bool has_default_value = false;                                                  \
   static constexpr bool has_type = not                                                              \
-    std::is_same<value_t, darma_runtime::detail::unknown_type>::type::value;                        \
+    std::is_same<value_t, darma::detail::unknown_type>::type::value;                        \
 };                                                                                                  \
 } /* end namespace detail */                                                                        \
-} /* end namespace darma_runtime */
+} /* end namespace darma */
 
 // This is the only way we should declare keyword arguments from now on
 #define DeclareDarmaTypeTransparentKeyword(argument_for, name)                                      \
     _darma_declare_keyword_tag_typeless(argument_for, name)                                         \
-    _darma_declare_keyword_tag_data(argument_for, name, (darma_runtime::detail::unknown_type))
+    _darma_declare_keyword_tag_data(argument_for, name, (darma::detail::unknown_type))
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -108,20 +108,20 @@ struct tag_data<darma_runtime::keyword_tags_for_##argument_for::name>           
 namespace {                                                                                         \
 /* anonymous namespace for linking purposes */                                                      \
 static constexpr const                                                                              \
-::darma_runtime::keyword_arguments_for_##original_argument_for::name##_keyword_name_t&              \
-name = ::darma_runtime::keyword_arguments_for_##original_argument_for::name;                        \
+::darma::keyword_arguments_for_##original_argument_for::name##_keyword_name_t&              \
+name = ::darma::keyword_arguments_for_##original_argument_for::name;                        \
 } /* end anonymous namespace */
 
 #define AliasDarmaKeywordAs(original_argument_for, name, as_name)                                   \
 namespace {                                                                                         \
 /* anonymous namespace for linking purposes */                                                      \
 static constexpr const                                                                              \
-::darma_runtime::keyword_arguments_for_##original_argument_for::name##_keyword_name_t&              \
-as_name = ::darma_runtime::keyword_arguments_for_##original_argument_for::name;                     \
+::darma::keyword_arguments_for_##original_argument_for::name##_keyword_name_t&              \
+as_name = ::darma::keyword_arguments_for_##original_argument_for::name;                     \
 } /* end anonymous namespace */
 
 #define DeclareStandardDarmaKeywordArgumentAliases(original_argument_for, name)                     \
-namespace darma_runtime {                                                                           \
+namespace darma {                                                                           \
 namespace keyword_arguments {                                                                       \
 AliasDarmaKeyword(original_argument_for, name);                                                     \
 }                                                                                                   \
@@ -139,7 +139,7 @@ AliasDarmaKeywordAs(original_argument_for, name,                                
   DARMA_CONCAT_TOKEN_(DARMA_CONCAT_TOKEN_(_, name), _)                                              \
 );                                                                                                  \
 }                                                                                                   \
-} /* end namespace darma_runtime */
+} /* end namespace darma */
 
 
 

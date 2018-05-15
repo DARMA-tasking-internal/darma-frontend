@@ -52,7 +52,7 @@
 #include <darma/interface/frontend/serialization_manager.h>
 #include <darma/interface/frontend/array_concept_manager.h>
 
-namespace darma_runtime {
+namespace darma {
 namespace abstract {
 namespace frontend {
 
@@ -118,6 +118,6 @@ class ReduceOp : public serialization::PolymorphicSerializableObject<ReduceOp> {
 
 } // end namespace frontend
 } // end namespace abstract
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_INTERFACE_FRONTEND_REDUCE_OPERATION_H

@@ -66,7 +66,5 @@
 
 #include "darma.impl.h"
 
-namespace darma = darma_runtime;
-
 #endif /* SRC_DARMA_DARMA_H_ */
 

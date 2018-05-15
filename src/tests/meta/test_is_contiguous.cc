@@ -48,7 +48,7 @@
 
 #include <darma/impl/meta/is_contiguous.h>
 
-using namespace darma_runtime::meta;
+using namespace darma::meta;
 
 static_assert(
   is_contiguous_iterator<typename std::vector<long>::iterator>::value,

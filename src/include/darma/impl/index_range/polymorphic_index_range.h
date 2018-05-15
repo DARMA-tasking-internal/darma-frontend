@@ -50,7 +50,7 @@
 #include "polymorphic_mapping.h"
 
 
-namespace darma_runtime {
+namespace darma {
 
 namespace indexing {
 
@@ -112,6 +112,6 @@ class PolymorphicIndexRange
 
 } // end namespace indexing
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_INDEX_RANGE_POLYMORPHIC_INDEX_RANGE_H

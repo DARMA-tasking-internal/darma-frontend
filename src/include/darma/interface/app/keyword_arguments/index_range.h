@@ -49,7 +49,7 @@
 
 DeclareDarmaTypeTransparentKeyword(create_concurrent_work, index_range);
 
-namespace darma_runtime {
+namespace darma {
   namespace keyword_arguments_for_access_handle_collection {
     AliasDarmaKeyword(create_concurrent_work, index_range);
   } // end namespace keyword_arguments_for_access_handle_collection
@@ -58,7 +58,7 @@ namespace darma_runtime {
     AliasDarmaKeyword(create_concurrent_work, index_range);
   } // end namespace keyword_arguments_for_mpi_context
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 DeclareStandardDarmaKeywordArgumentAliases(create_concurrent_work, index_range);
 

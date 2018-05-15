@@ -47,7 +47,7 @@
 
 #include <darma/utility/config.h>
 
-namespace darma_runtime {
+namespace darma {
 
 namespace detail {
 
@@ -66,7 +66,7 @@ template <
 void create_work(Args&&... args);
 #endif
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 
 #include <darma/impl/create_work/create_work.h>
@@ -75,8 +75,8 @@ void create_work(Args&&... args);
 
 //#define create_work \
 //  auto DARMA_CONCAT_TOKEN_(_DARMA__started_, __LINE__) = \
-//    ::darma_runtime::detail::_start_create_work(); \
-//    ::darma_runtime::detail::_do_create_work( \
+//    ::darma::detail::_start_create_work(); \
+//    ::darma::detail::_do_create_work( \
 //      std::move(DARMA_CONCAT_TOKEN_(_DARMA__started_, __LINE__)) \
 //    ).operator()
 

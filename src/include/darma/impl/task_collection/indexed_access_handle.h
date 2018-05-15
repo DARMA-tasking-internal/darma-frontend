@@ -67,7 +67,7 @@
 
 #include <darma/interface/app/access_handle.h>
 
-namespace darma_runtime {
+namespace darma {
 namespace detail {
 
 //==============================================================================
@@ -169,7 +169,7 @@ class IndexedAccessHandle {
 
       // TODO allocator support
 
-      using namespace darma_runtime::detail;
+      using namespace darma::detail;
       using parser = detail::kwarg_parser<
         overload_description<
           _optional_keyword<converted_parameter, keyword_tags_for_publication::version>
@@ -180,13 +180,13 @@ class IndexedAccessHandle {
       return parser()
         .with_converters(
           [](auto&&... parts) {
-            return darma_runtime::make_key(std::forward<decltype(parts)>(parts)...);
+            return darma::make_key(std::forward<decltype(parts)>(parts)...);
           }
         )
         .with_default_generators(
           keyword_arguments_for_publication::version=[]{
             // Defaults to empty key, **not** backend defined!!!
-            return darma_runtime::make_key();
+            return darma::make_key();
           }
         )
         .parse_args(std::forward<Args>(args)...)
@@ -194,8 +194,8 @@ class IndexedAccessHandle {
           types::key_t&& version_key
         ) -> decltype(auto) {
 
-          using namespace darma_runtime::abstract::frontend;
-          using namespace darma_runtime::detail::flow_relationships;
+          using namespace darma::abstract::frontend;
+          using namespace darma::detail::flow_relationships;
 
           auto* backend_runtime = abstract::backend::get_backend_runtime();
 
@@ -265,7 +265,7 @@ class IndexedAccessHandle {
     >
     auto
     commutative_access() && {
-      using namespace darma_runtime::detail::flow_relationships;
+      using namespace darma::detail::flow_relationships;
       // TODO make_indexed_?_flow
       use_holder_ = std::make_shared<UseHolder>(
         HandleUse(
@@ -304,7 +304,7 @@ class IndexedAccessHandle {
 
     template <typename, typename, typename>
     friend
-    class darma_runtime::AccessHandleCollection;
+    class darma::AccessHandleCollection;
 
     // </editor-fold> end friends }}}2
     //------------------------------------------------------------------------------
@@ -315,6 +315,6 @@ class IndexedAccessHandle {
 //==============================================================================
 
 } // end namespace detail
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_TASK_COLLECTION_INDEXED_ACCESS_HANDLE_H

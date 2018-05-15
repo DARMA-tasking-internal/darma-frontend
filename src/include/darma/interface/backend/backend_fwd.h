@@ -45,7 +45,7 @@
 #ifndef DARMA_INTERFACE_BACKEND_FWD_H
 #define DARMA_INTERFACE_BACKEND_FWD_H
 
-namespace darma_runtime {
+namespace darma {
 namespace abstract {
 namespace backend {
 
@@ -61,6 +61,6 @@ class TaskCollectionContextHandle;
 
 } // end namespace backend
 } // end namespace abstract
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_INTERFACE_BACKEND_FWD_H

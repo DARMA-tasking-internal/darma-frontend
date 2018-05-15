@@ -50,7 +50,7 @@
 #include <darma/impl/access_handle/access_handle_base.impl.h>
 #include <darma/impl/access_handle/access_handle_capture_description.h>
 
-namespace darma_runtime {
+namespace darma {
 
 //==============================================================================
 
@@ -84,7 +84,7 @@ AccessHandle<T, Traits>::AccessHandle(
 
 //==============================================================================
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 
 #endif //DARMAFRONTEND_ACCESS_HANDLE_IMPL_H

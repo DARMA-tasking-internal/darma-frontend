@@ -91,7 +91,7 @@ class TestAntiFlows
 
 TEST_F(TestAntiFlows, high_level_example_0) {
   using namespace ::testing;
-  using namespace darma_runtime;
+  using namespace darma;
 
   DECLARE_MOCK_FLOWS(f0, f1, f2);
   DECLARE_MOCK_ANTI_FLOWS(fbar0, fbar1);
@@ -182,7 +182,7 @@ TEST_F(TestAntiFlows, high_level_example_0) {
 
 TEST_F(TestAntiFlows, high_level_example_1) {
   using namespace ::testing;
-  using namespace darma_runtime;
+  using namespace darma;
 
   DECLARE_MOCK_FLOWS(f0, f1, f2, f3, f4, f5, f6);
   DECLARE_MOCK_ANTI_FLOWS(fbar0, fbar1, fbar2, fbar3, fbar4, fbar5);
@@ -372,7 +372,7 @@ TEST_F(TestAntiFlows, high_level_example_1) {
 
 TEST_F(TestAntiFlows, high_level_example_3) {
   using namespace ::testing;
-  using namespace darma_runtime;
+  using namespace darma;
 
   DECLARE_MOCK_FLOWS(f0, f1, f2, f3, f4, f5, f6, f7, f8, f9);
   DECLARE_MOCK_ANTI_FLOWS(fbar1, fbar2, fbar3, fbar4, fbar5, fbar6, fbar7, fbar8);

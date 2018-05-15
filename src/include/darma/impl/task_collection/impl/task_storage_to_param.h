@@ -53,7 +53,7 @@
 #include <darma/impl/capture.h>
 #include <darma/impl/task_collection/access_handle_collection.h>
 
-namespace darma_runtime {
+namespace darma {
 namespace detail {
 namespace _task_collection_impl {
 
@@ -237,6 +237,6 @@ struct _get_call_arg_helper<StoredArg, ParamTraits,
 
 } // end namespace _task_collection_impl
 } // end namespace detail
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_TASK_COLLECTION_IMPL_TASK_STORAGE_TO_PARAM_H

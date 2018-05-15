@@ -53,17 +53,17 @@
 
 #include <darma_types.h>
 
-namespace darma_runtime {
+namespace darma {
 
 namespace backend {
 
 types::runtime_context_token_t
-create_runtime_context(darma_runtime::types::MPI_Comm);
+create_runtime_context(darma::types::MPI_Comm);
 
 types::piecewise_collection_token_t
 register_piecewise_collection(
   types::runtime_context_token_t,
-  std::shared_ptr<darma_runtime::abstract::frontend::Handle>,
+  std::shared_ptr<darma::abstract::frontend::Handle>,
   size_t
 );
 
@@ -76,7 +76,7 @@ release_piecewise_collection(
 types::persistent_collection_token_t
 register_persistent_collection(
   types::runtime_context_token_t,
-  std::shared_ptr<darma_runtime::abstract::frontend::Handle>,
+  std::shared_ptr<darma::abstract::frontend::Handle>,
   size_t
 );
 
@@ -106,7 +106,7 @@ run_distributed_region_worker(types::runtime_context_token_t);
 
 } // end namespace backend
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif
 

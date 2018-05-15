@@ -49,7 +49,7 @@
 
 DeclareDarmaTypeTransparentKeyword(task_creation, allow_aliasing);
 
-namespace darma_runtime {
+namespace darma {
   namespace keyword_arguments_for_create_work {
     AliasDarmaKeyword(task_creation, allow_aliasing);
   } // end namespace keyword_arguments_for_create_work
@@ -62,7 +62,7 @@ namespace darma_runtime {
   namespace keyword_arguments_for_create_work_while {
     AliasDarmaKeyword(task_creation, allow_aliasing);
   } // end namespace keyword_arguments_for_create_work_while
-} // end namespace darma_runtime
+} // end namespace darma
 
 DeclareStandardDarmaKeywordArgumentAliases(task_creation, allow_aliasing);
 

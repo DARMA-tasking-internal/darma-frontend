@@ -50,7 +50,7 @@
 //#include <tinympl/delay.hpp>
 //#include <type_traits>
 //
-//namespace darma_runtime { namespace meta {
+//namespace darma { namespace meta {
 //
 //template <typename FunctionSignature>
 //struct as_method;
@@ -72,7 +72,7 @@
 //  };
 //};
 //
-//}} // end namespace darma_runtime::meta
+//}} // end namespace darma::meta
 //
 //// Wide swaths borrowed from:
 ////   https://en.wikibooks.org/wiki/More_C%2B%2B_Idioms/Member_Detector
@@ -132,7 +132,7 @@
 //  private:                                                                                          \
 //    template <                                                                                      \
 //      typename U,                                                                                   \
-//      typename darma_runtime::meta::as_method<function_signature>::template bind<U>::type          \
+//      typename darma::meta::as_method<function_signature>::template bind<U>::type          \
 //    > struct Check;                                                                                 \
 //    template <typename U> static char func(Check<U, &U::MEMBER_NAME>*);                             \
 //    template <typename U> static int func(...);                                                     \
@@ -145,7 +145,7 @@
 //  private:                                                                                          \
 //    template <                                                                                      \
 //      typename U,                                                                                   \
-//      typename darma_runtime::meta::as_method<function_signature>::template bind_const<U>::type    \
+//      typename darma::meta::as_method<function_signature>::template bind_const<U>::type    \
 //    > struct Check;                                                                                 \
 //    template <typename U> static char func(Check<U, &U::MEMBER_NAME>*);                             \
 //    template <typename U> static int func(...);                                                     \

@@ -50,13 +50,13 @@
 #if _darma_has_feature(create_concurrent_work)
 #include <darma/impl/task_collection/task_collection.h>
 
-namespace darma_runtime {
+namespace darma {
 
 template <typename Functor, typename... Args>
 void create_concurrent_work(Args&&... args) {
-  using namespace darma_runtime::detail;
-  using darma_runtime::keyword_tags_for_create_concurrent_work::index_range;
-  using darma_runtime::keyword_tags_for_task_creation::name;
+  using namespace darma::detail;
+  using darma::keyword_tags_for_create_concurrent_work::index_range;
+  using darma::keyword_tags_for_task_creation::name;
   using parser = kwarg_parser<
   variadic_positional_overload_description<
     _keyword<deduced_parameter, index_range>,
@@ -70,18 +70,18 @@ void create_concurrent_work(Args&&... args) {
 
   parser()
     .with_default_generators(
-      keyword_arguments_for_task_creation::name=[]{ return darma_runtime::make_key(); }
+      keyword_arguments_for_task_creation::name=[]{ return darma::make_key(); }
     )
     .with_converters(
       [](auto&&... key_parts) {
-        return darma_runtime::make_key(std::forward<decltype(key_parts)>(key_parts)...);
+        return darma::make_key(std::forward<decltype(key_parts)>(key_parts)...);
       }
     )
     .parse_args(std::forward<Args>(args)...)
     .invoke([](
       auto&& index_range,
       types::key_t name_key,
-      darma_runtime::detail::variadic_arguments_begin_tag,
+      darma::detail::variadic_arguments_begin_tag,
       auto&&... my_args
     ){
       using task_collection_impl_t = typename detail::make_task_collection_impl_t<
@@ -104,7 +104,7 @@ void create_concurrent_work(Args&&... args) {
 
 }
 
-} // end namespace darma_runtime
+} // end namespace darma
 #endif // _darma_has_feature(create_concurrent_work)
 
 #endif //DARMA_IMPL_TASK_COLLECTION_CREATE_CONCURRENT_WORK_H

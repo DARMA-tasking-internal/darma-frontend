@@ -53,7 +53,7 @@
 
 #include "void_t.h"
 
-namespace darma_runtime {
+namespace darma {
 
 namespace meta {
 
@@ -87,7 +87,7 @@ using is_detected_convertible = std::is_convertible<tinympl::detected_t<Op, Args
 
 } // end namespace meta
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 
 

@@ -56,7 +56,7 @@
 
 #include <darma/serialization/polymorphic/polymorphic_serialization_adapter.h>
 
-namespace darma_runtime {
+namespace darma {
 
 namespace detail {
 
@@ -269,7 +269,7 @@ class MappedUseCollection final /* final for now, at least */
     using mapping_t = Mapping;
     mapping_t mapping_fe_handle_to_be_task_;
 
-    using mapping_traits_t = darma_runtime::indexing::mapping_traits<Mapping>;
+    using mapping_traits_t = darma::indexing::mapping_traits<Mapping>;
     using base_t = serialization::PolymorphicSerializationAdapter<
       MappedUseCollection<IndexRange, Mapping>,
       BasicUseCollection<IndexRange>
@@ -601,6 +601,6 @@ class BasicCollectionManagingUse final /* final for now, at least */
 
 } // end namespace detail
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_USE_COLLECTION_H

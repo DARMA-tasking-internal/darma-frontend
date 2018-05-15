@@ -55,7 +55,7 @@
 #include <darma/impl/capture/semantics_macros.h>
 
 
-namespace darma_runtime {
+namespace darma {
 namespace detail {
 namespace capture_semantics {
 
@@ -72,10 +72,10 @@ struct CaptureCaseInputHash {
     using underlying_permissions_t = std::underlying_type_t<frontend::permissions_t>;
     using underlying_coherence_mode_t = std::underlying_type_t<frontend::coherence_mode_t>;
     auto rv = std::hash<underlying_permissions_t>()((underlying_permissions_t)c.source_scheduling);
-    darma_runtime::detail::hash_combine(rv, (underlying_permissions_t)c.source_immediate);
-    darma_runtime::detail::hash_combine(rv, (underlying_permissions_t)c.captured_scheduling);
-    darma_runtime::detail::hash_combine(rv, (underlying_permissions_t)c.captured_immediate);
-    darma_runtime::detail::hash_combine(rv, (underlying_coherence_mode_t)c.coherence_mode);
+    darma::detail::hash_combine(rv, (underlying_permissions_t)c.source_immediate);
+    darma::detail::hash_combine(rv, (underlying_permissions_t)c.captured_scheduling);
+    darma::detail::hash_combine(rv, (underlying_permissions_t)c.captured_immediate);
+    darma::detail::hash_combine(rv, (underlying_coherence_mode_t)c.coherence_mode);
     return rv;
   }
 };
@@ -210,7 +210,7 @@ inline void _capture_case_not_implemented(
  * @note The parameters to methods in this class have the same names as the ones
  * in the `_darma_CAPTURE_CASE()` macro, so they are the names that should be
  * used as argument to the `FlowRelationship` creation functions (in namespace
- * `darma_runtime::detail::flow_relationships`, which is `using`'d in the bodies
+ * `darma::detail::flow_relationships`, which is `using`'d in the bodies
  * of all the macro functions for brevity).
  *
  * @sa semantics.h
@@ -659,6 +659,6 @@ auto apply_with_capture_case(
 
 } // end namespace capture_semantics
 } // end namespace detail
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMAFRONTEND_SEMANTICS_HELPERS_H

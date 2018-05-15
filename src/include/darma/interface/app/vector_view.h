@@ -52,7 +52,7 @@
 #include <darma/utility/darma_assert.h>
 #include <darma/serialization/nonintrusive.h>
 
-namespace darma_runtime {
+namespace darma {
 
 namespace detail {
 
@@ -255,15 +255,15 @@ class vector_view
 
 } // end namespace darma
 
-namespace darma_runtime {
+namespace darma {
 
 namespace serialization {
 
 template <typename T>
-struct Serializer<::darma_runtime::vector_view<T>> {
+struct Serializer<::darma::vector_view<T>> {
   private:
 
-    using view_t = ::darma_runtime::vector_view<T>;
+    using view_t = ::darma::vector_view<T>;
 
   public:
 
@@ -285,6 +285,6 @@ struct Serializer<::darma_runtime::vector_view<T>> {
 } // end namespace serialization
 
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_INTERFACE_APP_VECTOR_VIEW_H

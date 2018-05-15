@@ -53,7 +53,7 @@
 #include <darma/serialization/serializers/enum.h>
 
 
-namespace darma_runtime {
+namespace darma {
 namespace serialization {
 
 template <
@@ -63,17 +63,17 @@ template <
   typename ComponentCountOrdinal
 >
 struct Serializer<
-  darma_runtime::detail::SSOKey<
+  darma::detail::SSOKey<
     BufferSize,
     BackendAssignedKeyType,
     PieceSizeOrdinal,
     ComponentCountOrdinal
   >
 > {
-  using sso_key_t = darma_runtime::detail::SSOKey<
+  using sso_key_t = darma::detail::SSOKey<
     BufferSize, BackendAssignedKeyType, PieceSizeOrdinal, ComponentCountOrdinal
   >;
-  using key_traits_t = darma_runtime::detail::key_traits<sso_key_t>;
+  using key_traits_t = darma::detail::key_traits<sso_key_t>;
 
   template <typename ArchiveT>
   static void compute_size(sso_key_t const& val, ArchiveT& ar) {
@@ -84,20 +84,20 @@ struct Serializer<
     );
     ar % val.mode;
     switch (val.mode) {
-      case darma_runtime::detail::_impl::BackendAssigned:
+      case darma::detail::_impl::BackendAssigned:
         ar % val.repr.as_backend_assigned.backend_assigned_key;
         break;
-      case darma_runtime::detail::_impl::Short:
+      case darma::detail::_impl::Short:
         ar % val.repr.as_short.size;
         // This could be smaller...
         ar % val.repr.as_short.data;
         break;
-      case darma_runtime::detail::_impl::Long:
+      case darma::detail::_impl::Long:
         // don't really need to store size since range does it
         ar % val.repr.as_long.size;
         ar.add_to_size_raw(val.repr.as_long.size);
         break;
-      case darma_runtime::detail::_impl::NeedsBackendAssignedKey:
+      case darma::detail::_impl::NeedsBackendAssignedKey:
         DARMA_ASSERT_UNREACHABLE_FAILURE("NeedsBackendAssignedKey");            // LCOV_EXCL_LINE
         break;                                                                  // LCOV_EXCL_LINE
     }
@@ -112,15 +112,15 @@ struct Serializer<
     );
     ar << val.mode;
     switch (val.mode) {
-      case darma_runtime::detail::_impl::BackendAssigned:
+      case darma::detail::_impl::BackendAssigned:
         ar << val.repr.as_backend_assigned.backend_assigned_key;
         break;
-      case darma_runtime::detail::_impl::Short:
+      case darma::detail::_impl::Short:
         ar << val.repr.as_short.size;
         // This could be smaller...
         ar << val.repr.as_short.data;
         break;
-      case darma_runtime::detail::_impl::Long:
+      case darma::detail::_impl::Long:
         // don't really need to store size since range does it
         ar << val.repr.as_long.size;
         ar.pack_data_raw(
@@ -128,7 +128,7 @@ struct Serializer<
           val.repr.as_long.data + val.repr.as_long.size
         );
         break;
-      case darma_runtime::detail::_impl::NeedsBackendAssignedKey:
+      case darma::detail::_impl::NeedsBackendAssignedKey:
         DARMA_ASSERT_UNREACHABLE_FAILURE("NeedsBackendAssignedKey");            // LCOV_EXCL_LINE
         break;                                                                  // LCOV_EXCL_LINE
     }
@@ -162,19 +162,19 @@ SSOKey<BufferSize, BackendAssignedKeyType, PieceSizeOrdinal, ComponentCountOrdin
       "  (This is a backend implementation bug; contact your backend developer)"
   );
   switch (mode) {
-    case darma_runtime::detail::_impl::BackendAssigned: {
+    case darma::detail::_impl::BackendAssigned: {
       repr.as_backend_assigned = _backend_assigned{};
       ar >> repr.as_backend_assigned.backend_assigned_key;
       break;
     }
-    case darma_runtime::detail::_impl::Short: {
+    case darma::detail::_impl::Short: {
       repr.as_short = _short{};
       ar >> repr.as_short.size;
       // This could be smaller...
       ar >> repr.as_short.data;
       break;
     }
-    case darma_runtime::detail::_impl::Long: {
+    case darma::detail::_impl::Long: {
       repr.as_long = _long{};
       // don't really need to store size since range does it
       ar >> repr.as_long.size;
@@ -185,7 +185,7 @@ SSOKey<BufferSize, BackendAssignedKeyType, PieceSizeOrdinal, ComponentCountOrdin
       ar.template unpack_data_raw<char>(repr.as_long.data, repr.as_long.size);
       break;
     }
-    case darma_runtime::detail::_impl::NeedsBackendAssignedKey: {
+    case darma::detail::_impl::NeedsBackendAssignedKey: {
       DARMA_ASSERT_UNREACHABLE_FAILURE("NeedsBackendAssignedKey");            // LCOV_EXCL_LINE
       break;                                                                  // LCOV_EXCL_LINE
     }
@@ -194,6 +194,6 @@ SSOKey<BufferSize, BackendAssignedKeyType, PieceSizeOrdinal, ComponentCountOrdin
 
 } // end namespace detail
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMAFRONTEND_SSO_KEY_SERIALIZATION_H

@@ -52,7 +52,7 @@
 
 #include <darma/impl/meta/detection.h>
 
-namespace darma_runtime {
+namespace darma {
 
 namespace meta {
 
@@ -156,6 +156,6 @@ struct property_parsing_checker {
 
 } // end namespace meta
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_META_PARSE_PROPERTIES_H

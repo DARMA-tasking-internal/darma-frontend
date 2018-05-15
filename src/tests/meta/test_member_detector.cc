@@ -45,8 +45,8 @@
 #include <darma/impl/meta/member_detector.h>
 #include <string>
 
-//using namespace darma_runtime;
-//using namespace darma_runtime::meta;
+//using namespace darma;
+//using namespace darma::meta;
 //
 //
 //struct TestHasPolicy {

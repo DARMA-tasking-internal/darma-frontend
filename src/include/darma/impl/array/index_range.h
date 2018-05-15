@@ -49,7 +49,7 @@
 
 #include <darma/interface/frontend/index_range.h>
 
-namespace darma_runtime {
+namespace darma {
 
 namespace detail {
 
@@ -212,6 +212,6 @@ get_mapping_to_dense(
   return detail::ContiguousIndexMapping<Integer>{ range };
 }
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_ARRAY_INDEX_RANGE_H

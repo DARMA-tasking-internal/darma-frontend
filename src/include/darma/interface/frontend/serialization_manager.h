@@ -48,7 +48,7 @@
 #include <cassert>
 #include <darma/interface/backend/serialization_policy.h>
 
-namespace darma_runtime {
+namespace darma {
 
 namespace abstract {
 
@@ -185,7 +185,7 @@ class SerializationManager {
 
 } // end namespace abstract
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 
 

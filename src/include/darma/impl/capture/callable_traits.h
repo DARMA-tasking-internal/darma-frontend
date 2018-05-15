@@ -66,7 +66,7 @@
 #include "darma/impl/meta/any_convertible.h"
 #include "darma/impl/meta/is_callable.h"
 
-namespace darma_runtime {
+namespace darma {
 
 namespace meta {
 
@@ -512,7 +512,7 @@ struct callable_traits {
 
 } // end namespace meta
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 
 #endif /* DARMA_IMPL_META_CALLABLE_TRAITS_H_ */

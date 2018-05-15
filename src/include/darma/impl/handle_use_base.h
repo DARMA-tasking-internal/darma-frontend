@@ -60,7 +60,7 @@
 #include <darma/impl/util/managing_ptr.h>
 #include <darma/impl/use/flow_relationship.h>
 
-namespace darma_runtime {
+namespace darma {
 namespace detail {
 
 class HandleUseBase
@@ -338,6 +338,6 @@ class HandleUseBase
 
 
 } // end namespace detail
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_HANDLE_USE_BASE_H_H

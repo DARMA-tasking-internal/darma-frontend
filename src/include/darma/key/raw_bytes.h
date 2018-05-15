@@ -50,7 +50,7 @@
 #include <cstddef>
 #include <memory>
 
-namespace darma_runtime {
+namespace darma {
 
 namespace detail {
 
@@ -100,6 +100,6 @@ struct bytes_convert<raw_bytes> {
 
 } // end namespace detail
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_KEY_RAW_BYTES_H

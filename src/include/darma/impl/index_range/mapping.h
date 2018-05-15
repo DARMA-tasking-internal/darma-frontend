@@ -54,7 +54,7 @@
 #include <darma/impl/meta/detection.h>
 #include "mapping_traits.h"
 
-namespace darma_runtime {
+namespace darma {
 
 namespace detail {
 
@@ -486,6 +486,6 @@ struct is_directly_serializable_enabled_if<T,
 } // end namespace serialization
 
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_INDEX_RANGE_MAPPING_H

@@ -45,7 +45,7 @@
 #ifndef DARMA_INTERFACE_APP_DATA_STRUCTURES_VECTOR_H
 #define DARMA_INTERFACE_APP_DATA_STRUCTURES_VECTOR_H
 
-namespace darma_runtime {
+namespace darma {
 
 namespace data_structures {
 
@@ -53,6 +53,6 @@ namespace data_structures {
 
 } // end namespace data_structures
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_INTERFACE_APP_DATA_STRUCTURES_VECTOR_H

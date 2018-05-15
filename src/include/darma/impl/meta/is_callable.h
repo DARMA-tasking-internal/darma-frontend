@@ -47,7 +47,7 @@
 
 #include "detection.h"
 
-namespace darma_runtime {
+namespace darma {
 namespace meta {
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -64,6 +64,6 @@ using is_callable_with_args = is_detected<callable_with_args_archetype, F, Args.
 ////////////////////////////////////////////////////////////////////////////////
 
 } // end namespace meta
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_META_IS_CALLABLE_H

@@ -53,7 +53,7 @@
 
 // TODO move this to access_handle sub-directory when we're at a stable merge point
 
-namespace darma_runtime {
+namespace darma {
 
 #if _darma_has_feature(publish_fetch)
 namespace detail {
@@ -136,7 +136,7 @@ AccessHandle<T, Traits>::publish(
 
   using detail::HandleUse;
 
-  using namespace darma_runtime::detail;
+  using namespace darma::detail;
   using parser = detail::kwarg_parser<
     overload_description<
       _optional_keyword<converted_parameter, keyword_tags_for_publication::version>,
@@ -171,7 +171,7 @@ AccessHandle<T, Traits>::publish(
 }
 #endif // _darma_has_feature(publish_fetch)
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 
 #endif //DARMA_IMPL_ACCESS_HANDLE_PUBLISH_IMPL_H

@@ -49,11 +49,11 @@
 
 DeclareDarmaTypeTransparentKeyword(collectives, input);
 
-namespace darma_runtime {
+namespace darma {
   namespace keyword_arguments_for_allreduce {
     AliasDarmaKeyword(collectives, input);
   } // end namespace keyword_arguments_for_allreduce
-} // end namespace darma_runtime
+} // end namespace darma
 
 DeclareStandardDarmaKeywordArgumentAliases(collectives, input);
 

@@ -52,7 +52,7 @@
 #include "impl/tc_storage_to_task_storage.h"
 #include "impl/task_storage_to_param.h"
 
-namespace darma_runtime {
+namespace darma {
 
 template <
   typename IndexOrIndexRange
@@ -144,7 +144,7 @@ struct ConcurrentContext {
 #if _darma_has_feature(simple_collectives)
     template <typename ReduceOp=detail::op_not_given, typename... Args>
     void allreduce(Args&&... args) {
-      using namespace darma_runtime::detail;
+      using namespace darma::detail;
 
       using parser = detail::kwarg_parser<
         overload_description<
@@ -313,6 +313,6 @@ struct TaskCollectionTaskImpl
 
 } // end namespace detail
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_TASK_COLLECTION_TASK_H

@@ -62,7 +62,7 @@
 
 #include <darma/utility/static_assertions.h>
 
-namespace darma_runtime {
+namespace darma {
 namespace detail {
 namespace _task_collection_impl {
 
@@ -441,7 +441,7 @@ struct _get_storage_arg_helper<
     auto rv = return_type(
       handle_collection_t(
         arg.collection.var_handle_base_,
-        darma_runtime::detail::make_captured_use_holder(
+        darma::detail::make_captured_use_holder(
           arg.collection.var_handle_base_,
           /* Requested Scheduling permissions: */
           required_scheduling_permissions,
@@ -650,7 +650,7 @@ struct _get_storage_arg_helper<
     auto rv = return_type(
       handle_collection_t(
         arg.var_handle_.get_smart_ptr(),
-        darma_runtime::detail::make_captured_use_holder(
+        darma::detail::make_captured_use_holder(
           arg.var_handle_base_,
           /* Requested Scheduling permissions: */
           frontend::Permissions::Modify,
@@ -680,6 +680,6 @@ struct _get_storage_arg_helper<
 
 } // end namespace _task_collection_impl
 } // end namespace detail
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_TASK_COLLECTION_IMPL_ARGUMENT_TO_TC_STORAGE_H

@@ -47,7 +47,7 @@
 
 #include <darma/impl/feature_testing_macros.h>
 
-namespace darma_runtime {
+namespace darma {
 
 namespace abstract {
 
@@ -68,6 +68,6 @@ struct TopLevelTask: ConcreteBasicTask {
 
 } // end namespace abstract
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_INTERFACE_FRONTEND_TOP_LEVEL_TASK_H

@@ -48,7 +48,7 @@
 #include <darma/impl/access_handle_base.h>
 #include <darma/impl/use/use_holder.h>
 
-namespace darma_runtime {
+namespace darma {
 namespace detail {
 
 template <typename ParentAHC, typename UseHolderPtr>
@@ -221,6 +221,6 @@ class BasicAccessHandle : public AccessHandleBase {
 };
 
 } // end namespace detail
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMAFRONTEND_BASIC_ACCESS_HANDLE_H

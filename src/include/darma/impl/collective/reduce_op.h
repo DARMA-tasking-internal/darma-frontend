@@ -60,7 +60,7 @@
 #include <set>
 #include <unordered_set>
 
-namespace darma_runtime {
+namespace darma {
 
 namespace detail {
 
@@ -71,10 +71,10 @@ class ReduceOperationWrapper
       ReduceOperationWrapper<Op, value_type>,
       abstract::frontend::ReduceOp
     >,
-    public darma_runtime::serialization::detail::SerializationManagerForType<
+    public darma::serialization::detail::SerializationManagerForType<
       value_type
     >,
-    public darma_runtime::detail::ArrayConceptManagerForType<
+    public darma::detail::ArrayConceptManagerForType<
       value_type, SimpleElementRange<value_type>
     >
 {
@@ -327,6 +327,6 @@ struct default_reduce_op<std::unordered_set<T>>
   : tinympl::identity<Union>
 { };
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_COLLECTIVE_REDUCE_OP_H

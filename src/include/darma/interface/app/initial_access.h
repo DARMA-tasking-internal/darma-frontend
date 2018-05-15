@@ -54,7 +54,7 @@
 #include <darma/impl/util.h>
 #include <darma/impl/flow_handling.h>
 
-namespace darma_runtime {
+namespace darma {
 
 namespace detail {
 
@@ -62,13 +62,13 @@ template <typename T, typename... TraitsFlags>
 struct _initial_access_key_helper {
 
   decltype(auto)
-  _impl(darma_runtime::types::key_t const& key) const {
+  _impl(darma::types::key_t const& key) const {
     auto* backend_runtime = abstract::backend::get_backend_runtime();
 
     auto var_h = detail::make_shared<detail::VariableHandle<T>>(key);
 
-    using namespace darma_runtime::abstract::frontend;
-    using namespace darma_runtime::detail::flow_relationships;
+    using namespace darma::abstract::frontend;
+    using namespace darma::detail::flow_relationships;
 
     auto use_holder = UseHolder<HandleUse>::create(
       var_h,
@@ -98,7 +98,7 @@ struct _initial_access_key_helper {
   template <typename Arg, typename... Args>
   decltype(auto)
   operator()(variadic_arguments_begin_tag, Arg&& arg, Args&&... args) {
-    types::key_t key = darma_runtime::make_key(
+    types::key_t key = darma::make_key(
       std::forward<Arg>(arg),
       std::forward<decltype(args)>(args)...
     );
@@ -108,8 +108,8 @@ struct _initial_access_key_helper {
   decltype(auto)
   operator()(variadic_arguments_begin_tag) {
     // call default ctor to make a backend-awaiting key
-    types::key_t key = darma_runtime::detail::key_traits<
-      darma_runtime::types::key_t
+    types::key_t key = darma::detail::key_traits<
+      darma::types::key_t
     >::make_awaiting_backend_assignment_key();
     return this->_impl(key);
   }
@@ -126,7 +126,7 @@ auto
 initial_access(
   KeyExprParts&&... parts
 ) {
-  using namespace darma_runtime::detail;
+  using namespace darma::detail;
   using parser = detail::kwarg_parser<
     variadic_positional_overload_description<>
   >;
@@ -137,7 +137,7 @@ initial_access(
     .invoke(detail::_initial_access_key_helper<T, TraitsFlags...>{});
 }
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 
 #endif /* SRC_INCLUDE_DARMA_INTERFACE_APP_INITIAL_ACCESS_H_ */

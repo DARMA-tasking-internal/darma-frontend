@@ -48,7 +48,7 @@
 #include <darma/interface/frontend/index_range.h>
 #include <darma/serialization/polymorphic/polymorphic_serialization_adapter.h>
 
-namespace darma_runtime {
+namespace darma {
 namespace indexing {
 
 namespace detail {
@@ -81,6 +81,6 @@ class basic_dense_index_range
 using dense_index_range = detail::basic_dense_index_range<size_t>;
 
 } // end namespace indexing
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_INDEX_RANGE_DENSE_RANGE_H

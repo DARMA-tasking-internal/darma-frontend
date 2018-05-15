@@ -45,7 +45,7 @@
 #ifndef DARMA_IMPL_ARRAY_ARRAY_FWD_H
 #define DARMA_IMPL_ARRAY_ARRAY_FWD_H
 
-namespace darma_runtime {
+namespace darma {
 
 namespace detail {
 
@@ -54,6 +54,6 @@ class SimpleElementRange;
 
 } // end namespace detail
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_ARRAY_ARRAY_FWD_H

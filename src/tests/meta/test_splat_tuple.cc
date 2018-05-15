@@ -53,7 +53,7 @@
 #include <darma/impl/meta/tuple_for_each.h>
 #include "blabbermouth.h"
 
-using namespace darma_runtime;
+using namespace darma;
 
 typedef EnableCTorBlabbermouth<String, Copy, Move> BlabberMouth;
 static MockBlabbermouthListener* listener;

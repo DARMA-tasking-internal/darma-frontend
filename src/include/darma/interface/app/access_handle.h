@@ -70,7 +70,7 @@
 #include <darma/impl/access_handle/basic_access_handle.h>
 #include <darma/impl/create_work/create_work_while_fwd.h>
 
-namespace darma_runtime {
+namespace darma {
 
 
 // todo move this to a more appropriate place
@@ -575,7 +575,7 @@ class AccessHandle
         "begin_commutative_usage called on use without scheduling modify permissions"
       );
 
-      using namespace darma_runtime::detail::flow_relationships;
+      using namespace darma::detail::flow_relationships;
 
       // Need to make next flow to be the output of the commutative usage
       auto old_out_flow = current_use_->use->out_flow_;
@@ -626,7 +626,7 @@ class AccessHandle
         "end_commutative_usage called on use without being in Commutative coherence mode"
       );
 
-      using namespace darma_runtime::detail::flow_relationships;
+      using namespace darma::detail::flow_relationships;
 
       set_is_commutative_dynamic(false);
 
@@ -827,7 +827,7 @@ class AccessHandle
 //      bool register_continuation_use = true
 //    ) override {
 //      set_current_use(
-//        darma_runtime::detail::make_captured_use_holder(
+//        darma::detail::make_captured_use_holder(
 //          var_handle_base_,
 //          req_sched, req_immed,
 //          get_current_use(),
@@ -1055,7 +1055,7 @@ class AccessHandle
     // Allow implicit conversion to value in the invocation of the task
     friend struct meta::splat_tuple_access<detail::AccessHandleBase>;
 
-    friend struct darma_runtime::serialization::Serializer<AccessHandle>;
+    friend struct darma::serialization::Serializer<AccessHandle>;
 
     template <typename, typename...>
     friend struct detail::_initial_access_key_helper;
@@ -1116,7 +1116,7 @@ using AccessHandleWithTraits = AccessHandle<T,
   >
 >;
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 
 #include <darma/impl/access_handle/access_handle_serialization.h>

@@ -58,7 +58,7 @@
 
 // TODO move this to access_handle directory when we're at a stable merge point
 
-namespace darma_runtime {
+namespace darma {
 namespace detail {
 
 struct AccessHandleBaseAttorney;
@@ -152,13 +152,13 @@ class AccessHandleBase
     friend class TaskBase;
 
     template <typename, typename, bool, typename, typename, bool, typename, typename, bool, bool>
-    friend class darma_runtime::detail::IfThenElseCaptureManager;
+    friend class darma::detail::IfThenElseCaptureManager;
 
     template <typename, typename, bool, typename, typename, bool>
     friend struct WhileDoCaptureManager;
 
     template <typename, typename>
-    friend class darma_runtime::AccessHandle;
+    friend class darma::AccessHandle;
 
     friend struct AccessHandleBaseAttorney;
 
@@ -234,6 +234,6 @@ struct AccessHandleBaseAttorney {
 
 
 } // end namespace detail
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_ACCESS_HANDLE_BASE_H

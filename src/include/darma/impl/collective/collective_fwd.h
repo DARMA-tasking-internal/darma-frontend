@@ -45,13 +45,13 @@
 #ifndef DARMAFRONTEND_COLLECTIVE_FWD_H
 #define DARMAFRONTEND_COLLECTIVE_FWD_H
 
-namespace darma_runtime {
+namespace darma {
 namespace detail {
 
 struct op_not_given { };
 
 } // end namespace detail
-} // end namespace darma_runtime
+} // end namespace darma
 
 
 // TODO move these to interface files!

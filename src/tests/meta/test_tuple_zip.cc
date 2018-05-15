@@ -54,7 +54,7 @@
 #include <darma/impl/util.h>
 #include "blabbermouth.h"
 
-using namespace darma_runtime;
+using namespace darma;
 
 typedef EnableCTorBlabbermouth<Default, String, Copy, Move> BlabberMouth;
 //typedef EnableCTorBlabbermouth<Default, String, Copy, Move, Destructor> BlabberMouthWithDestructor;

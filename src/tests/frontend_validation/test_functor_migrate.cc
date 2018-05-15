@@ -236,18 +236,18 @@ TEST_F_WITH_PARAMS(
     #else
     f_set_42_out_migrated, f_set_42_out_migrated,
     #endif // _darma_has_feature(anti_flows)
-    use_lambda ? darma_runtime::frontend::Permissions::Read : darma_runtime::frontend::Permissions::None,
-    darma_runtime::frontend::Permissions::Read
+    use_lambda ? darma::frontend::Permissions::Read : darma::frontend::Permissions::None,
+    darma::frontend::Permissions::Read
   ))).WillOnce(Invoke([&](auto&& rereg_use) {
-      darma_runtime::abstract::frontend::use_cast<
-        darma_runtime::abstract::frontend::DependencyUse*
+      darma::abstract::frontend::use_cast<
+        darma::abstract::frontend::DependencyUse*
       >(rereg_use)->get_data_pointer_reference() = &value;
       migrated_use = rereg_use;
     }));
 
   char const* unpack_spot = buffer;
-  auto migrated_task = darma_runtime::serialization
-    ::PolymorphicSerializableObject<darma_runtime::abstract::frontend::Task>
+  auto migrated_task = darma::serialization
+    ::PolymorphicSerializableObject<darma::abstract::frontend::Task>
     ::unpack(unpack_spot);
 
   ASSERT_THAT(migrated_task->get_dependencies().size(), Eq(1));
@@ -258,8 +258,8 @@ TEST_F_WITH_PARAMS(
       #else
       f_set_42_out_migrated, f_set_42_out_migrated,
       #endif // _darma_has_feature(anti_flows)
-      use_lambda ? darma_runtime::frontend::Permissions::Read : darma_runtime::frontend::Permissions::None,
-      darma_runtime::frontend::Permissions::Read
+      use_lambda ? darma::frontend::Permissions::Read : darma::frontend::Permissions::None,
+      darma::frontend::Permissions::Read
     )
   );
 

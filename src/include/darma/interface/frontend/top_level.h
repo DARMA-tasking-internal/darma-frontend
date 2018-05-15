@@ -51,7 +51,7 @@
 #include "top_level_task.h"
 #include "types/concrete_task_t.h"
 
-namespace darma_runtime {
+namespace darma {
 
 namespace frontend {
 
@@ -64,6 +64,6 @@ std::unique_ptr<abstract::frontend::TopLevelTask<types::concrete_task_t>>
 darma_top_level_setup(std::vector<std::string>&& args);
 
 } // end namespace frontend
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_INTERFACE_FRONTEND_TOP_LEVEL_H

@@ -51,7 +51,7 @@
 
 #include "create_if_then_fwd.h"
 
-namespace darma_runtime {
+namespace darma {
 namespace detail {
 
 template <typename CaptureManagerT, typename Functor, typename... Args>
@@ -305,6 +305,6 @@ struct _create_work_else_helper<
 //------------------------------------------------------------------------------
 
 } // end namespace detail
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMAFRONTEND_CREATE_IF_THEN_FUNCTOR_H

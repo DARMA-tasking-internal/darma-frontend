@@ -45,7 +45,7 @@
 #ifndef FRONTEND_INCLUDE_DARMA_META_VOID_T_H_
 #define FRONTEND_INCLUDE_DARMA_META_VOID_T_H_
 
-namespace darma_runtime {
+namespace darma {
 
 namespace meta {
 
@@ -63,7 +63,7 @@ using void_t = typename _void_t_impl::make_void<T...>::type;
 
 } // end namespace meta
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 
 

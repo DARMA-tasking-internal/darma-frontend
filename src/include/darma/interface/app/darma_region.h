@@ -53,7 +53,7 @@
 #include <darma_types.h>
 #include <darma/interface/backend/runtime.h>
 
-namespace darma_runtime {
+namespace darma {
 namespace experimental {
 
 namespace _impl {
@@ -62,9 +62,9 @@ template <typename AlwaysVoid=void>
 auto&
 _get_default_instance_token_ptr() {
   static auto _rv = std::make_unique<
-    darma_runtime::types::runtime_instance_token_t
+    darma::types::runtime_instance_token_t
   >(
-    darma_runtime::backend::initialize_runtime_instance()
+    darma::backend::initialize_runtime_instance()
   );
   return _rv;
 }
@@ -140,7 +140,7 @@ darma_finalize() {
 }
 
 } // end namespace experimental
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif // _darma_has_feature(darma_regions)
 
