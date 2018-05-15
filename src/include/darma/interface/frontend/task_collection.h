@@ -55,7 +55,7 @@
 #include <darma/utility/optional_boolean.h>
 
 
-namespace darma_runtime {
+namespace darma {
 
 namespace abstract {
 
@@ -147,6 +147,6 @@ class TaskCollection
 
 } // end namespace abstract
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_TASK_COLLECTION_H

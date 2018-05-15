@@ -55,7 +55,7 @@
 
 #include <darma/impl/create_work/record_line_numbers.h>
 
-namespace darma_runtime {
+namespace darma {
 
 template <
   typename Functor
@@ -84,7 +84,7 @@ create_work_if(
   );
 }
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #include <darma/impl/create_work/create_if_then.h>
 

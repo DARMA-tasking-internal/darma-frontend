@@ -144,7 +144,7 @@ create_work<SetTo42>(j); // $\yes$
   the referred to variable may no longer exist.
   An implicit copy would be required that isn't apparent from the syntax to make the variable permanent.  
   To do this, you need to either use a value formal parameter or explicitly use
-|darma_runtime::darma_copy|:
+|darma::darma_copy|:
 \begin{CppCodeNumb}
 struct PrintIntRef {
   void operator()(const int& val) const { cout << val << endl; }

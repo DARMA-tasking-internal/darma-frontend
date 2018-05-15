@@ -51,7 +51,7 @@
 
 #include <darma_types.h>
 
-namespace darma_runtime {
+namespace darma {
 
 namespace backend {
 
@@ -92,7 +92,7 @@ run_distributed_region(
 
 } // end namespace backend
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif
 

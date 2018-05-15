@@ -54,7 +54,7 @@
 #include "any_convertible.h"
 #include "is_equality_comparable.h"
 
-namespace darma_runtime {
+namespace darma {
 namespace meta {
 
 // Some incomplete concept checking stubs to be filled in later
@@ -245,6 +245,6 @@ struct is_container {
 };
 
 } // end namespace meta
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_META_IS_CONTAINER_H

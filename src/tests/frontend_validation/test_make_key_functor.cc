@@ -81,8 +81,8 @@ class TestMakeKeyFunctor
 
 TEST_F(TestMakeKeyFunctor, test_make_key_functor_int) {
   using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace darma;
+  using namespace darma::keyword_arguments_for_publication;
   using namespace mock_backend;
 
   mock_runtime->save_tasks = true;
@@ -123,7 +123,7 @@ TEST_F(TestMakeKeyFunctor, test_make_key_functor_int) {
     create_work([=]{
 
       tmp.set_value(10);
-      auto created_key = darma_runtime::check_test_make_key_functor(version(1, tmp));
+      auto created_key = darma::check_test_make_key_functor(version(1, tmp));
 
       ASSERT_EQ(created_key.component<0>().as<int>(), 1);
       ASSERT_EQ(created_key.component<1>().as<int>(), 10);
@@ -143,8 +143,8 @@ TEST_F(TestMakeKeyFunctor, test_make_key_functor_int) {
 
 TEST_F(TestMakeKeyFunctor, test_make_key_functor_string) {
   using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace darma;
+  using namespace darma::keyword_arguments_for_publication;
   using namespace mock_backend;
 
   mock_runtime->save_tasks = true;
@@ -185,7 +185,7 @@ TEST_F(TestMakeKeyFunctor, test_make_key_functor_string) {
     create_work([=]{
 
       tmp.set_value("Hello DARMA user");
-      auto created_key = darma_runtime::check_test_make_key_functor(version(1, tmp));
+      auto created_key = darma::check_test_make_key_functor(version(1, tmp));
 
       ASSERT_EQ(created_key.component<0>().as<int>(), 1);
       ASSERT_EQ(created_key.component<1>().as<std::string>(), "Hello DARMA user");
@@ -206,8 +206,8 @@ TEST_F(TestMakeKeyFunctor, test_make_key_functor_string) {
 #if defined(DEBUG) || !defined(NDEBUG)
 TEST_F(TestMakeKeyFunctor, test_key_functor_death) {
   using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace darma;
+  using namespace darma::keyword_arguments_for_publication;
   using namespace mock_backend;
 
   mock_runtime->save_tasks = true;
@@ -248,7 +248,7 @@ TEST_F(TestMakeKeyFunctor, test_key_functor_death) {
     create_work([=]{
 
       tmp.set_value("Hello");
-      auto created_key = darma_runtime::check_test_make_key_functor(version(1, tmp));
+      auto created_key = darma::check_test_make_key_functor(version(1, tmp));
 
       ASSERT_EQ(created_key.component<0>().as<int>(), 1);
       ASSERT_EQ(created_key.component<1>().as<std::string>(), "Hello");
@@ -257,7 +257,7 @@ TEST_F(TestMakeKeyFunctor, test_key_functor_death) {
 
     EXPECT_DEATH(
       {
-        auto created_key = darma_runtime::check_test_make_key_functor(version(1,tmp));
+        auto created_key = darma::check_test_make_key_functor(version(1,tmp));
       },
       "`get_value\\(\\)` performed on AccessHandle"
     );

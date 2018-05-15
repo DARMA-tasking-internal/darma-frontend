@@ -56,6 +56,6 @@
 
 #include <darma/key/key.impl.h>
 
-namespace darma = darma_runtime;
+namespace darma_runtime = darma;
 
 #endif /* SRC_DARMA_H_ */

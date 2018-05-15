@@ -45,7 +45,7 @@
 #ifndef DARMA_INTERFACE_BACKEND_PARALLEL_FOR_H
 #define DARMA_INTERFACE_BACKEND_PARALLEL_FOR_H
 
-namespace darma_runtime {
+namespace darma {
 
 namespace backend {
 
@@ -70,6 +70,6 @@ void execute_parallel_for(
 
 } // end namespace backend
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_INTERFACE_BACKEND_PARALLEL_FOR_H

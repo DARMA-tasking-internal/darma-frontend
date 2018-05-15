@@ -50,7 +50,7 @@
 #include <darma/utility/darma_assert.h>
 #include <darma/interface/defaults/pointers.h>
 
-namespace darma_runtime {
+namespace darma {
 namespace abstract {
 namespace frontend {
 
@@ -147,6 +147,6 @@ class ArrayConceptManager {
 
 } // end namespace frontend
 } // end namespace abstract
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_INTERFACE_FRONTEND_ARRAY_CONCEPT_MANAGER_H

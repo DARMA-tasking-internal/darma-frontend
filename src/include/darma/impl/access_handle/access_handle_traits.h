@@ -54,7 +54,7 @@
 #include <darma/impl/meta/conditional_members.h>
 #include <darma/utility/constexpr_if.h>
 
-namespace darma_runtime {
+namespace darma {
 namespace detail {
 
 template <
@@ -1382,15 +1382,15 @@ namespace access_handle_traits {
 
 template <bool copy_assignable_bool=true>
 using allow_copy_assignment_from_this =
-  darma_runtime::detail::copy_assignable_handle<copy_assignable_bool>;
+  darma::detail::copy_assignable_handle<copy_assignable_bool>;
 
 template <typename NewPermissionsTraits>
-using permissions_traits = ::darma_runtime::detail
+using permissions_traits = ::darma::detail
   ::access_handle_trait_tags::permissions_traits<NewPermissionsTraits>;
 
 } // end namespace access_handle_traits
 } // end namespace advanced
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_ACCESS_HANDLE_ACCESS_HANDLE_TRAITS_H

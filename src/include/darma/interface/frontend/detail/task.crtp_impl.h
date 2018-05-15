@@ -52,12 +52,12 @@
 
 #include <darma/interface/frontend/frontend_fwd.h>
 
-namespace darma_runtime {
+namespace darma {
 namespace abstract {
 namespace frontend {
 
 } // end namespace frontend
 } // end namespace abstract
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_TASK_CRTP_IMPL_H

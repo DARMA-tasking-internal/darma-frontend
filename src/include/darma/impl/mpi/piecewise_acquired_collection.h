@@ -58,7 +58,7 @@
 #include <darma/impl/task_collection/access_handle_collection.h>
 #include <darma/interface/backend/mpi_interop.h>
 
-namespace darma_runtime {
+namespace darma {
 
 namespace detail {
 
@@ -92,7 +92,7 @@ _piecewise_collection_handle_impl {
       variadic_arguments_begin_tag, 
       ValueType& data
     ) { 
-      darma_runtime::backend::register_piecewise_collection_piece(
+      darma::backend::register_piecewise_collection_piece(
         context_token_,
         collection_token_,
         index,
@@ -161,8 +161,8 @@ class PiecewiseCollectionHandle {
     {
 
       // TODO: change flow relationships
-      using namespace darma_runtime::detail;
-      using namespace darma_runtime::detail::flow_relationships;
+      using namespace darma::detail;
+      using namespace darma::detail::flow_relationships;
  
       use_holder_ = detail::UseHolder<
         BasicCollectionManagingUse<IndexRangeT>
@@ -171,8 +171,8 @@ class PiecewiseCollectionHandle {
           std::forward<IndexRangeT>(range_)
         ),
         var_handle_,
-        darma_runtime::frontend::Permissions::Modify,
-        darma_runtime::frontend::Permissions::None,
+        darma::frontend::Permissions::Modify,
+        darma::frontend::Permissions::None,
         initial_imported_flow().as_collection_relationship(),
         null_flow().as_collection_relationship(),
         insignificant_flow().as_collection_relationship(),
@@ -190,10 +190,10 @@ class PiecewiseCollectionHandle {
     void 
     acquire_access(Args&&... args) const {
 
-      using namespace darma_runtime::detail;
-      using darma_runtime::keyword_tags_for_mpi_context::index;
-      using darma_runtime::keyword_tags_for_mpi_context::copy_callback;
-      using darma_runtime::keyword_tags_for_mpi_context::copy_back_callback;
+      using namespace darma::detail;
+      using darma::keyword_tags_for_mpi_context::index;
+      using darma::keyword_tags_for_mpi_context::copy_callback;
+      using darma::keyword_tags_for_mpi_context::copy_back_callback;
 
       using parser = kwarg_parser<
         variadic_positional_overload_description<
@@ -245,7 +245,7 @@ class PiecewiseCollectionHandle {
 
 };
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif // _darma_has_feature(mpi_interop)
 

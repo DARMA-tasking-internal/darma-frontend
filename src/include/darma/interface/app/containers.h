@@ -51,11 +51,11 @@
 //#include <unordered_set>
 //#include <unordered_map>
 //
-//namespace darma_runtime {
+//namespace darma {
 //
 //template <typename T, typename OtherAllocator=std::allocator<T>>
 //using vector = std::vector<T,
-//  ::darma_runtime::serialization::darma_allocator<T, OtherAllocator>
+//  ::darma::serialization::darma_allocator<T, OtherAllocator>
 //>;
 //
 //template <typename Key, typename T,
@@ -63,7 +63,7 @@
 //  typename OtherAllocator=std::allocator<std::pair<const Key, T>>
 //>
 //using map = std::map<Key, T,
-//  ::darma_runtime::serialization::darma_allocator<
+//  ::darma::serialization::darma_allocator<
 //      std::pair<const Key, T>, OtherAllocator
 //  >
 //>;
@@ -75,7 +75,7 @@
 //  class OtherAllocator=std::allocator<Key>
 //>
 //using unordered_set = std::unordered_set<Key, Hash, KeyEqual,
-//  ::darma_runtime::serialization::darma_allocator<
+//  ::darma::serialization::darma_allocator<
 //    Key, OtherAllocator
 //  >
 //>;
@@ -88,7 +88,7 @@
 //  class OtherAllocator=std::allocator<std::pair<const Key, T>>
 //>
 //using unordered_map = std::unordered_map<Key, T, Hash, KeyEqual,
-//  ::darma_runtime::serialization::darma_allocator<
+//  ::darma::serialization::darma_allocator<
 //    std::pair<const Key, T>, OtherAllocator
 //  >
 //>;

@@ -52,7 +52,7 @@
 #include "serialization_manager.h"
 #include "array_concept_manager.h"
 
-namespace darma_runtime {
+namespace darma {
 namespace abstract {
 namespace frontend {
 
@@ -97,6 +97,6 @@ class ElementRange {
 
 } // end namespace frontend
 } // end namespace abstract
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_INTERFACE_FRONTEND_ELEMENT_RANGE_H

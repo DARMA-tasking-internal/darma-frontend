@@ -49,7 +49,7 @@
 
 DeclareDarmaTypeTransparentKeyword(mpi_context, data);
 
-namespace darma_runtime {
+namespace darma {
   namespace keyword_arguments_for_acquire_access {
     AliasDarmaKeyword(mpi_context, data);
   } // end namespace keyword_arguments_for_acquire_access
@@ -61,7 +61,7 @@ namespace darma_runtime {
   namespace keyword_arguments_for_piecewise_handle {
     AliasDarmaKeyword(mpi_context, data);
   } // end namespace keyword_arguments_for_piecewise_handle
-} // end namespace darma_runtime
+} // end namespace darma
 
 DeclareStandardDarmaKeywordArgumentAliases(mpi_context, data);
 

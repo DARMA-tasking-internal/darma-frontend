@@ -45,7 +45,7 @@
 #ifndef DARMA_IMPL_META_DETECTION_ARCHETYPES_H
 #define DARMA_IMPL_META_DETECTION_ARCHETYPES_H
 
-namespace darma_runtime {
+namespace darma {
 namespace meta {
 
 // Some commonly used detection archetypes so I don't have to keep typing them
@@ -63,6 +63,6 @@ template <typename T>
 using has_const_iterator_archetype = typename T::const_iterator;
 
 } // end namespace meta
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_META_DETECTION_ARCHETYPES_H

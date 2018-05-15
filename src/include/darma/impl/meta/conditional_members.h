@@ -49,7 +49,7 @@
 #include <tinympl/vector.hpp>
 #include <tinympl/variadic/at.hpp>
 
-namespace darma_runtime {
+namespace darma {
 namespace meta {
 
 namespace impl {
@@ -126,7 +126,7 @@ struct conditional_member_access {
     // this is an upcast, so we don't really need static_cast, but for
     // the sake of formality:
     return static_cast<
-      darma_runtime::meta::impl::with_conditional_member_entry_impl<
+      darma::meta::impl::with_conditional_member_entry_impl<
         Idx, typename ClassWithConditionalMembers::conditions_and_types_vector_t
       >&
     >(obj).value;
@@ -138,7 +138,7 @@ struct conditional_member_access {
     // this is an upcast, so we don't really need static_cast, but for
     // the sake of formality:
     return static_cast<
-      darma_runtime::meta::impl::with_conditional_member_entry_impl<
+      darma::meta::impl::with_conditional_member_entry_impl<
         Idx, typename ClassWithConditionalMembers::conditions_and_types_vector_t
       > const&
     >(obj).value;
@@ -235,6 +235,6 @@ struct has_conditional_member {
 
 
 } // end namespace meta
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMAFRONTEND_IMPL_META_CONDITIONAL_MEMBERS_H

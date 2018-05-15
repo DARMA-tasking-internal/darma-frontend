@@ -67,7 +67,7 @@
 #include <darma/impl/mpi/persistent_collection.h>
 
 
-namespace darma_runtime {
+namespace darma {
 
 namespace detail {
 
@@ -95,8 +95,8 @@ _persistent_collection_creation_impl {
     // Default key generator
     auto
     _make_key_impl() {
-       return darma_runtime::detail::key_traits<
-         darma_runtime::types::key_t
+       return darma::detail::key_traits<
+         darma::types::key_t
        >::make_awaiting_backend_assignment_key();
     } 
 
@@ -121,7 +121,7 @@ _persistent_collection_creation_impl {
       auto var_handle = std::make_shared<VariableHandle<ValueType>>(key);
 
       // Register handle with the backend as part of a piecewise collection
-      auto persistent_collection_token = darma_runtime::backend::register_persistent_collection(
+      auto persistent_collection_token = darma::backend::register_persistent_collection(
         context_token_,
         var_handle,
         index_range.size()
@@ -154,7 +154,7 @@ _persistent_collection_creation_impl {
       auto var_handle = std::make_shared<VariableHandle<ValueType>>(key);
 
       // Register handle with the backend as part of a piecewise collection
-      auto persistent_collection_token = darma_runtime::backend::register_persistent_collection(
+      auto persistent_collection_token = darma::backend::register_persistent_collection(
         context_token_,
         var_handle,
         size
@@ -247,7 +247,7 @@ _piecewise_acquired_collection_creation_impl {
       auto var_handle = std::make_shared<VariableHandle<ValueType>>(key);
 
       // Register handle with the backend as part of a piecewise collection
-      auto collection_token = darma_runtime::backend::register_piecewise_collection(
+      auto collection_token = darma::backend::register_piecewise_collection(
         context_token_,
         var_handle,
         index_range.size()
@@ -283,7 +283,7 @@ _piecewise_acquired_collection_creation_impl {
       auto var_handle = std::make_shared<VariableHandle<ValueType>>(key);
 
       // Register handle with the backend as part of a piecewise collection
-      auto collection_token = darma_runtime::backend::register_piecewise_collection(
+      auto collection_token = darma::backend::register_piecewise_collection(
         context_token_,
         var_handle,
         size
@@ -333,7 +333,7 @@ _piecewise_acquired_collection_creation_impl {
       auto var_handle = std::make_shared<VariableHandle<ValueType>>(key);
 
       // Register handle with the backend as part of a piecewise collection
-      auto collection_token = darma_runtime::backend::register_piecewise_collection(
+      auto collection_token = darma::backend::register_piecewise_collection(
         context_token_,
         var_handle,
         index_range.size()
@@ -384,7 +384,7 @@ _piecewise_acquired_collection_creation_impl {
       auto var_handle = std::make_shared<VariableHandle<ValueType>>(key);
 
       // Register handle with the backend as part of a piecewise collection
-      auto collection_token = darma_runtime::backend::register_piecewise_collection(
+      auto collection_token = darma::backend::register_piecewise_collection(
         context_token_,
         var_handle,
         size
@@ -453,7 +453,7 @@ _piecewise_acquired_collection_creation_impl {
       auto var_handle = std::make_shared<VariableHandle<ValueType>>(key);
 
       // Register handle with the backend as part of a piecewise collection
-      auto collection_token = darma_runtime::backend::register_piecewise_collection(
+      auto collection_token = darma::backend::register_piecewise_collection(
         context_token_,
         var_handle,
         index_range.size()
@@ -516,7 +516,7 @@ _piecewise_acquired_collection_creation_impl {
       auto var_handle = std::make_shared<VariableHandle<ValueType>>(key);
 
       // Register handle with the backend as part of a piecewise collection
-      auto collection_token = darma_runtime::backend::register_piecewise_collection(
+      auto collection_token = darma::backend::register_piecewise_collection(
         context_token_,
         var_handle,
         size
@@ -575,14 +575,14 @@ class mpi_context {
     auto
     piecewise_acquired_collection(Args&&... args) const {
  
-      using namespace darma_runtime::detail; 
-      using darma_runtime::keyword_tags_for_mpi_context::data; 
-      using darma_runtime::keyword_tags_for_mpi_context::size;
-      using darma_runtime::keyword_tags_for_mpi_context::index; 
-      using darma_runtime::keyword_tags_for_mpi_context::indices;
-      using darma_runtime::keyword_tags_for_create_concurrent_work::index_range;
-      using darma_runtime::keyword_tags_for_mpi_context::copy_callback;
-      using darma_runtime::keyword_tags_for_mpi_context::copy_back_callback;
+      using namespace darma::detail;
+      using darma::keyword_tags_for_mpi_context::data;
+      using darma::keyword_tags_for_mpi_context::size;
+      using darma::keyword_tags_for_mpi_context::index;
+      using darma::keyword_tags_for_mpi_context::indices;
+      using darma::keyword_tags_for_create_concurrent_work::index_range;
+      using darma::keyword_tags_for_mpi_context::copy_callback;
+      using darma::keyword_tags_for_mpi_context::copy_back_callback;
 
       using parser = kwarg_parser<
         variadic_positional_overload_description<
@@ -646,9 +646,9 @@ class mpi_context {
     auto
     persistent_collection(Args&&... args) const {
 
-      using namespace darma_runtime::detail;
-      using darma_runtime::keyword_tags_for_mpi_context::size;
-      using darma_runtime::keyword_tags_for_create_concurrent_work::index_range;
+      using namespace darma::detail;
+      using darma::keyword_tags_for_mpi_context::size;
+      using darma::keyword_tags_for_create_concurrent_work::index_range;
 
       using parser = kwarg_parser<
         variadic_positional_overload_description<
@@ -686,7 +686,7 @@ class mpi_context {
     types::runtime_context_token_t runtime_token_;
 };
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif // _darma_has_feature(mpi_interop)
 

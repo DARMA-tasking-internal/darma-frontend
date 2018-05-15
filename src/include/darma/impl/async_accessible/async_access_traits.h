@@ -100,7 +100,7 @@
     detected_name, detected_name, default_value, public \
   )
 
-namespace darma_runtime {
+namespace darma {
 
 template <typename T, typename Enable=void>
 struct async_accessible_object_adaptor_enabled_if
@@ -620,6 +620,6 @@ struct async_accessible_object_adaptor<
 
 };
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_ASYNC_ACCESSIBLE_ASYNC_ACCESS_TRAITS_H

@@ -48,7 +48,7 @@
 
 #include "../metatest_helpers.h"
 
-using namespace darma_runtime::utility;
+using namespace darma::utility;
 
 struct Empty { };
 

@@ -51,7 +51,7 @@
 
 #include <darma/impl/task_collection/access_handle_collection_traits.h>
 
-namespace darma_runtime {
+namespace darma {
 namespace detail {
 
 typedef enum HandleCollectiveLabel
@@ -106,6 +106,6 @@ template <typename T, typename IndexRangeT,
 >
 class AccessHandleCollection;
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_TASK_COLLECTION_TASK_COLLECTION_FWD_H

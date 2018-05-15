@@ -82,7 +82,7 @@
 #endif // _darma_has_feature(mpi_interop)
 
 
-namespace darma_runtime {
+namespace darma {
 
 //==============================================================================
 // <editor-fold desc="AccessHandleCollection">
@@ -125,7 +125,7 @@ class AccessHandleCollection
     auto
     mapped_with(MappingT&& mapping) const {
       return detail::MappedHandleCollection<
-        darma_runtime::AccessHandleCollection<T, IndexRangeT,
+        darma::AccessHandleCollection<T, IndexRangeT,
           detail::access_handle_collection_traits<T, IndexRangeT,
             typename traits::permissions_traits,
             detail::ahc_traits::semantic_traits<
@@ -524,10 +524,10 @@ class AccessHandleCollection
 
       // TODO Better encapsulation here!!!
 
-      types::key_t key = darma_runtime::make_key();
+      types::key_t key = darma::make_key();
       ar >> key;
       this->var_handle_base_ = std::make_shared<
-        ::darma_runtime::detail::VariableHandle<value_type>
+        ::darma::detail::VariableHandle<value_type>
       >(key);
 
       auto use_base = serialization::PolymorphicSerializableObject<detail::HandleUseBase>
@@ -639,8 +639,8 @@ struct AccessHandleCollectionAccess<initial_access_collection_tag, ValueType,
       >
     >;
 
-    using namespace darma_runtime::abstract::frontend;
-    using namespace darma_runtime::detail::flow_relationships;
+    using namespace darma::abstract::frontend;
+    using namespace darma::detail::flow_relationships;
 
     auto use_holder = detail::UseHolder<
       BasicCollectionManagingUse<index_range_t>
@@ -649,8 +649,8 @@ struct AccessHandleCollectionAccess<initial_access_collection_tag, ValueType,
         std::forward<IndexRangeT>(range)
       ),
       var_handle,
-      darma_runtime::frontend::Permissions::Modify,
-      darma_runtime::frontend::Permissions::None,
+      darma::frontend::Permissions::Modify,
+      darma::frontend::Permissions::None,
       initial_flow().as_collection_relationship(),
       null_flow().as_collection_relationship(),
       insignificant_flow().as_collection_relationship(),
@@ -701,8 +701,8 @@ struct AccessHandleCollectionAccess<initial_access_collection_tag, ValueType,
 template <typename T, typename... TraitFlags, typename... Args>
 auto
 initial_access_collection(Args&&... args) {
-  using namespace darma_runtime::detail;
-  using darma_runtime::keyword_tags_for_create_concurrent_work::index_range;
+  using namespace darma::detail;
+  using darma::keyword_tags_for_create_concurrent_work::index_range;
   using parser = kwarg_parser<
     variadic_positional_overload_description<
       _keyword<deduced_parameter, index_range>
@@ -765,9 +765,9 @@ using CommutativeAccessHandleCollectionWithTraits = CommutativeAccessHandleColle
 namespace serialization {
 
 template <typename T, typename IndexRangeT, typename Traits>
-struct Serializer<darma_runtime::AccessHandleCollection<T, IndexRangeT, Traits>> {
+struct Serializer<darma::AccessHandleCollection<T, IndexRangeT, Traits>> {
 
-  using access_handle_collection_t = darma_runtime::AccessHandleCollection<
+  using access_handle_collection_t = darma::AccessHandleCollection<
     T, IndexRangeT, Traits
   >;
 
@@ -814,7 +814,7 @@ struct Serializer<darma_runtime::AccessHandleCollection<T, IndexRangeT, Traits>>
     std::enable_if_t<
       not is_packable_with_archive<types::flow_t, ConvertiblePackingArchive>::value
         or not is_packable_with_archive<types::anti_flow_t, ConvertiblePackingArchive>::value,
-      darma_runtime::utility::_not_a_type
+      darma::utility::_not_a_type
     > = { }
   ) {
     // Packing flows uses pointer references, so we need to convert to an archive
@@ -829,7 +829,7 @@ struct Serializer<darma_runtime::AccessHandleCollection<T, IndexRangeT, Traits>>
     std::enable_if_t<
       is_packable_with_archive<types::flow_t, ArchiveT>::value
         and is_packable_with_archive<types::anti_flow_t, ArchiveT>::value,
-      darma_runtime::utility::_not_a_type
+      darma::utility::_not_a_type
     > = { }
   ) {
     ar | ahc.var_handle_base_->get_key();
@@ -848,7 +848,7 @@ struct Serializer<darma_runtime::AccessHandleCollection<T, IndexRangeT, Traits>>
     std::enable_if_t<
       not is_unpackable_with_archive<types::flow_t, ConvertibleUnpackingArchive>::value
         or not is_unpackable_with_archive<types::anti_flow_t, ConvertibleUnpackingArchive>::value,
-      darma_runtime::utility::_not_a_type
+      darma::utility::_not_a_type
     > = { }
   )
   {
@@ -878,7 +878,7 @@ struct Serializer<darma_runtime::AccessHandleCollection<T, IndexRangeT, Traits>>
 // </editor-fold> end serialization for AccessHandleCollection (currently disabled code) }}}1
 //==============================================================================
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #include <darma/impl/task_collection/access_handle_collection_capture_description.h>
 

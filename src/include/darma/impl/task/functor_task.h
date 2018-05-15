@@ -64,7 +64,7 @@
 
 #include <type_traits>
 
-namespace darma_runtime {
+namespace darma {
 namespace detail {
 
 struct FunctorCaptureSetupHelper : protected CaptureSetupHelperBase {
@@ -561,7 +561,7 @@ using functor_task_with_args_t = typename _impl::_functor_task_with_args_metafun
 
 
 } // end namespace detail
-} // end namespace darma_runtime
+} // end namespace darma
 
 
 #endif //DARMAFRONTEND_FUNCTOR_TASK_H

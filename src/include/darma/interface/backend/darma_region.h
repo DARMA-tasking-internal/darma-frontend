@@ -49,7 +49,7 @@
 #include <darma_types.h>
 
 
-namespace darma_runtime {
+namespace darma {
 namespace backend {
 
 #if _darma_has_feature(darma_regions)
@@ -98,6 +98,6 @@ with_active_runtime_instance(
 #endif // _darma_has_feature(darma_regions)
 
 } // end namespace backend
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMAFRONTEND_INTERFACE_BACKEND_DARMA_REGIONS_H

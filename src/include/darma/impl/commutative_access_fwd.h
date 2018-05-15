@@ -45,7 +45,7 @@
 #ifndef DARMA_IMPL_COMMUTATIVE_ACCESS_FWD_H
 #define DARMA_IMPL_COMMUTATIVE_ACCESS_FWD_H
 
-namespace darma_runtime {
+namespace darma {
 namespace detail {
 
 template <typename T, typename...>
@@ -56,6 +56,6 @@ template <typename T, typename...>
 struct _noncommutative_collection_access_impl;
 
 } // end namespace detail
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_COMMUTATIVE_ACCESS_FWD_H

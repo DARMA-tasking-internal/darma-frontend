@@ -47,7 +47,7 @@
 
 #include <darma/interface/frontend/types/concrete_task_t.h>
 
-namespace darma_runtime {
+namespace darma {
 namespace frontend {
 
 /**
@@ -59,6 +59,6 @@ types::unique_ptr_template<abstract::frontend::Task>
 unpack_task(void const* packed_data);
 
 } // end namespace frontend
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_INTERFACE_FRONTEND_UNPACK_TASK_H

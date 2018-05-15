@@ -45,13 +45,13 @@
 #ifndef DARMAFRONTEND_COPY_CAPTURED_OBJECT_FWD_H
 #define DARMAFRONTEND_COPY_CAPTURED_OBJECT_FWD_H
 
-namespace darma_runtime {
+namespace darma {
 namespace detail {
 
 template <typename Derived>
 struct CopyCapturedObject;
 
 } // end namespace detail
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMAFRONTEND_COPY_CAPTURED_OBJECT_FWD_H

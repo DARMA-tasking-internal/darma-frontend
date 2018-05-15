@@ -45,7 +45,7 @@
 #ifndef SRC_META_SENTINAL_TYPE_H_
 #define SRC_META_SENTINAL_TYPE_H_
 
-namespace darma_runtime { namespace meta {
+namespace darma { namespace meta {
 
 struct sentinal_type {
   constexpr sentinal_type() = default;

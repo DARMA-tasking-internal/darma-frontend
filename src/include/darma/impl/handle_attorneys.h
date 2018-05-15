@@ -52,7 +52,7 @@
 #include <darma/impl/flow_handling.h>
 
 
-namespace darma_runtime {
+namespace darma {
 
 namespace detail {
 
@@ -127,7 +127,7 @@ struct for_AccessHandle {
 
 } // end namespace detail
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 
 

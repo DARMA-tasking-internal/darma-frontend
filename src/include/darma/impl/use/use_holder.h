@@ -49,7 +49,7 @@
 #include <darma/impl/handle_use_base.h>
 #include <darma/interface/backend/mpi_interop_fwd.h>
 
-namespace darma_runtime {
+namespace darma {
 namespace detail {
 
 class UseHolderBase {
@@ -167,11 +167,11 @@ class UseHolder : public UseHolderBase {
         abstract::backend::get_backend_runtime()->release_use(use_.get());
       }
       else if(collection_token != nullptr) {
-        darma_runtime::backend::release_persistent_collection(context, collection_token);
+        darma::backend::release_persistent_collection(context, collection_token);
       }
       else {
         assert(piecewise_token != nullptr);
-        darma_runtime::backend::release_piecewise_collection(context, piecewise_token);
+        darma::backend::release_piecewise_collection(context, piecewise_token);
       }
       use_.reset();
     }
@@ -243,6 +243,6 @@ typename UseHolder<UnderlyingUse>::private_ctor_tag_t const
 UseHolder<UnderlyingUse>::private_ctor_tag;
 
 } // end namespace detail
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMAFRONTEND_USE_PTR_H

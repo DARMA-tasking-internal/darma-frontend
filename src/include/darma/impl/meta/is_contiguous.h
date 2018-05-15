@@ -54,7 +54,7 @@
 #include <tinympl/logical_and.hpp>
 #include <tinympl/delay_all.hpp>
 
-namespace darma_runtime {
+namespace darma {
 namespace meta {
 
 namespace detail {
@@ -165,7 +165,7 @@ struct is_contiguous_iterator<T* const>
 { };
 
 } // end namespace meta
-} // end namespace darma_runtime
+} // end namespace darma
 
 
 #endif //DARMA_IMPL_META_IS_CONTIGUOUS_H

@@ -52,7 +52,7 @@
 
 #include "mapping.h"
 
-namespace darma_runtime {
+namespace darma {
 
 template <
   typename FromIndexT, typename ToIndexT=FromIndexT,
@@ -137,6 +137,6 @@ class PolymorphicOneToOneMapping
 // TODO fill in other possible types
 
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_INDEX_RANGE_POLYMORPHIC_MAPPING_H

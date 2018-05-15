@@ -47,7 +47,7 @@
 
 #include "SSO_key.h"
 
-namespace darma_runtime {
+namespace darma {
 namespace detail {
 
 //==============================================================================
@@ -71,7 +71,7 @@ struct _do_add_component {
   DARMA_FORCE_INLINE
   void _impl(T&& arg, Ts&&... args) {
     actual_component_count +=
-      darma_runtime::detail::_impl::sso_key_add(this_, buffer, std::forward<T>(arg));
+      darma::detail::_impl::sso_key_add(this_, buffer, std::forward<T>(arg));
     _impl(std::forward<Ts>(args)...);
   }
 
@@ -190,6 +190,6 @@ SSOKey<BufferSize, BackendAssignedKeyType, PieceSizeOrdinal, ComponentCountOrdin
 }
 
 } // end namespace detail
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMAFRONTEND_SSO_KEY_IMPL_H

@@ -54,9 +54,9 @@
 typedef EnableCTorBlabbermouth<String, Copy, Move> BlabberMouth;
 static MockBlabbermouthListener* listener;
 
-using namespace darma_runtime;
-using namespace darma_runtime::detail;
-using namespace darma_runtime::meta;
+using namespace darma;
+using namespace darma::detail;
+using namespace darma::meta;
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -133,7 +133,7 @@ DeclareDarmaTypeTransparentKeyword(testing, test_kwarg_2);
 DeclareDarmaTypeTransparentKeyword(testing, test_kwarg_3);
 DeclareDarmaTypeTransparentKeyword(testing, test_kwarg_4);
 
-namespace kw = darma_runtime::keyword_tags_for_testing;
+namespace kw = darma::keyword_tags_for_testing;
 
 template <typename OverloadDescription, typename... Args>
 void desc_should_fail(Args&&...) {
@@ -181,7 +181,7 @@ void assert_valid(Args&&... args) {
 template <typename... Args>
 void test_function(Args&&... args) {
 
-  using namespace darma_runtime::detail;
+  using namespace darma::detail;
   using parser = kwarg_parser<
     overload_description<
       positional_or_keyword_argument<int, kw::test_kwarg_1>,
@@ -199,7 +199,7 @@ void test_function(Args&&... args) {
 template <typename... Args>
 void test_function_variadics(Args&&... args) {
 
-  using namespace darma_runtime::detail;
+  using namespace darma::detail;
   using parser = kwarg_parser<
     variadic_positional_overload_description<
       positional_or_keyword_argument<int, kw::test_kwarg_1>,
@@ -223,9 +223,9 @@ struct B { double value = 0.0; };
 
 TEST_F(TestKeywordArguments, static_tests) {
 
-  using namespace darma_runtime::detail;
-  using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_testing;
+  using namespace darma::detail;
+  using namespace darma;
+  using namespace darma::keyword_arguments_for_testing;
 
   using odesc0 = overload_description<
     positional_only_argument<int>
@@ -442,9 +442,9 @@ struct MyOverloads {
 
 TEST_F(TestKeywordArguments, overload_tests) {
 
-  using namespace darma_runtime::detail;
-  using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_testing;
+  using namespace darma::detail;
+  using namespace darma;
+  using namespace darma::keyword_arguments_for_testing;
 
   using odesc1 = overload_description<
     positional_or_keyword_argument<int, kw::test_kwarg_1>,
@@ -486,9 +486,9 @@ TEST_F(TestKeywordArguments, overload_tests) {
 
 TEST_F(TestKeywordArguments, overload_with_default_generators_tests) {
 
-  using namespace darma_runtime::detail;
-  using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_testing;
+  using namespace darma::detail;
+  using namespace darma;
+  using namespace darma::keyword_arguments_for_testing;
 
   using parser = kwarg_parser<
     overload_description<
@@ -504,9 +504,9 @@ TEST_F(TestKeywordArguments, overload_with_default_generators_tests) {
 
 TEST_F(TestKeywordArguments, converter) {
 
-  using namespace darma_runtime::detail;
-  using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_testing;
+  using namespace darma::detail;
+  using namespace darma;
+  using namespace darma::keyword_arguments_for_testing;
 
   using parser = kwarg_parser<
     overload_description<
@@ -532,9 +532,9 @@ using is_B = typename is_B_impl<std::decay_t<T>>::type;
 
 TEST_F(TestKeywordArguments, metafunction_predicate) {
 
-  using namespace darma_runtime::detail;
-  using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_testing;
+  using namespace darma::detail;
+  using namespace darma;
+  using namespace darma::keyword_arguments_for_testing;
 
   using parser = kwarg_parser<
     overload_description<
@@ -556,9 +556,9 @@ TEST_F(TestKeywordArguments, metafunction_predicate) {
 
 TEST_F(TestKeywordArguments, invoke_lambda) {
 
-  using namespace darma_runtime::detail;
-  using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_testing;
+  using namespace darma::detail;
+  using namespace darma;
+  using namespace darma::keyword_arguments_for_testing;
 
   using parser = kwarg_parser<
     overload_description<
@@ -586,9 +586,9 @@ TEST_F(TestKeywordArguments, invoke_lambda) {
 
 TEST_F(TestKeywordArguments, variadic_simple) {
 
-  using namespace darma_runtime::detail;
-  using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_testing;
+  using namespace darma::detail;
+  using namespace darma;
+  using namespace darma::keyword_arguments_for_testing;
 
   using odesc1 = variadic_positional_overload_description<
     _optional_keyword<converted_parameter, kw::test_kwarg_1>

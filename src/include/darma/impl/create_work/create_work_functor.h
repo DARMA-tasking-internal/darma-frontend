@@ -53,7 +53,7 @@
 
 #include "record_line_numbers.h"
 
-namespace darma_runtime {
+namespace darma {
 namespace detail {
 
 //==============================================================================
@@ -73,7 +73,7 @@ struct _create_work_impl<Functor, tinympl::vector<Args...>, LastArg> {
 
     using _______________see_calling_context_on_next_line________________ = typename create_work_argument_parser::template static_assert_valid_invocation<DeducedArgs...>;
 
-    auto* parent_task = darma_runtime::detail::get_running_task_impl();
+    auto* parent_task = darma::detail::get_running_task_impl();
 
     auto task = std::make_unique<functor_task_with_args_t<Functor, DeducedArgs...>>(
       parent_task,
@@ -105,6 +105,6 @@ struct _create_work_impl<Functor, tinympl::vector<Args...>, LastArg> {
 
 
 } // end namespace detail
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMAFRONTEND_CREATE_WORK_FUNCTOR_H

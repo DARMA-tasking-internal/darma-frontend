@@ -94,7 +94,7 @@
 #include <darma/impl/capture.h>
 #include <darma/keyword_arguments/parse.h>
 
-namespace darma_runtime {
+namespace darma {
 namespace detail {
 
 class CaptureManager {
@@ -179,7 +179,7 @@ class TaskBase
 
     using key_t = types::key_t;
 
-    key_t name_ = darma_runtime::make_key();
+    key_t name_ = darma::make_key();
 
   public:
 
@@ -490,7 +490,7 @@ class TaskBase
 
     #if _darma_has_feature(create_parallel_for_custom_cpu_set)
     void set_resource_pack(
-      darma_runtime::types::resource_pack_t const& cpuset
+      darma::types::resource_pack_t const& cpuset
     ) override
     {
       assert(runnable_);
@@ -616,18 +616,18 @@ namespace frontend {
 inline
 std::unique_ptr<abstract::frontend::Task>
 make_empty_running_task() {
-  return std::make_unique<darma_runtime::detail::EmptyTask>();
+  return std::make_unique<darma::detail::EmptyTask>();
 }
 
 } // end namespace frontend
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 // </editor-fold>
 
 ////////////////////////////////////////////////////////////////////////////////
 
-namespace darma_runtime {
+namespace darma {
 namespace detail {
 
 // Convenience methods (must be here because TaskBase must be a complete type)
@@ -636,20 +636,20 @@ inline TaskBase*
 get_running_task_impl(
   abstract::backend::Context* rt
 ) {
-  return darma_runtime::utility::safe_static_cast<TaskBase*>(
+  return darma::utility::safe_static_cast<TaskBase*>(
     rt->get_running_task()
   );
 }
 
 inline TaskBase*
 get_running_task_impl() {
-  return darma_runtime::detail::get_running_task_impl(
+  return darma::detail::get_running_task_impl(
     abstract::backend::get_backend_context()
   );
 }
 
 } // end namespace detail
-} // end namespace darma_runtime
+} // end namespace darma
 
 
 #endif //DARMAFRONTEND_TASK_BASE_H

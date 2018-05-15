@@ -1,12 +1,5 @@
 cmake_minimum_required (VERSION 3.4)
 
-# Silence an error about the version option to project
-# this will need to be changed if we ever bump the version to 3.0 and put the
-# version stuff in the project command itself
-if (NOT CMAKE_VERSION VERSION_LESS 3.0)
-  cmake_policy(SET CMP0048 OLD)
-endif()
-
 project (DarmaFrontend)
 # The version number.
 set (DarmaFrontend_VERSION_MAJOR 0)

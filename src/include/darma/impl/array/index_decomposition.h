@@ -52,7 +52,7 @@
 
 #include <darma/impl/meta/is_iterable.h>
 
-namespace darma_runtime {
+namespace darma {
 
 namespace detail {
 
@@ -153,7 +153,7 @@ struct IndexDecomposition
   : detail::IndexDecomposition_enabled_if<T, void>
 { };
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #include "stl_vector.h"
 

@@ -47,14 +47,14 @@
 
 #include <darma/impl/access_handle_base.h>
 
-namespace darma_runtime {
+namespace darma {
 namespace detail {
 
 constexpr inline frontend::permissions_t
 detail::AccessHandleBase::get_captured_permissions_for(
   detail::AccessHandleBase::capture_op_t op, frontend::permissions_t permissions
 ) {
-  using darma_runtime::frontend::Permissions;
+  using darma::frontend::Permissions;
   // This used to be a lot more complicated when Commutative/Relaxed/etc
   // were permissions rather than coherence modes.  I've left it here
   // for backwards compatibility, but it may be moved at some point
@@ -123,6 +123,6 @@ detail::AccessHandleBase::get_captured_permissions_for(
 //}
 
 } // end namespace detail
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMAFRONTEND_ACCESS_HANDLE_BASE_IMPL_H

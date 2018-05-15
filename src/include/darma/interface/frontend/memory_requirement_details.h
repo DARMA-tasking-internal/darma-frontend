@@ -45,7 +45,7 @@
 #ifndef DARMA_INTERFACE_FRONTEND_ALLOCATION_DETAILS_H
 #define DARMA_INTERFACE_FRONTEND_ALLOCATION_DETAILS_H
 
-namespace darma_runtime {
+namespace darma {
 namespace abstract {
 namespace frontend {
 
@@ -121,6 +121,6 @@ struct MemoryRequirementDetails {
 
 } // end namespace frontend
 } // end namespace abstract
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_INTERFACE_FRONTEND_ALLOCATION_DETAILS_H

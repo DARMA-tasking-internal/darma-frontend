@@ -47,12 +47,12 @@
 
 #include <darma/impl/task/task_fwd.h>
 
-namespace darma_runtime {
+namespace darma {
 namespace types {
 
-typedef darma_runtime::detail::ConditionTaskImpl concrete_condition_task_t;
+typedef darma::detail::ConditionTaskImpl concrete_condition_task_t;
 
 } // end namespace types
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_INTERFACE_FRONTEND_TYPES_CONDITION_TASK_T_H

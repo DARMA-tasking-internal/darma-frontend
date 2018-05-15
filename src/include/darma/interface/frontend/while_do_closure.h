@@ -47,7 +47,7 @@
 
 #include "task.h"
 
-namespace darma_runtime {
+namespace darma {
 namespace abstract {
 namespace frontend {
 
@@ -67,6 +67,6 @@ struct WhileDoClosure
 
 } // end namespace frontend
 } // end namespace abstract
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMAFRONTEND_WHILE_DO_CLOSURE_H

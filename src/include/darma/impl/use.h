@@ -61,7 +61,7 @@
 #include <darma/impl/handle_use_base.h>
 #include <darma/serialization/polymorphic/polymorphic_serialization_adapter.h>
 
-namespace darma_runtime {
+namespace darma {
 
 namespace detail {
 
@@ -185,6 +185,6 @@ class HandleUse
 
 } // end namespace detail
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_USE_H

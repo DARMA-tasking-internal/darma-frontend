@@ -49,7 +49,7 @@
 
 #include <cstdlib> // size_t
 
-namespace darma_runtime {
+namespace darma {
 namespace abstract {
 namespace frontend {
 
@@ -73,6 +73,6 @@ class IndexRange
 
 } // end namespace frontend
 } // end namespace abstract
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_INTERFACE_FRONTEND_INDEX_RANGE_H

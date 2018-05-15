@@ -73,7 +73,7 @@
 #include "splat_tuple.h"
 #include "tuple_pop_back.h"
 
-namespace darma_runtime {
+namespace darma {
 namespace meta {
 
 namespace _tuple_for_each_impl {
@@ -366,6 +366,6 @@ tuple_for_each_with_index(
 };
 
 } // end namespace meta
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif /* META_TUPLE_FOR_EACH_H_ */

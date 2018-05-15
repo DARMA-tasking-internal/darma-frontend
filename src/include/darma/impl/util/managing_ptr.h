@@ -48,7 +48,7 @@
 #include <type_traits>
 #include <darma/utility/not_a_type.h>
 
-namespace darma_runtime {
+namespace darma {
 namespace detail {
 
 // TODO unit tests for managing_ptr
@@ -313,6 +313,6 @@ class managing_ptr {
 };
 
 } // end namespace detail
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_UTIL_MANAGING_PTR_H

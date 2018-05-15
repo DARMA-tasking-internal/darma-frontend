@@ -49,7 +49,7 @@
 
 #include "runtime.h"
 
-namespace darma_runtime {
+namespace darma {
 namespace abstract {
 namespace backend {
 
@@ -293,7 +293,7 @@ class LegacyFlowsFromMethodsRuntime : public Runtime {
     virtual void
     register_use(frontend::UsePendingRegistration* use) override
     {
-      using namespace darma_runtime::abstract::frontend;
+      using namespace darma::abstract::frontend;
       types::flow_t in_flow;
       auto const& in_rel = use->get_in_flow_relationship();
 
@@ -498,6 +498,6 @@ class LegacyFlowsFromMethodsRuntime : public Runtime {
 
 } // end namespace backend
 } // end namespace abstract
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_INTERFACE_BACKEND_LEGACY_RUNTIME_H

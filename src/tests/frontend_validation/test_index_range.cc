@@ -50,8 +50,8 @@
 #include <darma/impl/index_range/mapping.h>
 #include <darma/impl/index_range/polymorphic_mapping.h>
 
-using namespace darma_runtime;
-using namespace darma_runtime::detail;
+using namespace darma;
+using namespace darma::detail;
 
 TEST(TestIndexRange, pack_unpack_contiguous) {
 

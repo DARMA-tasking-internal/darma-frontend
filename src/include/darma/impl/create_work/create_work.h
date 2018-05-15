@@ -75,7 +75,7 @@
 #include <darma/impl/meta/make_flattened_tuple.h>
 
 
-namespace darma_runtime {
+namespace darma {
 
 
 template <
@@ -151,7 +151,7 @@ create_work
 //  );
 //}
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 
 #endif /* SRC_CREATE_WORK_H_ */

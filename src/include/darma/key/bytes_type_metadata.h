@@ -51,7 +51,7 @@
 #include <unordered_map>
 #include <typeindex>
 
-namespace darma_runtime {
+namespace darma {
 
 namespace detail {
 
@@ -265,7 +265,7 @@ category_extension_bytes_value(const void* md) {
 
 } // end namespace detail
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 
 #endif //DARMA_IMPL_KEY_BYTES_TYPE_METADATA_H

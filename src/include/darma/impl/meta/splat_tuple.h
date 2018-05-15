@@ -52,7 +52,7 @@
 #include <tinympl/at.hpp>
 #include <tinympl/size.hpp>
 
-namespace darma_runtime { namespace meta {
+namespace darma { namespace meta {
 
 // Attorney pattern for splatted callables
 template <typename To>
@@ -122,7 +122,7 @@ tuple_indices_for(
   return std::index_sequence_for<Args...>{};
 }
 
-}} // end namespace darma_runtime::meta
+}} // end namespace darma::meta
 
 
 

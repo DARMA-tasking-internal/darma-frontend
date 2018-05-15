@@ -67,7 +67,7 @@
 #include <darma/interface/defaults/pointers.h>
 #include <darma/utility/safe_static_cast.h>
 
-namespace darma_runtime {
+namespace darma {
 
 namespace detail {
 
@@ -268,7 +268,7 @@ class ArgParser {
 
 } // end namespace detail
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 // Add a hash of std::pair and std::tuple
 namespace std {
@@ -279,7 +279,7 @@ struct hash<std::pair<U,V>> {
   size_t
   operator()(const std::pair<U, V>& val) const {
     size_t rv = std::hash<U>()(val.first);
-    ::darma_runtime::detail::hash_combine(rv, val.second);
+    ::darma::detail::hash_combine(rv, val.second);
     return rv;
   }
 };
@@ -290,7 +290,7 @@ namespace _tup_hash_impl {
     inline size_t
     operator()(const std::tuple<Ts...>& tup) const {
       size_t rv = _tup_hash_impl<Spot+1, Size, Ts...>()(tup);
-      ::darma_runtime::detail::hash_combine(rv, std::get<Spot>(tup));
+      ::darma::detail::hash_combine(rv, std::get<Spot>(tup));
       return rv;
     }
   };

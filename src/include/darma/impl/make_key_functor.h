@@ -53,7 +53,7 @@
 #include <darma/impl/handle_attorneys.h>
 #include <darma/interface/app/access_handle.h>
 
-namespace darma_runtime {
+namespace darma {
 namespace detail {
 
 struct _make_key_functor {
@@ -122,6 +122,6 @@ struct _make_key_functor {
 };
 
 }  // End namespace detail
-}  // End namespace darma_runtime
+}  // End namespace darma
 
 #endif

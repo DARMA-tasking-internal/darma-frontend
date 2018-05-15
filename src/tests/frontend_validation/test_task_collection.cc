@@ -94,10 +94,10 @@ class TestCreateConcurrentWork
 TEST_F_WITH_PARAMS(TestCreateConcurrentWork, simple, ::testing::Bool(), bool) {
 
   using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_publication;
-  using namespace darma_runtime::keyword_arguments_for_task_creation;
-  using namespace darma_runtime::keyword_arguments_for_access_handle_collection;
+  using namespace darma;
+  using namespace darma::keyword_arguments_for_publication;
+  using namespace darma::keyword_arguments_for_task_creation;
+  using namespace darma::keyword_arguments_for_access_handle_collection;
   using namespace mock_backend;
 
   mock_runtime->save_tasks = true;
@@ -123,24 +123,24 @@ TEST_F_WITH_PARAMS(TestCreateConcurrentWork, simple, ::testing::Bool(), bool) {
   }
   else {
     EXPECT_CALL(*mock_runtime, legacy_register_use(::testing::AllOf(
-      IsUseWithFlows(finit, fout_coll, darma_runtime::frontend::Permissions::Modify, darma_runtime::frontend::Permissions::Modify),
+      IsUseWithFlows(finit, fout_coll, darma::frontend::Permissions::Modify, darma::frontend::Permissions::Modify),
       Truly([](auto* use){
         return (
           use->manages_collection()
-          and ::darma_runtime::abstract::frontend::use_cast<
-              ::darma_runtime::abstract::frontend::CollectionManagingUse*
+          and ::darma::abstract::frontend::use_cast<
+              ::darma::abstract::frontend::CollectionManagingUse*
             >(use)->get_managed_collection()->size() == 4
         );
       })
     ))).WillOnce(Invoke([&](auto* use) { use_coll = use; }));
 
     EXPECT_CALL(*mock_runtime, legacy_register_use(AllOf(
-      IsUseWithFlows(fout_coll, fnull, darma_runtime::frontend::Permissions::Modify, darma_runtime::frontend::Permissions::None),
+      IsUseWithFlows(fout_coll, fnull, darma::frontend::Permissions::Modify, darma::frontend::Permissions::None),
       Truly([](auto* use){
         return (
           use->manages_collection()
-            and ::darma_runtime::abstract::frontend::use_cast<
-                ::darma_runtime::abstract::frontend::CollectionManagingUse*
+            and ::darma::abstract::frontend::use_cast<
+                ::darma::abstract::frontend::CollectionManagingUse*
               >(use)->get_managed_collection()->size() == 4
         );
       })
@@ -189,7 +189,7 @@ TEST_F_WITH_PARAMS(TestCreateConcurrentWork, simple, ::testing::Bool(), bool) {
       .WillOnce(Return(f_out_idx[i]));
     //EXPECT_REGISTER_USE_AND_SET_BUFFER(use_idx[i], f_in_idx[i], f_out_idx[i], Modify, Modify, (values[i]));
     EXPECT_CALL(*mock_runtime, legacy_register_use(
-      IsUseWithFlows(f_in_idx[i], f_out_idx[i], darma_runtime::frontend::Permissions::Modify, darma_runtime::frontend::Permissions::Modify)
+      IsUseWithFlows(f_in_idx[i], f_out_idx[i], darma::frontend::Permissions::Modify, darma::frontend::Permissions::Modify)
     )).WillOnce(Invoke([&](auto* use){
       use_idx[i] = use;
       use->get_data_pointer_reference() = &values[i];
@@ -236,12 +236,12 @@ TEST_F_WITH_PARAMS(TestCreateConcurrentWork, simple, ::testing::Bool(), bool) {
 TEST_F(TestCreateConcurrentWork, simple_all_reduce) {
 
   using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_publication;
-  using namespace darma_runtime::keyword_arguments_for_task_creation;
-  using namespace darma_runtime::keyword_arguments_for_access_handle_collection;
+  using namespace darma;
+  using namespace darma::keyword_arguments_for_publication;
+  using namespace darma::keyword_arguments_for_task_creation;
+  using namespace darma::keyword_arguments_for_access_handle_collection;
   using namespace mock_backend;
-  using darma_runtime::frontend::Permissions;
+  using darma::frontend::Permissions;
 
   mock_runtime->save_tasks = true;
 
@@ -314,7 +314,7 @@ TEST_F(TestCreateConcurrentWork, simple_all_reduce) {
 
     EXPECT_REGISTER_USE_AND_SET_BUFFER(use_idx[i], f_in_idx[i], f_out_idx[i], Modify, Modify, values[i]);
 //    EXPECT_CALL(*mock_runtime, legacy_register_use(
-//      IsUseWithFlows(f_in_idx[i], f_out_idx[i], darma_runtime::frontend::Permissions::Modify, darma_runtime::frontend::Permissions::Modify)
+//      IsUseWithFlows(f_in_idx[i], f_out_idx[i], darma::frontend::Permissions::Modify, darma::frontend::Permissions::Modify)
 //    )).WillOnce(Invoke([&](auto* use){
 //      use_idx[i] = use;
 //      use->get_data_pointer_reference() = &values[i];
@@ -369,12 +369,12 @@ TEST_F(TestCreateConcurrentWork, simple_all_reduce) {
 TEST_F(TestCreateConcurrentWork, fetch) {
 
   using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_publication;
-  using namespace darma_runtime::keyword_arguments_for_task_creation;
-  using namespace darma_runtime::keyword_arguments_for_access_handle_collection;
+  using namespace darma;
+  using namespace darma::keyword_arguments_for_publication;
+  using namespace darma::keyword_arguments_for_task_creation;
+  using namespace darma::keyword_arguments_for_access_handle_collection;
   using namespace mock_backend;
-  using darma_runtime::frontend::Permissions;
+  using darma::frontend::Permissions;
 
   mock_runtime->save_tasks = true;
 
@@ -450,7 +450,7 @@ TEST_F(TestCreateConcurrentWork, fetch) {
     EXPECT_CALL(*mock_runtime, make_indexed_local_flow(fout_coll, i))
       .WillOnce(Return(f_out_idx[i]));
     EXPECT_CALL(*mock_runtime, legacy_register_use(
-      IsUseWithFlows(f_in_idx[i], f_out_idx[i], darma_runtime::frontend::Permissions::Modify, darma_runtime::frontend::Permissions::Modify)
+      IsUseWithFlows(f_in_idx[i], f_out_idx[i], darma::frontend::Permissions::Modify, darma::frontend::Permissions::Modify)
     )).WillOnce(Invoke([&](auto* use){
       use_idx[i] = use;
       use->get_data_pointer_reference() = &values[i];
@@ -550,10 +550,10 @@ TEST_F(TestCreateConcurrentWork, fetch) {
 TEST_F(TestCreateConcurrentWork, migrate_simple) {
 
   using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_publication;
-  using namespace darma_runtime::keyword_arguments_for_task_creation;
-  using namespace darma_runtime::keyword_arguments_for_access_handle_collection;
+  using namespace darma;
+  using namespace darma::keyword_arguments_for_publication;
+  using namespace darma::keyword_arguments_for_task_creation;
+  using namespace darma::keyword_arguments_for_access_handle_collection;
   using namespace mock_backend;
 
   mock_runtime->save_tasks = true;
@@ -661,7 +661,7 @@ TEST_F(TestCreateConcurrentWork, migrate_simple) {
     }));
 
   EXPECT_CALL(*mock_runtime, reregister_migrated_use(
-    IsUseWithFlows(finit_unpacked, fout_unpacked, darma_runtime::frontend::Permissions::Modify, darma_runtime::frontend::Permissions::Modify)
+    IsUseWithFlows(finit_unpacked, fout_unpacked, darma::frontend::Permissions::Modify, darma::frontend::Permissions::Modify)
   )).WillOnce(SaveArg<0>(&use_migrated));
 
 
@@ -687,7 +687,7 @@ TEST_F(TestCreateConcurrentWork, migrate_simple) {
       .WillOnce(Return(f_out_idx[i]));
     //EXPECT_REGISTER_USE_AND_SET_BUFFER(use_idx[i], f_in_idx[i], f_out_idx[i], Modify, Modify, (values[i]));
     EXPECT_CALL(*mock_runtime, legacy_register_use(
-      IsUseWithFlows(f_in_idx[i], f_out_idx[i], darma_runtime::frontend::Permissions::Modify, darma_runtime::frontend::Permissions::Modify)
+      IsUseWithFlows(f_in_idx[i], f_out_idx[i], darma::frontend::Permissions::Modify, darma::frontend::Permissions::Modify)
     )).WillOnce(Invoke([&](auto* use){
       use_idx[i] = use;
       use->get_data_pointer_reference() = &values[i];
@@ -720,10 +720,10 @@ TEST_F(TestCreateConcurrentWork, migrate_simple) {
 TEST_F(TestCreateConcurrentWork, many_to_one) {
 
   using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_publication;
-  using namespace darma_runtime::keyword_arguments_for_task_creation;
-  using namespace darma_runtime::keyword_arguments_for_access_handle_collection;
+  using namespace darma;
+  using namespace darma::keyword_arguments_for_publication;
+  using namespace darma::keyword_arguments_for_task_creation;
+  using namespace darma::keyword_arguments_for_access_handle_collection;
   using namespace mock_backend;
 
   mock_runtime->save_tasks = true;
@@ -771,7 +771,7 @@ TEST_F(TestCreateConcurrentWork, many_to_one) {
       }
     };
 
-    using darma_runtime::Index1D;
+    using darma::Index1D;
 
     struct ModMapping {
       using from_index_type = Index1D<int>;
@@ -853,10 +853,10 @@ TEST_F(TestCreateConcurrentWork, many_to_one) {
 TEST_F(TestCreateConcurrentWork, simple_sq_brkt_same) {
 
   using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_publication;
-  using namespace darma_runtime::keyword_arguments_for_task_creation;
-  using namespace darma_runtime::keyword_arguments_for_access_handle_collection;
+  using namespace darma;
+  using namespace darma::keyword_arguments_for_publication;
+  using namespace darma::keyword_arguments_for_task_creation;
+  using namespace darma::keyword_arguments_for_access_handle_collection;
   using namespace mock_backend;
 
   mock_runtime->save_tasks = true;
@@ -932,7 +932,7 @@ TEST_F(TestCreateConcurrentWork, simple_sq_brkt_same) {
 
   EXPECT_REGISTER_USE_AND_SET_BUFFER(use_idx, f_in_idx, f_out_idx, Modify, Modify, value);
   //EXPECT_CALL(*mock_runtime, legacy_register_use(
-  //  IsUseWithFlows(f_in_idx, f_out_idx, darma_runtime::frontend::Permissions::Modify, darma_runtime::frontend::Permissions::Modify)
+  //  IsUseWithFlows(f_in_idx, f_out_idx, darma::frontend::Permissions::Modify, darma::frontend::Permissions::Modify)
   //)).WillOnce(Invoke([&](auto* use){
   //  use_idx = use;
   //  use->get_data_pointer_reference() = &value;
@@ -993,10 +993,10 @@ TEST_F(TestCreateConcurrentWork, simple_sq_brkt_same) {
 TEST_F(TestCreateConcurrentWork, simple_unique_owner) {
 
   using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_publication;
-  using namespace darma_runtime::keyword_arguments_for_task_creation;
-  using namespace darma_runtime::keyword_arguments_for_access_handle_collection;
+  using namespace darma;
+  using namespace darma::keyword_arguments_for_publication;
+  using namespace darma::keyword_arguments_for_task_creation;
+  using namespace darma::keyword_arguments_for_access_handle_collection;
   using namespace mock_backend;
 
   mock_runtime->save_tasks = true;
@@ -1073,10 +1073,10 @@ TEST_F(TestCreateConcurrentWork, simple_unique_owner) {
 TEST_F(TestCreateConcurrentWork, fetch_unique_owner) {
 
   using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_publication;
-  using namespace darma_runtime::keyword_arguments_for_task_creation;
-  using namespace darma_runtime::keyword_arguments_for_access_handle_collection;
+  using namespace darma;
+  using namespace darma::keyword_arguments_for_publication;
+  using namespace darma::keyword_arguments_for_task_creation;
+  using namespace darma::keyword_arguments_for_access_handle_collection;
   using namespace mock_backend;
 
   mock_runtime->save_tasks = true;
@@ -1214,10 +1214,10 @@ TEST_F(TestCreateConcurrentWork, fetch_unique_owner) {
 TEST_F(TestCreateConcurrentWork, simple_collection_read) {
 
   using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_publication;
-  using namespace darma_runtime::keyword_arguments_for_task_creation;
-  using namespace darma_runtime::keyword_arguments_for_access_handle_collection;
+  using namespace darma;
+  using namespace darma::keyword_arguments_for_publication;
+  using namespace darma::keyword_arguments_for_task_creation;
+  using namespace darma::keyword_arguments_for_access_handle_collection;
   using namespace mock_backend;
 
   mock_runtime->save_tasks = true;
@@ -1298,10 +1298,10 @@ TEST_F(TestCreateConcurrentWork, simple_collection_read) {
 TEST_F(TestCreateConcurrentWork, nested_in_create_work) {
 
   using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_publication;
-  using namespace darma_runtime::keyword_arguments_for_task_creation;
-  using namespace darma_runtime::keyword_arguments_for_access_handle_collection;
+  using namespace darma;
+  using namespace darma::keyword_arguments_for_publication;
+  using namespace darma::keyword_arguments_for_task_creation;
+  using namespace darma::keyword_arguments_for_access_handle_collection;
   using namespace mock_backend;
 
   mock_runtime->save_tasks = true;
@@ -1402,7 +1402,7 @@ TEST_F(TestCreateConcurrentWork, nested_in_create_work) {
       .WillOnce(Return(f_out_idx[i]));
     EXPECT_REGISTER_USE_AND_SET_BUFFER(use_idx[i], f_in_idx[i], f_out_idx[i], Modify, Modify, values[i]);
     //EXPECT_CALL(*mock_runtime, register_use(
-    //  IsUseWithFlows(f_in_idx[i], f_out_idx[i], darma_runtime::frontend::Permissions::Modify, darma_runtime::frontend::Permissions::Modify)
+    //  IsUseWithFlows(f_in_idx[i], f_out_idx[i], darma::frontend::Permissions::Modify, darma::frontend::Permissions::Modify)
     //)).WillOnce(Invoke([&](auto* use){
     //  use_idx[i] = use;
     //  use->get_data_pointer_reference() = &values[i];
@@ -1431,10 +1431,10 @@ TEST_F(TestCreateConcurrentWork, nested_in_create_work) {
 TEST_F(TestCreateConcurrentWork, nested_in_create_work_functor) {
 
   using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_publication;
-  using namespace darma_runtime::keyword_arguments_for_task_creation;
-  using namespace darma_runtime::keyword_arguments_for_access_handle_collection;
+  using namespace darma;
+  using namespace darma::keyword_arguments_for_publication;
+  using namespace darma::keyword_arguments_for_task_creation;
+  using namespace darma::keyword_arguments_for_access_handle_collection;
   using namespace mock_backend;
 
   mock_runtime->save_tasks = true;
@@ -1529,7 +1529,7 @@ TEST_F(TestCreateConcurrentWork, nested_in_create_work_functor) {
       .WillOnce(Return(f_out_idx[i]));
     EXPECT_REGISTER_USE_AND_SET_BUFFER(use_idx[i], f_in_idx[i], f_out_idx[i], Modify, Modify, values[i]);
     //EXPECT_CALL(*mock_runtime, register_use(
-    //  IsUseWithFlows(f_in_idx[i], f_out_idx[i], darma_runtime::frontend::Permissions::Modify, darma_runtime::frontend::Permissions::Modify)
+    //  IsUseWithFlows(f_in_idx[i], f_out_idx[i], darma::frontend::Permissions::Modify, darma::frontend::Permissions::Modify)
     //)).WillOnce(Invoke([&](auto* use){
     //  use_idx[i] = use;
     //  use->get_data_pointer_reference() = &values[i];
@@ -1564,9 +1564,9 @@ TEST_F(TestCreateConcurrentWork, handle_reduce)
 {
 
   using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace darma_runtime::frontend;
-  using namespace darma_runtime::keyword_arguments;
+  using namespace darma;
+  using namespace darma::frontend;
+  using namespace darma::keyword_arguments;
   using namespace mock_backend;
 
   mock_runtime->save_tasks = true;
@@ -1691,7 +1691,7 @@ TEST_F(TestCreateConcurrentWork, handle_reduce)
     EXPECT_CALL(*mock_runtime, make_indexed_local_flow(fout_coll, i))
       .WillOnce(Return(f_out_idx[i]));
     EXPECT_CALL(*mock_runtime, legacy_register_use(
-      IsUseWithFlows(f_in_idx[i], f_out_idx[i], darma_runtime::frontend::Permissions::Modify, darma_runtime::frontend::Permissions::Modify)
+      IsUseWithFlows(f_in_idx[i], f_out_idx[i], darma::frontend::Permissions::Modify, darma::frontend::Permissions::Modify)
     )).WillOnce(Invoke([&](auto* use) {
         use_idx[i] = use;
         use->get_data_pointer_reference() = &values[i];
@@ -1738,10 +1738,10 @@ TEST_F(TestCreateConcurrentWork, simple_read_only)
 {
 
   using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_publication;
-  using namespace darma_runtime::keyword_arguments_for_task_creation;
-  using namespace darma_runtime::keyword_arguments_for_access_handle_collection;
+  using namespace darma;
+  using namespace darma::keyword_arguments_for_publication;
+  using namespace darma::keyword_arguments_for_task_creation;
+  using namespace darma::keyword_arguments_for_access_handle_collection;
   using namespace mock_backend;
 
   mock_runtime->save_tasks = true;
@@ -1777,7 +1777,7 @@ TEST_F(TestCreateConcurrentWork, simple_read_only)
         Index1D<int> index,
         ReadAccessHandleCollection<int, Range1D<int>> coll,
         std::string str_val,
-        darma_runtime::types::key_t key
+        darma::types::key_t key
       ) const
       {
         ASSERT_THAT(str_val, Eq("world"));
@@ -1808,9 +1808,9 @@ TEST_F(TestCreateConcurrentWork, simple_read_only)
       .WillOnce(Return(f_in_idx[i]));
     EXPECT_CALL(*mock_runtime, legacy_register_use(
 #if _darma_has_feature(anti_flows)
-      IsUseWithFlows(f_in_idx[i], nullptr, darma_runtime::frontend::Permissions::Read, darma_runtime::frontend::Permissions::Read)
+      IsUseWithFlows(f_in_idx[i], nullptr, darma::frontend::Permissions::Read, darma::frontend::Permissions::Read)
 #else
-      IsUseWithFlows(f_in_idx[i], f_in_idx[i], darma_runtime::frontend::Permissions::Read, darma_runtime::frontend::Permissions::Read)
+      IsUseWithFlows(f_in_idx[i], f_in_idx[i], darma::frontend::Permissions::Read, darma::frontend::Permissions::Read)
 #endif // _darma_has_feature(anti_flows)
     )).WillOnce(Invoke([&](auto* use) {
         use_idx[i] = use;
@@ -1867,11 +1867,11 @@ TEST_F(TestCreateConcurrentWork, simple_read_only)
 TEST_F(TestCreateConcurrentWork, simple_commutative) {
 
   using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_publication;
-  using namespace darma_runtime::keyword_arguments_for_commutative_access;
-  using namespace darma_runtime::keyword_arguments_for_task_creation;
-  using namespace darma_runtime::keyword_arguments_for_access_handle_collection;
+  using namespace darma;
+  using namespace darma::keyword_arguments_for_publication;
+  using namespace darma::keyword_arguments_for_commutative_access;
+  using namespace darma::keyword_arguments_for_task_creation;
+  using namespace darma::keyword_arguments_for_access_handle_collection;
   using namespace mock_backend;
 
   mock_runtime->save_tasks = true;
@@ -2052,8 +2052,8 @@ TEST_F(TestCreateConcurrentWork, simple_commutative) {
 TEST_F(TestCreateConcurrentWork, nested_reverse) {
 
   using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_access_handle_collection;
+  using namespace darma;
+  using namespace darma::keyword_arguments_for_access_handle_collection;
   using namespace mock_backend;
 
   mock_runtime->save_tasks = true;
@@ -2188,10 +2188,10 @@ TEST_F(TestCreateConcurrentWork, nested_reverse) {
 TEST_F(TestCreateConcurrentWork, mappings_same) {
 
   using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_publication;
-  using namespace darma_runtime::keyword_arguments_for_task_creation;
-  using namespace darma_runtime::keyword_arguments_for_access_handle_collection;
+  using namespace darma;
+  using namespace darma::keyword_arguments_for_publication;
+  using namespace darma::keyword_arguments_for_task_creation;
+  using namespace darma::keyword_arguments_for_access_handle_collection;
   using namespace mock_backend;
 
   mock_runtime->save_tasks = true;
@@ -2272,7 +2272,7 @@ TEST_F(TestCreateConcurrentWork, mappings_same) {
 
   Mock::VerifyAndClearExpectations(mock_runtime.get());
 
-  using namespace darma_runtime::abstract::frontend;
+  using namespace darma::abstract::frontend;
 
   EXPECT_THAT(
     use_cast<CollectionManagingUse*>(use_coll)->get_managed_collection()->has_same_mapping_as(

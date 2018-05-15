@@ -55,8 +55,8 @@
 
 // Whole file is deprecated
 
-namespace darma_runtime {
+namespace darma {
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif /* SPMD_H_ */

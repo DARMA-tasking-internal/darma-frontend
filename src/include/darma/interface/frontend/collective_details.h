@@ -51,7 +51,7 @@
 #include <darma/interface/backend/region_context_handle.h>
 #include <darma/impl/feature_testing_macros.h>
 
-namespace darma_runtime {
+namespace darma {
 namespace abstract {
 namespace frontend {
 
@@ -81,7 +81,7 @@ class CollectiveDetails {
     reduce_operation() const =0;
 
 #if _darma_has_feature(task_collection_token)
-    virtual darma_runtime::types::task_collection_token_t const&
+    virtual darma::types::task_collection_token_t const&
     get_task_collection_token() const =0;
 #endif // _darma_has_feature(task_collection_token)
 
@@ -90,6 +90,6 @@ class CollectiveDetails {
 
 } // end namespace frontend
 } // end namespace abstract
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_INTERFACE_FRONTEND_COLLECTIVE_DETAILS_H

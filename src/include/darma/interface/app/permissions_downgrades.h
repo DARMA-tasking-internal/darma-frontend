@@ -45,8 +45,8 @@
 #ifndef DARMAFRONTEND_INTERFACE_APP_PERMISSIONS_DOWNGRADES_H
 #define DARMAFRONTEND_INTERFACE_APP_PERMISSIONS_DOWNGRADES_H
 
-namespace darma_runtime {
+namespace darma {
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMAFRONTEND_INTERFACE_APP_PERMISSIONS_DOWNGRADES_H

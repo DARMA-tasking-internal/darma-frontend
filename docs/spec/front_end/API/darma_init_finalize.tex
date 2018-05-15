@@ -8,7 +8,7 @@
 
 \paragraph{Syntax}\mbox{}\\
 \begin{CppCode}
-void darma_runtime::darma_init(int& argc, char**& argv);
+void darma::darma_init(int& argc, char**& argv);
 \end{CppCode}
 
 \paragraph{Positional Arguments}\mbox{}\\
@@ -42,7 +42,7 @@ See code for \codelink{darma_init} in Figure~\ref{fig:fe_api_init}.
 
 \paragraph{Syntax}\mbox{}\\ 
 \begin{CppCode}
-void darma_runtime::darma_finalize();
+void darma::darma_finalize();
 \end{CppCode}
 
 \paragraph{Positional Arguments}\mbox{} \\
@@ -66,7 +66,7 @@ specification).
 #include <darma.h>
 int darma_main(int argc, char** argv)
 {
-  using namespace darma_runtime;
+  using namespace darma;
 
   darma_init(argc, argv);
   std::cout << "DARMA initialized" << std::endl;

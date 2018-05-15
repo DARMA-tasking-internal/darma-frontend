@@ -57,7 +57,7 @@
 #include <darma/keyword_arguments/check_allowed_kwargs.h>
 
 
-namespace darma_runtime {
+namespace darma {
 
 namespace detail {
 
@@ -67,17 +67,17 @@ struct _read_access_helper {
   decltype(auto)
   operator()(
     types::key_t const& version_key,
-    darma_runtime::detail::variadic_arguments_begin_tag,
+    darma::detail::variadic_arguments_begin_tag,
     Args&&... args
   ) const {
-    auto backend_runtime = darma_runtime::abstract::backend::get_backend_runtime();
-    auto key = darma_runtime::make_key(std::forward<decltype(args)>(args)...);
-    auto var_h = darma_runtime::detail::make_shared<
-      darma_runtime::detail::VariableHandle<U>
+    auto backend_runtime = darma::abstract::backend::get_backend_runtime();
+    auto key = darma::make_key(std::forward<decltype(args)>(args)...);
+    auto var_h = darma::detail::make_shared<
+      darma::detail::VariableHandle<U>
     >(key);
 
-    using namespace darma_runtime::detail::flow_relationships;
-    using namespace darma_runtime::abstract::frontend;
+    using namespace darma::detail::flow_relationships;
+    using namespace darma::abstract::frontend;
 
     auto use_holder = std::make_shared<detail::UseHolder>(
       detail::HandleUse(
@@ -107,7 +107,7 @@ struct _read_access_helper {
     );
     use_holder->could_be_alias = true;
 
-    return darma_runtime::ReadAccessHandle<U>(
+    return darma::ReadAccessHandle<U>(
       var_h, std::move(use_holder)
     );
 
@@ -127,7 +127,7 @@ auto
 read_access(
   KeyExprParts&&... parts
 ) {
-  using namespace darma_runtime::detail;
+  using namespace darma::detail;
   using parser = detail::kwarg_parser<
     variadic_positional_overload_description<
       _optional_keyword<converted_parameter, keyword_tags_for_publication::version>
@@ -138,7 +138,7 @@ read_access(
   return parser()
     .with_converters(
       [](auto&&... parts) {
-        return darma_runtime::make_key(std::forward<decltype(parts)>(parts)...);
+        return darma::make_key(std::forward<decltype(parts)>(parts)...);
       }
     )
     .with_default_generators(
@@ -148,7 +148,7 @@ read_access(
     .invoke(detail::_read_access_helper<U>{});
 }
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif // _darma_has_feature(arbitrary_publish_fetch)
 #endif // OLD CODE

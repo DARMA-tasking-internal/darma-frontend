@@ -46,7 +46,7 @@
 #ifndef DARMA_IMPL_KEYWORD_ARGUMENTS_ERRORS_H
 #define DARMA_IMPL_KEYWORD_ARGUMENTS_ERRORS_H
 
-namespace darma_runtime {
+namespace darma {
 
 namespace detail {
 namespace _DARMA__error__ {
@@ -57,6 +57,6 @@ struct __________Unknown_keyword_argument_;
 } // end namespace _DARMA____error____
 } // end namespace detail
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_KEYWORD_ARGUMENTS_ERRORS_H

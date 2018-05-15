@@ -69,7 +69,7 @@ DeclareStandardDarmaKeywordArgumentAliases(compilation, arg6);
 DeclareStandardDarmaKeywordArgumentAliases(compilation, arg7);
 DeclareStandardDarmaKeywordArgumentAliases(compilation, arg8);
 
-namespace darma_runtime {
+namespace darma {
 
 namespace test_detail {
 
@@ -126,7 +126,7 @@ template <typename... Args>
 void 
 foo_kwarg_lambda_test_one(Args&&... args) {
 
-   using namespace darma_runtime::detail;
+   using namespace darma::detail;
    using parser = detail::kwarg_parser<
       overload_description<
          _optional_keyword<std::size_t, keyword_tags_for_compilation::arg1>
@@ -148,7 +148,7 @@ template <typename... Args>
 void
 foo_kwarg_lambda_test_two(Args&&... args) {
 
-   using namespace darma_runtime::detail;
+   using namespace darma::detail;
    using parser = detail::kwarg_parser<
       overload_description<
          _optional_keyword<std::size_t, keyword_tags_for_compilation::arg1>,
@@ -184,7 +184,7 @@ template <typename... Args>
 void
 foo_kwarg_functor_test_one(Args&&... args) {
 
-   using namespace darma_runtime::detail; 
+   using namespace darma::detail;
    using parser = detail::kwarg_parser<
       overload_description<
          _optional_keyword<std::size_t, keyword_tags_for_publication::n_readers>
@@ -206,7 +206,7 @@ template <typename... Args>
 void
 foo_kwarg_functor_test_two(Args&&... args) {
 
-   using namespace darma_runtime::detail;
+   using namespace darma::detail;
    using parser = detail::kwarg_parser<
       overload_description<
          _optional_keyword<std::size_t, keyword_tags_for_compilation::arg1>,
@@ -237,6 +237,6 @@ foo_kwarg_functor_test_two(Args&&... args) {
       .invoke(test_detail::foo{});
 }
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif 

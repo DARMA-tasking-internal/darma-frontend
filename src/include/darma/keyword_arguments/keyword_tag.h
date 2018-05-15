@@ -47,7 +47,7 @@
 
 #include <type_traits>
 
-namespace darma_runtime {
+namespace darma {
 
 namespace detail {
 
@@ -86,7 +86,7 @@ struct extract_type_if_tag<
 struct unknown_type { };
 
 
-}} // end namespace darma_runtime::detail
+}} // end namespace darma::detail
 
 
 

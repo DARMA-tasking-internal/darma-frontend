@@ -121,10 +121,10 @@ struct Test_simple_allreduce
 
 TEST_P(Test_simple_allreduce, overloads) {
   using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_collectives;
+  using namespace darma;
+  using namespace darma::keyword_arguments_for_collectives;
   using namespace mock_backend;
-  using darma_runtime::frontend::Permissions;
+  using darma::frontend::Permissions;
 
   mock_runtime->save_tasks = true;
 
@@ -219,10 +219,10 @@ struct Test_different_inout_allreduce
 
 TEST_P(Test_different_inout_allreduce, overload) {
   using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_collectives;
+  using namespace darma;
+  using namespace darma::keyword_arguments_for_collectives;
   using namespace mock_backend;
-  using darma_runtime::frontend::Permissions;
+  using darma::frontend::Permissions;
 
   mock_runtime->save_tasks = true;
 
@@ -327,8 +327,8 @@ INSTANTIATE_TEST_CASE_P(
 ////////////////////////////////////////////////////////////////////////////////
 
 //TEST(TestReduceOp, string) {
-//  using namespace darma_runtime;
-//  using namespace darma_runtime::detail;
+//  using namespace darma;
+//  using namespace darma::detail;
 //
 //  auto* reduce_op = _impl::_get_static_reduce_op_instance<
 //    detail::ReduceOperationWrapper< Add, std::string >

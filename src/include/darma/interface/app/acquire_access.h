@@ -51,7 +51,7 @@
 
 #include <darma/keyword_arguments/parse.h>
 
-namespace darma_runtime {
+namespace darma {
 namespace experimental {
 
 template <typename T, typename... Args>
@@ -60,7 +60,7 @@ acquire_access(
   T* unmanaged_data_ptr,
   Args&&... args
 ) {
-  using namespace darma_runtime::detail;
+  using namespace darma::detail;
   using parser = detail::kwarg_parser<
     variadic_positional_overload_description<>
   >;
@@ -73,9 +73,9 @@ acquire_access(
         auto&&... key_expr_parts
       ) {
         auto key = sizeof...(key_expr_parts) == 0 ?
-          darma_runtime::types::key_t(
-            darma_runtime::types::key_t::request_backend_assigned_key_tag{}
-          ) : darma_runtime::make_key(
+          darma::types::key_t(
+            darma::types::key_t::request_backend_assigned_key_tag{}
+          ) : darma::make_key(
             std::forward<decltype(key_expr_parts)>(key_expr_parts)...
           );
         auto var_h = std::make_shared<detail::UnmanagedHandle<T>>(key);
@@ -135,7 +135,7 @@ acquire_access(
 };
 
 } // end namespace experimental
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif // darma_has_feature(unmanaged_data)
 

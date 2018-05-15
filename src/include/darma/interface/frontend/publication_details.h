@@ -52,7 +52,7 @@
 #include <darma/impl/feature_testing_macros.h>
 
 
-namespace darma_runtime {
+namespace darma {
 namespace abstract {
 namespace frontend {
 
@@ -90,7 +90,7 @@ class PublicationDetails {
 
 #if _darma_has_feature(task_collection_token)
     virtual
-    darma_runtime::types::task_collection_token_t const&
+    darma::types::task_collection_token_t const&
     get_task_collection_token() const =0;
 #endif
 
@@ -98,6 +98,6 @@ class PublicationDetails {
 
 } // end namespace frontend
 } // end namespace abstract
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_INTERFACE_FRONTEND_PUBLICATION_DETAILS_H

@@ -50,7 +50,7 @@
 #include "task_base.h"
 #include "task_ctor_helper.h"
 
-namespace darma_runtime {
+namespace darma {
 namespace detail {
 
 
@@ -332,8 +332,8 @@ struct LambdaTask
     TaskCtorArgs&&... other_ctor_args
   ) : LambdaTask<Lambda>::LambdaTask(
         std::forward<LambdaDeduced>(callable_in),
-        static_cast<darma_runtime::detail::TaskBase* const>(
-          darma_runtime::abstract::backend::get_backend_context()->get_running_task()
+        static_cast<darma::detail::TaskBase* const>(
+          darma::abstract::backend::get_backend_context()->get_running_task()
         ),
         capture_manager,
         variadic_arguments_begin_tag{},
@@ -438,7 +438,7 @@ struct LambdaTask
 
     ar.add_to_size_raw(sizeof(Lambda));
 
-    auto* running_task = static_cast<darma_runtime::detail::TaskBase*>(
+    auto* running_task = static_cast<darma::detail::TaskBase*>(
       abstract::backend::get_backend_context()->get_running_task()
     );
     running_task->current_create_work_context = const_cast<LambdaTask*>(this);
@@ -465,7 +465,7 @@ struct LambdaTask
   void pack(PackingArchive& ar) const {
     ar.pack_data_raw(&this->callable_, &this->callable_ + 1);
 
-    auto* running_task = static_cast<darma_runtime::detail::TaskBase*>(
+    auto* running_task = static_cast<darma::detail::TaskBase*>(
       abstract::backend::get_backend_context()->get_running_task()
     );
     running_task->current_create_work_context = const_cast<LambdaTask*>(this);
@@ -528,13 +528,13 @@ struct LambdaTask
 
 
   //============================================================================
-  // <editor-fold desc="darma_runtime::abstract::frontend::Task method implementations"> {{{1
+  // <editor-fold desc="darma::abstract::frontend::Task method implementations"> {{{1
 
   void run() override {
     this->callable_();
   }
 
-  // </editor-fold> end darma_runtime::abstract::frontend::Task method implementations }}}1
+  // </editor-fold> end darma::abstract::frontend::Task method implementations }}}1
   //============================================================================
 
 
@@ -542,6 +542,6 @@ struct LambdaTask
 };
 
 } // end namespace detail
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMAFRONTEND_LAMBDA_TASK_H

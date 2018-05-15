@@ -142,7 +142,7 @@ struct SimpleFunctorWithDowngradePermissions {
   }
 
   static void permissions_downgrades(AccessHandle<int> handle) { 
-     darma_runtime::detail::permissions_downgrades(reads(handle));
+     darma::detail::permissions_downgrades(reads(handle));
   }
 };
 
@@ -164,7 +164,7 @@ struct SimpleFunctorWithRequiredPermissions {
   }
   
   static void required_permissions(AccessHandle<int> handle1, AccessHandle<int> handle2) {
-    darma_runtime::detail::required_permissions(reads(handle2));
+    darma::detail::required_permissions(reads(handle2));
   }
 };
 
@@ -199,7 +199,7 @@ TEST_F(TestFunctor, simpler) {
 TEST_F(TestFunctor, simpler_named) {
   using namespace ::testing;
   testing::internal::CaptureStdout();
-  using namespace darma_runtime::keyword_arguments_for_task_creation;
+  using namespace darma::keyword_arguments_for_task_creation;
 
   mock_runtime->save_tasks = true;
 
@@ -229,7 +229,7 @@ struct TestFunctorModCaptures
 
 TEST_P(TestFunctorModCaptures, Parametrized) {
   using namespace ::testing;
-  using namespace darma_runtime;
+  using namespace darma;
   using namespace mock_backend;
 
   static_assert(std::is_convertible<meta::any_arg, AccessHandle<int>>::value, "any_arg not convertible!");
@@ -254,18 +254,18 @@ TEST_P(TestFunctorModCaptures, Parametrized) {
     EXPECT_CALL(*mock_runtime, make_next_flow(f_initial))
       .WillOnce(Return(f_task_out));
 
-    darma_runtime::frontend::permissions_t expected_scheduling_permissions;
+    darma::frontend::permissions_t expected_scheduling_permissions;
     if(test_type == "simple_handle") {
-      expected_scheduling_permissions = darma_runtime::frontend::Permissions::Modify;
+      expected_scheduling_permissions = darma::frontend::Permissions::Modify;
     }
     else {
-      expected_scheduling_permissions = darma_runtime::frontend::Permissions::None;
+      expected_scheduling_permissions = darma::frontend::Permissions::None;
     }
 
     EXPECT_CALL(*mock_runtime, legacy_register_use(IsUseWithFlows(
       f_initial, f_task_out,
       expected_scheduling_permissions,
-      darma_runtime::frontend::Permissions::Modify
+      darma::frontend::Permissions::Modify
     ))).WillOnce(SaveArg<0>(&task_use));
     EXPECT_REGISTER_USE(use_cont, f_task_out, f_null, Modify, None);
     EXPECT_RELEASE_USE(use_initial);
@@ -336,13 +336,13 @@ TEST_P(TestFunctorROCaptures, Parameterized) {
   //--------------------
   // Expect ro capture:
 
-  darma_runtime::frontend::permissions_t expected_scheduling_permissions;
+  darma::frontend::permissions_t expected_scheduling_permissions;
   if(test_type == "convert" || test_type == "convert_value"
     || test_type == "convert_long" || test_type == "convert_string") {
-    expected_scheduling_permissions = darma_runtime::frontend::Permissions::None;
+    expected_scheduling_permissions = darma::frontend::Permissions::None;
   }
   else {
-    expected_scheduling_permissions = darma_runtime::frontend::Permissions::Read;
+    expected_scheduling_permissions = darma::frontend::Permissions::Read;
   }
 
   int data = 0;
@@ -355,7 +355,7 @@ TEST_P(TestFunctorROCaptures, Parameterized) {
       fl_init, fl_init,
 #endif // _darma_has_feature(anti_flows)
       expected_scheduling_permissions,
-      darma_runtime::frontend::Permissions::Read
+      darma::frontend::Permissions::Read
     )
   )).WillOnce(
     Invoke([&](auto* use) {
@@ -649,7 +649,7 @@ TEST_F(TestFunctor, schedule_only) {
 
 TEST_F(TestFunctor, functor_with_permissions_downgrades) {
   using namespace ::testing;
-  using namespace darma_runtime;
+  using namespace darma;
   using namespace mock_backend;
 
   static_assert(std::is_convertible<meta::any_arg, AccessHandle<int>>::value, "any_arg not convertible!");
@@ -671,8 +671,8 @@ TEST_F(TestFunctor, functor_with_permissions_downgrades) {
 
     EXPECT_CALL(*mock_runtime, legacy_register_use(IsUseWithFlows(
       f_initial, nullptr, 
-      darma_runtime::frontend::Permissions::Read,
-      darma_runtime::frontend::Permissions::Read
+      darma::frontend::Permissions::Read,
+      darma::frontend::Permissions::Read
     ))).WillOnce(SaveArg<0>(&task_use));
 
     EXPECT_REGISTER_TASK(task_use);
@@ -702,7 +702,7 @@ TEST_F(TestFunctor, functor_with_permissions_downgrades) {
 
 TEST_F(TestFunctor, functor_with_required_permissions) {
   using namespace ::testing;
-  using namespace darma_runtime;
+  using namespace darma;
   using namespace mock_backend;
 
   static_assert(std::is_convertible<meta::any_arg, AccessHandle<int>>::value, "any_arg not convertible!");
@@ -726,8 +726,8 @@ TEST_F(TestFunctor, functor_with_required_permissions) {
 
     EXPECT_CALL(*mock_runtime, legacy_register_use(IsUseWithFlows(
       f_initial_2, nullptr,
-      darma_runtime::frontend::Permissions::Read,
-      darma_runtime::frontend::Permissions::Read
+      darma::frontend::Permissions::Read,
+      darma::frontend::Permissions::Read
     ))).WillOnce(SaveArg<0>(&task_use));
 
     EXPECT_REGISTER_TASK(task_use);

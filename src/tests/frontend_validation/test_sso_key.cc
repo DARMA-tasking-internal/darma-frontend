@@ -54,8 +54,8 @@
 
 #include <darma/impl/darma.h>
 
-using namespace darma_runtime;
-using namespace darma_runtime::detail;
+using namespace darma;
+using namespace darma::detail;
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -93,7 +93,7 @@ class TestSSOKey
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestSSOKey, sso_int) {
-  using namespace darma_runtime::detail;
+  using namespace darma::detail;
   auto maker = typename key_traits<sso_key_t>::maker{};
   sso_key_t k = maker(2,4,8);
   ASSERT_EQ(k.component<0>().as<int>(), 2);
@@ -105,7 +105,7 @@ TEST_F(TestSSOKey, sso_int) {
 }
 
 TEST_F(TestSSOKey, simple_string) {
-  using namespace darma_runtime::detail;
+  using namespace darma::detail;
   auto maker = typename key_traits<sso_key_t>::maker{};
   sso_key_t k = maker("hello", 2, "world!");
   ASSERT_EQ(k.component<0>().as<std::string>(), "hello");
@@ -116,7 +116,7 @@ TEST_F(TestSSOKey, simple_string) {
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestSSOKey, string_split) {
-  using namespace darma_runtime::detail;
+  using namespace darma::detail;
   auto maker = typename key_traits<sso_key_t>::maker{};
 
 
@@ -130,7 +130,7 @@ TEST_F(TestSSOKey, string_split) {
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestSSOKey, ints_split) {
-  using namespace darma_runtime::detail;
+  using namespace darma::detail;
   auto maker = typename key_traits<sso_key_t>::maker{};
   sso_key_t k = maker(
     1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096
@@ -142,7 +142,7 @@ TEST_F(TestSSOKey, ints_split) {
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestSSOKey, ints_exact) {
-  using namespace darma_runtime::detail;
+  using namespace darma::detail;
   auto maker = typename key_traits<sso_key_t>::maker{};
   sso_key_t k = maker(
     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, "A"
@@ -154,7 +154,7 @@ TEST_F(TestSSOKey, ints_exact) {
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestSSOKey, ints_exact_2) {
-  using namespace darma_runtime::detail;
+  using namespace darma::detail;
   auto maker = typename key_traits<sso_key_t>::maker{};
   sso_key_t k = maker(
     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, "Ab",
@@ -167,7 +167,7 @@ TEST_F(TestSSOKey, ints_exact_2) {
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestSSOKey, string_span_3) {
-  using namespace darma_runtime::detail;
+  using namespace darma::detail;
   auto maker = typename key_traits<sso_key_t>::maker{};
   const std::string s = ""
     "hello, there.  How is it going today? "
@@ -178,7 +178,7 @@ TEST_F(TestSSOKey, string_span_3) {
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestSSOKey, equal_multipart) {
-  using namespace darma_runtime::detail;
+  using namespace darma::detail;
   auto maker = typename key_traits<sso_key_t>::maker{};
   sso_key_t k1 = maker("hello", 2, 3, 4, 5, 6, "world!", "How is it going today?");
   sso_key_t k2 = maker("hello", 2, 3, 4, 5, 6, "world!", "How is it going today?");
@@ -188,7 +188,7 @@ TEST_F(TestSSOKey, equal_multipart) {
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestSSOKey, hash_multipart) {
-  using namespace darma_runtime::detail;
+  using namespace darma::detail;
   auto maker = typename key_traits<sso_key_t>::maker{};
   sso_key_t k1 = maker("hello", 2, 3, 4, 5, 6, "world!", "How is it going today?");
   sso_key_t k2 = maker("hello", 2, 3, 4, 5, 6, "world!", "How is it going today?");
@@ -201,7 +201,7 @@ typedef enum EnumTestA { OneA=1, TwoA=2, ThreeA=3 } EnumTestA;
 typedef enum EnumTestB { OneB=1, TwoB=2, ThreeB=3 } EnumTestB;
 
 TEST_F(TestSSOKey, enums) {
-  using namespace darma_runtime::detail;
+  using namespace darma::detail;
   using namespace ::testing;
   auto maker = typename key_traits<sso_key_t>::maker{};
   auto kA = maker(OneA, TwoB, ThreeA);
@@ -214,7 +214,7 @@ TEST_F(TestSSOKey, enums) {
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestSSOKey, equal_key_key) {
-  using namespace darma_runtime::detail;
+  using namespace darma::detail;
   auto maker = typename key_traits<sso_key_t>::maker{};
   sso_key_t k1 = maker("hello", 2, 3, 4, 5, 6, "world!", "How is it going today?");
   sso_key_t k2 = maker(k1);
@@ -230,7 +230,7 @@ TEST_F(TestSSOKey, equal_key_key) {
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestSSOKey, equal_backend_assigned) {
-  using namespace darma_runtime::detail;
+  using namespace darma::detail;
   using namespace ::testing;
   auto maker = typename key_traits<sso_key_t>::maker{};
   sso_key_t backendk1 = maker();
@@ -247,9 +247,9 @@ TEST_F(TestSSOKey, equal_backend_assigned) {
 
 
 TEST_F(TestSSOKey, serialize_long) {
-  using namespace darma_runtime::detail;
-  using namespace darma_runtime::serialization;
-  using serialization_handler_t = darma_runtime::serialization::SimpleSerializationHandler<>;
+  using namespace darma::detail;
+  using namespace darma::serialization;
+  using serialization_handler_t = darma::serialization::SimpleSerializationHandler<>;
 
   auto maker = typename key_traits<sso_key_t>::maker{};
   sso_key_t k1 = maker("hello", 2, 3, 4, 5, 6, "world!", "How is it going today?");
@@ -264,9 +264,9 @@ TEST_F(TestSSOKey, serialize_long) {
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestSSOKey, serialize_small) {
-  using namespace darma_runtime::detail;
-  using namespace darma_runtime::serialization;
-  using serialization_handler_t = darma_runtime::serialization::SimpleSerializationHandler<>;
+  using namespace darma::detail;
+  using namespace darma::serialization;
+  using serialization_handler_t = darma::serialization::SimpleSerializationHandler<>;
 
   auto maker = typename key_traits<sso_key_t>::maker{};
   sso_key_t k1 = maker("me", 2);
@@ -281,9 +281,9 @@ TEST_F(TestSSOKey, serialize_small) {
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestSSOKey, serialize_backend_assigned) {
-  using namespace darma_runtime::detail;
-  using namespace darma_runtime::serialization;
-  using serialization_handler_t = darma_runtime::serialization::SimpleSerializationHandler<>;
+  using namespace darma::detail;
+  using namespace darma::serialization;
+  using serialization_handler_t = darma::serialization::SimpleSerializationHandler<>;
 
   auto maker = typename key_traits<sso_key_t>::backend_maker{};
   sso_key_t k1 = maker(314ul);

@@ -61,7 +61,7 @@
 #include "use.h"
 
 
-namespace darma_runtime {
+namespace darma {
 
 namespace detail {
 
@@ -104,8 +104,8 @@ struct _commutative_access_impl {
       >::type
     >;
 
-    using namespace darma_runtime::abstract::frontend;
-    using namespace darma_runtime::detail::flow_relationships;
+    using namespace darma::abstract::frontend;
+    using namespace darma::detail::flow_relationships;
 
     // in handle unless one is given for the new handle, which is not yet
     // supported anyway)
@@ -225,8 +225,8 @@ struct _commutative_access_impl {
 
     // TODO use allocator
 
-    using namespace darma_runtime::abstract::frontend;
-    using namespace darma_runtime::detail::flow_relationships;
+    using namespace darma::abstract::frontend;
+    using namespace darma::detail::flow_relationships;
 
     // in handle unless one is given for the new handle, which is not yet
     // supported anyway)
@@ -368,7 +368,7 @@ struct _commutative_access_impl {
         " commutative_access(...) that don't take an AccessHandle argument"
     );
 
-    using namespace darma_runtime::detail::flow_relationships;
+    using namespace darma::detail::flow_relationships;
 
     // TODO use allocator
 
@@ -448,7 +448,7 @@ struct _commutative_access_impl {
     KeyPart1&& kp1, KeyParts&& ... kps
   ) const
   {
-    return _impl(darma_runtime::make_key(
+    return _impl(darma::make_key(
       std::forward<KeyPart1>(kp1),
       std::forward<KeyParts>(kps)...
       )
@@ -512,8 +512,8 @@ struct _noncommutative_access_impl {
       >::type
     >;
 
-    using namespace darma_runtime::abstract::frontend;
-    using namespace darma_runtime::detail::flow_relationships;
+    using namespace darma::abstract::frontend;
+    using namespace darma::detail::flow_relationships;
     auto* rt = abstract::backend::get_backend_runtime();
 
     // Use the allocator from the out handle (which is the allocator from the
@@ -663,8 +663,8 @@ struct _noncommutative_collection_access_impl {
       >::template from_traits<default_traits_t>::type
     >;
 
-    using namespace darma_runtime::abstract::frontend;
-    using namespace darma_runtime::detail::flow_relationships;
+    using namespace darma::abstract::frontend;
+    using namespace darma::detail::flow_relationships;
     auto* rt = abstract::backend::get_backend_runtime();
 
     // Use the allocator from the out handle (which is the allocator from the
@@ -844,7 +844,7 @@ commutative_access(Args&&... args) {
 
   // TODO allocator kwarg
 
-  using namespace darma_runtime::detail;
+  using namespace darma::detail;
   using parser = detail::kwarg_parser<
     overload_description<
       // for converting an existing handle into commutative mode:
@@ -880,7 +880,7 @@ template <
 auto
 commutative_access_to_handle(Arg1&& a1, Args&&... args) {
   return commutative_access<T, TraitFlags...>(
-    darma_runtime::keyword_arguments_for_commutative_access::to_handle
+    darma::keyword_arguments_for_commutative_access::to_handle
       = std::forward<Arg1>(a1),
     std::forward<Args>(args)...
   );
@@ -894,7 +894,7 @@ template <
 auto
 noncommutative_access_to_handle(Args&&... args) {
 
-  using namespace darma_runtime::detail;
+  using namespace darma::detail;
   using parser = detail::kwarg_parser<
     overload_description<
       // for converting an existing handle into commutative mode:
@@ -918,7 +918,7 @@ template <
 auto
 noncommutative_access_to_collection(Args&&... args) {
 
-  using namespace darma_runtime::detail;
+  using namespace darma::detail;
   using parser = detail::kwarg_parser<
     overload_description<
       // for converting an existing handle into commutative mode:
@@ -936,7 +936,7 @@ noncommutative_access_to_collection(Args&&... args) {
 
 
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif // _darma_has_feature(commutative_access_handles)
 

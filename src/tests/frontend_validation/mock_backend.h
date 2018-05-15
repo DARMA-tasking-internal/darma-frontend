@@ -62,25 +62,25 @@
 namespace mock_backend {
 
 class MockRuntime
-  : public darma_runtime::abstract::backend::LegacyFlowsFromMethodsRuntime,
-    public darma_runtime::abstract::backend::Context,
-    public darma_runtime::abstract::backend::MemoryManager
+  : public darma::abstract::backend::LegacyFlowsFromMethodsRuntime,
+    public darma::abstract::backend::Context,
+    public darma::abstract::backend::MemoryManager
 {
   public:
 
-    using task_t = darma_runtime::abstract::backend::runtime_t::task_t;
-    using task_unique_ptr = darma_runtime::abstract::backend::runtime_t::task_unique_ptr;
-    using runtime_t = darma_runtime::abstract::backend::Runtime;
-    using handle_t = darma_runtime::abstract::frontend::Handle;
-    using use_t = darma_runtime::abstract::frontend::Use;
-    using destructible_use_t = darma_runtime::abstract::frontend::DestructibleUse;
-    using key_t = darma_runtime::types::key_t;
-    using publication_details_t = darma_runtime::abstract::frontend::PublicationDetails;
-    using flow_t = darma_runtime::types::flow_t;
-    using top_level_task_t = darma_runtime::abstract::backend::runtime_t::top_level_task_t;
-    using top_level_task_unique_ptr = darma_runtime::abstract::backend::runtime_t::top_level_task_unique_ptr;
-    using task_collection_t = darma_runtime::abstract::backend::runtime_t::task_collection_t;
-    using task_collection_unique_ptr = darma_runtime::abstract::backend::runtime_t::task_collection_unique_ptr;
+    using task_t = darma::abstract::backend::runtime_t::task_t;
+    using task_unique_ptr = darma::abstract::backend::runtime_t::task_unique_ptr;
+    using runtime_t = darma::abstract::backend::Runtime;
+    using handle_t = darma::abstract::frontend::Handle;
+    using use_t = darma::abstract::frontend::Use;
+    using destructible_use_t = darma::abstract::frontend::DestructibleUse;
+    using key_t = darma::types::key_t;
+    using publication_details_t = darma::abstract::frontend::PublicationDetails;
+    using flow_t = darma::types::flow_t;
+    using top_level_task_t = darma::abstract::backend::runtime_t::top_level_task_t;
+    using top_level_task_unique_ptr = darma::abstract::backend::runtime_t::top_level_task_unique_ptr;
+    using task_collection_t = darma::abstract::backend::runtime_t::task_collection_t;
+    using task_collection_unique_ptr = darma::abstract::backend::runtime_t::task_collection_unique_ptr;
 
     void
     register_task(
@@ -103,7 +103,7 @@ class MockRuntime
 
     void publish_use(
       std::unique_ptr<destructible_use_t>&& pub_use,
-      darma_runtime::abstract::frontend::PublicationDetails* details
+      darma::abstract::frontend::PublicationDetails* details
     ) override {
       publish_use_gmock_proxy(pub_use.get(), details);
       backend_owned_uses.emplace_back(std::move(pub_use));
@@ -111,7 +111,7 @@ class MockRuntime
 
     void allreduce_use(
       std::unique_ptr<destructible_use_t>&& use_in_out,
-      darma_runtime::abstract::frontend::CollectiveDetails const* details,
+      darma::abstract::frontend::CollectiveDetails const* details,
       key_t const& tag
     ) override {
       allreduce_use_gmock_proxy(use_in_out.get(), details, tag);
@@ -121,7 +121,7 @@ class MockRuntime
     void allreduce_use(
       std::unique_ptr<destructible_use_t>&& use_in,
       std::unique_ptr<destructible_use_t>&& use_out,
-      darma_runtime::abstract::frontend::CollectiveDetails const* details,
+      darma::abstract::frontend::CollectiveDetails const* details,
       key_t const& tag
     ) override {
       allreduce_use_gmock_proxy(use_in.get(), use_out.get(), details, tag);
@@ -132,7 +132,7 @@ class MockRuntime
     void reduce_collection_use(
       std::unique_ptr<destructible_use_t>&& use_collection_in,
       std::unique_ptr<destructible_use_t>&& use_out,
-      darma_runtime::abstract::frontend::CollectiveDetails const* details,
+      darma::abstract::frontend::CollectiveDetails const* details,
       key_t const& tag
     ) override {
       reduce_collection_use_gmock_proxy(use_collection_in.get(), use_out.get(),
@@ -155,19 +155,19 @@ class MockRuntime
     MOCK_METHOD1(register_task_gmock_proxy, void(task_t* task));
     MOCK_METHOD1(register_task_collection_gmock_proxy, void(task_collection_t*));
     MOCK_METHOD0(make_data_store,
-      std::shared_ptr<darma_runtime::abstract::backend::DataStoreHandle>()
+      std::shared_ptr<darma::abstract::backend::DataStoreHandle>()
     );
 
     MOCK_CONST_METHOD0(get_running_task, task_t*());
 
     MOCK_METHOD1(legacy_register_use, void(
-      darma_runtime::abstract::frontend::DependencyUse*
+      darma::abstract::frontend::DependencyUse*
     ));
     MOCK_METHOD1(reregister_migrated_use, void(
-      darma_runtime::abstract::frontend::RegisteredUse*
+      darma::abstract::frontend::RegisteredUse*
     ));
     MOCK_METHOD1(legacy_release_use, void(
-      darma_runtime::abstract::frontend::DependencyUse*
+      darma::abstract::frontend::DependencyUse*
     ));
 
     MOCK_METHOD1(make_initial_flow, flow_t(std::shared_ptr<handle_t const> const&));
@@ -186,20 +186,20 @@ class MockRuntime
 
     MOCK_METHOD1(allocate, void*(std::size_t));
     //MOCK_METHOD2(allocate, void*(size_t,
-    //  darma_runtime::abstract::frontend::MemoryRequirementDetails const&));
+    //  darma::abstract::frontend::MemoryRequirementDetails const&));
     MOCK_METHOD2(deallocate, void(void*, size_t));
 
 
     MOCK_METHOD3(allreduce_use_gmock_proxy, void(use_t*,
-      darma_runtime::abstract::frontend::CollectiveDetails const*,
+      darma::abstract::frontend::CollectiveDetails const*,
       key_t const&
     ));
     MOCK_METHOD4(allreduce_use_gmock_proxy, void(use_t*, use_t*,
-      darma_runtime::abstract::frontend::CollectiveDetails const*,
+      darma::abstract::frontend::CollectiveDetails const*,
       key_t const&
     ));
     MOCK_METHOD4(reduce_collection_use_gmock_proxy, void(use_t*, use_t*,
-      darma_runtime::abstract::frontend::CollectiveDetails const*,
+      darma::abstract::frontend::CollectiveDetails const*,
       key_t const&
     ));
     MOCK_METHOD1(release_flow, void(flow_t&));
@@ -209,7 +209,7 @@ class MockRuntime
     MOCK_METHOD1(make_unpacked_flow, flow_t(void const*&));
 
 #if _darma_has_feature(anti_flows)
-    using anti_flow_t = darma_runtime::types::anti_flow_t;
+    using anti_flow_t = darma::types::anti_flow_t;
 
     MOCK_METHOD1(get_packed_anti_flow_size, size_t(anti_flow_t const&));
     MOCK_METHOD2(pack_anti_flow, void(anti_flow_t&, void*&));
@@ -225,8 +225,8 @@ class MockRuntime
     MOCK_METHOD1(make_next_flow_collection, flow_t(flow_t&));
 
     // "New" methods
-    MOCK_METHOD1(register_use, void(darma_runtime::abstract::frontend::UsePendingRegistration*));
-    MOCK_METHOD1(release_use, void(darma_runtime::abstract::frontend::UsePendingRelease*));
+    MOCK_METHOD1(register_use, void(darma::abstract::frontend::UsePendingRegistration*));
+    MOCK_METHOD1(release_use, void(darma::abstract::frontend::UsePendingRelease*));
 
 #ifdef __clang__
 #if __has_warning("-Winconsistent-missing-override")
@@ -263,11 +263,11 @@ class MockRuntime
     void setup_legacy_delegators() {
       ON_CALL(*this, register_use(::testing::_))
         .WillByDefault(::testing::Invoke([this](auto* use) {
-          this->darma_runtime::abstract::backend::LegacyFlowsFromMethodsRuntime::register_use(use);
+          this->darma::abstract::backend::LegacyFlowsFromMethodsRuntime::register_use(use);
         }));
       ON_CALL(*this, release_use(::testing::_))
         .WillByDefault(::testing::Invoke([this](auto* use) {
-          this->darma_runtime::abstract::backend::LegacyFlowsFromMethodsRuntime::release_use(use);
+          this->darma::abstract::backend::LegacyFlowsFromMethodsRuntime::release_use(use);
         }));
     }
 
@@ -281,7 +281,7 @@ class MockRuntime
 
 
 class MockSerializationPolicy
-  : public darma_runtime::abstract::backend::SerializationPolicy
+  : public darma::abstract::backend::SerializationPolicy
 {
   public:
 
@@ -292,7 +292,7 @@ class MockSerializationPolicy
 };
 
 struct MockConcurrentRegionContextHandle
-  : public darma_runtime::abstract::backend::TaskCollectionContextHandle
+  : public darma::abstract::backend::TaskCollectionContextHandle
 {
   public:
     MOCK_CONST_METHOD0(get_backend_index, size_t());

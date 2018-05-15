@@ -49,7 +49,7 @@
 #include "detection.h"
 
 
-namespace darma_runtime {
+namespace darma {
 namespace meta {
 
 namespace _impl {
@@ -75,6 +75,6 @@ struct has_plus_equal
 
 
 } // end namespace meta
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_META_HAS_OP_H

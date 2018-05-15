@@ -48,7 +48,7 @@
 #include <darma/impl/make_key_functor.h>
 #include <darma/keyword_arguments/parse.h>
 
-namespace darma_runtime {
+namespace darma {
 
 template <typename... Args> 
 auto
@@ -56,7 +56,7 @@ check_test_make_key_functor(
   Args... args
 ) {
 
-  using namespace darma_runtime::detail;
+  using namespace darma::detail;
   using parser = detail::kwarg_parser<
     overload_description<
       _keyword<converted_parameter, keyword_tags_for_publication::version>
@@ -72,6 +72,6 @@ check_test_make_key_functor(
  
 }
 
-} // End namespace darma_runtime
+} // End namespace darma
 
 #endif

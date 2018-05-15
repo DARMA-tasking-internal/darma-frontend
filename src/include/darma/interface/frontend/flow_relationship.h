@@ -47,7 +47,7 @@
 
 #include <darma_types.h>
 
-namespace darma_runtime {
+namespace darma {
 namespace abstract {
 namespace frontend {
 
@@ -150,6 +150,6 @@ class FlowRelationship {
 
 } // end namespace frontend
 } // end namespace abstract
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_INTERFACE_FRONTEND_FLOW_RELATIONSHIP_H

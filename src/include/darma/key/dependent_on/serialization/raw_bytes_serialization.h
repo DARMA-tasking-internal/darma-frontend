@@ -49,19 +49,19 @@
 
 #include <darma/key/raw_bytes.h>
 
-namespace darma_runtime {
+namespace darma {
 
 namespace serialization {
 
 template <>
-struct Serializer<darma_runtime::detail::raw_bytes> {
+struct Serializer<darma::detail::raw_bytes> {
   template <typename Archive>
-  void get_size(darma_runtime::detail::raw_bytes const& val, Archive& ar) const {
+  void get_size(darma::detail::raw_bytes const& val, Archive& ar) const {
     ar % val.get_size();
     ar.add_to_size_raw(val.get_size());
   }
   template <typename Archive>
-  void pack(darma_runtime::detail::raw_bytes const& val, Archive& ar) const {
+  void pack(darma::detail::raw_bytes const& val, Archive& ar) const {
     ar << val.get_size();
     ar.pack_data_raw((char*)val.data.get(), (char*)val.data.get() + val.get_size());
   }
@@ -69,13 +69,13 @@ struct Serializer<darma_runtime::detail::raw_bytes> {
   void unpack(void* allocated, Archive& ar) const {
     size_t size = 0;
     ar >> size;
-    auto* val = new (allocated) darma_runtime::detail::raw_bytes(size);
+    auto* val = new (allocated) darma::detail::raw_bytes(size);
     ar.template unpack_data_raw<char>(val->data.get(), size);
   }
 };
 
 } // end namespace serialization
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMAFRONTEND_RAW_BYTES_SERIALIZATION_H

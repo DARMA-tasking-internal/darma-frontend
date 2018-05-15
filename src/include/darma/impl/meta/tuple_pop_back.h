@@ -48,7 +48,7 @@
 #include <utility>
 #include <tuple>
 
-namespace darma_runtime {
+namespace darma {
 
 namespace meta {
 
@@ -77,7 +77,7 @@ tuple_pop_back(Tuple&& tup) {
 
 } // end namespace meta
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 
 #endif //DARMA_IMPL_META_TUPLE_POP_BACK_H

@@ -58,7 +58,7 @@
 
 #include <string>
 
-namespace darma_runtime {
+namespace darma {
 
 namespace detail {
 
@@ -661,7 +661,7 @@ struct key_traits<
 // </editor-fold> end Serializer specialization for SSOKey
 //==============================================================================
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 
 

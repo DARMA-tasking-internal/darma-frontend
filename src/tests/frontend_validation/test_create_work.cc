@@ -85,8 +85,8 @@ struct TestModCaptureMN
 
 TEST_P(TestModCaptureMN, mod_capture_MN) {
   using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace darma;
+  using namespace darma::keyword_arguments_for_publication;
   using namespace mock_backend;
 
   mock_runtime->save_tasks = true;
@@ -155,8 +155,8 @@ INSTANTIATE_TEST_CASE_P(
 
 TEST_F(TestCreateWork, mod_capture_MN_vector) {
   using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace darma;
+  using namespace darma::keyword_arguments_for_publication;
   using namespace mock_backend;
 
   DECLARE_MOCK_FLOWS(finit1, finit2, fnull1, fnull2, fout1, fout2);
@@ -218,8 +218,8 @@ struct TestRoCaptureRN
 
 TEST_P(TestRoCaptureRN, ro_capture_RN) {
   using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace darma;
+  using namespace darma::keyword_arguments_for_publication;
   using namespace mock_backend;
 
   mock_runtime->save_tasks = true;
@@ -239,7 +239,7 @@ TEST_P(TestRoCaptureRN, ro_capture_RN) {
 
     // ro-capture of RN
     EXPECT_CALL(*mock_runtime, register_use(IsUseWithFlows(
-      &f_fetch, &f_fetch, darma_runtime::frontend::Permissions::Read, darma_runtime::frontend::Permissions::Read
+      &f_fetch, &f_fetch, darma::frontend::Permissions::Read, darma::frontend::Permissions::Read
     ))).WillOnce(SaveArg<0>(&read_use));
 
   }
@@ -284,8 +284,8 @@ struct TestCaptureMM
 
 TEST_P(TestCaptureMM, capture_MM) {
   using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace darma;
+  using namespace darma::keyword_arguments_for_publication;
   using namespace mock_backend;
 
   bool ro_capture = std::get<0>(GetParam());
@@ -399,9 +399,9 @@ TEST_P(TestCaptureMM, capture_MM) {
 
     EXPECT_CALL(*mock_runtime, legacy_register_use(IsUseWithFlows(
 #if _darma_has_feature(anti_flows)
-      f_forwarded, nullptr, darma_runtime::frontend::Permissions::Read, darma_runtime::frontend::Permissions::Read
+      f_forwarded, nullptr, darma::frontend::Permissions::Read, darma::frontend::Permissions::Read
 #else
-      f_forwarded, f_forwarded, darma_runtime::frontend::Permissions::Read, darma_runtime::frontend::Permissions::Read
+      f_forwarded, f_forwarded, darma::frontend::Permissions::Read, darma::frontend::Permissions::Read
 #endif // _darma_has_feature(anti_flows)
     ))).WillOnce(Invoke([&](auto&& use){
         use->get_data_pointer_reference() = (void*)(&value);
@@ -409,7 +409,7 @@ TEST_P(TestCaptureMM, capture_MM) {
       }));
     // Expect the continuing context use to be registered after the captured context
     EXPECT_CALL(*mock_runtime, legacy_register_use(IsUseWithFlows(
-      f_forwarded, f_outer_out, darma_runtime::frontend::Permissions::Modify, darma_runtime::frontend::Permissions::Read
+      f_forwarded, f_outer_out, darma::frontend::Permissions::Modify, darma::frontend::Permissions::Read
     ))).WillOnce(Invoke([&](auto&& use){
       // Shouldn't be necessary
       // use->get_data_pointer_reference() = (void*)(&value);
@@ -453,9 +453,9 @@ INSTANTIATE_TEST_CASE_P(
 
 TEST_F(TestCreateWork, named_task) {
   using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_publication;
-  using namespace darma_runtime::keyword_arguments_for_task_creation;
+  using namespace darma;
+  using namespace darma::keyword_arguments_for_publication;
+  using namespace darma::keyword_arguments_for_task_creation;
   using namespace mock_backend;
 
   EXPECT_CALL(*mock_runtime,
@@ -479,9 +479,9 @@ TEST_F(TestCreateWork, named_task) {
 
 TEST_F(TestCreateWork, handle_aliasing) {
   using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_publication;
-  using namespace darma_runtime::keyword_arguments_for_task_creation;
+  using namespace darma;
+  using namespace darma::keyword_arguments_for_publication;
+  using namespace darma::keyword_arguments_for_task_creation;
   using namespace mock_backend;
 
   mock_runtime->save_tasks = true;
@@ -534,9 +534,9 @@ struct TestScheduleOnly
 
 TEST_P(TestScheduleOnly, schedule_only) {
   using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_publication;
-  using namespace darma_runtime::keyword_arguments_for_task_creation;
+  using namespace darma;
+  using namespace darma::keyword_arguments_for_publication;
+  using namespace darma::keyword_arguments_for_task_creation;
   using namespace mock_backend;
 
   mock_runtime->save_tasks = true;
@@ -668,9 +668,9 @@ INSTANTIATE_TEST_CASE_P(
 #if defined(DEBUG) || !defined(NDEBUG)
 TEST_F(TestCreateWork, death_schedule_only) {
   using namespace ::testing;
-  using namespace darma_runtime;
+  using namespace darma;
   using namespace mock_backend;
-  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace darma::keyword_arguments_for_publication;
 
   MockFlow finit, fnull, f_sched_out;
   use_t* use_sched_capt = nullptr;
@@ -721,8 +721,8 @@ TEST_F(TestCreateWork, death_schedule_only) {
 #if 0
 TEST_F(TestCreateWork, mod_capture_MN_nested_MR) {
   using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace darma;
+  using namespace darma::keyword_arguments_for_publication;
   using namespace mock_backend;
 
   mock_runtime->save_tasks = true;
@@ -835,9 +835,9 @@ TEST_F_WITH_PARAMS(TestCreateWork, comm_capture_cc_from_mn,
   ::testing::Values(0, 1, 2, 3, 4, 5, 6), int
 ) {
   using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_publication;
-  using namespace darma_runtime::keyword_arguments_for_commutative_access;
+  using namespace darma;
+  using namespace darma::keyword_arguments_for_publication;
+  using namespace darma::keyword_arguments_for_commutative_access;
   using namespace mock_backend;
 
   mock_runtime->save_tasks = true;
@@ -883,14 +883,14 @@ TEST_F_WITH_PARAMS(TestCreateWork, comm_capture_cc_from_mn,
       [&](abstract::frontend::DependencyUse* use) {
         return use->get_in_flow() == fcomm_out
           && use->get_out_flow() == fnull
-          && use->immediate_permissions() == darma_runtime::frontend::Permissions::None
+          && use->immediate_permissions() == darma::frontend::Permissions::None
           && (
             // The ones that don't do explicit releases will have "None" scheduling
             // permissions on the last use
             ((semantic_mode == 0 || semantic_mode > 3)
-              && use->scheduling_permissions() == darma_runtime::frontend::Permissions::Modify)
+              && use->scheduling_permissions() == darma::frontend::Permissions::Modify)
             || ((semantic_mode == 1 || semantic_mode == 2 || semantic_mode == 3)
-              && use->scheduling_permissions() == darma_runtime::frontend::Permissions::None)
+              && use->scheduling_permissions() == darma::frontend::Permissions::None)
           );
       }
     ))).WillOnce(SaveArg<0>(&last_use));
@@ -1020,7 +1020,7 @@ TEST_F_WITH_PARAMS(TestCreateWork, comm_capture_cc_from_mn,
 
 TEST_F(TestCreateWork, mod_capture_new) {
   using namespace ::testing;
-  using namespace darma_runtime;
+  using namespace darma;
   using namespace mock_backend;
 
   mock_runtime->save_tasks = true;
@@ -1078,7 +1078,7 @@ TEST_F(TestCreateWork, mod_capture_new) {
 
 TEST_F(TestCreateWork, mod_capture_new_track_same) {
   using namespace ::testing;
-  using namespace darma_runtime;
+  using namespace darma;
   using namespace mock_backend;
 
   mock_runtime->save_tasks = true;

@@ -50,7 +50,7 @@
 
 #include "reduce_op.h"
 
-namespace darma_runtime {
+namespace darma {
 namespace detail {
 
 namespace _impl {
@@ -123,6 +123,6 @@ class SimpleCollectiveDetails
 };
 
 } // end namespace detail
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_COLLECTIVE_DETAILS_H

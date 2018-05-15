@@ -47,7 +47,7 @@
 
 #include <darma/impl/create_work/capture_permissions.h>
 
-namespace darma_runtime {
+namespace darma {
 namespace detail {
 
 namespace impl {
@@ -79,6 +79,6 @@ void required_permissions(Args&&... deferred_permissions_modifications) {
 };
 
 } // end namespace detail
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif // DARMAFRONTEND_PERMISSIONS_DOWNGRADES_H

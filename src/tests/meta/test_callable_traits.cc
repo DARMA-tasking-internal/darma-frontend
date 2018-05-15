@@ -58,7 +58,7 @@
 #include <tinympl/logical_not.hpp>
 #include <tinympl/logical_or.hpp>
 
-using namespace darma_runtime::meta;
+using namespace darma::meta;
 
 #define meta_fail "callable traits metatest failed"
 

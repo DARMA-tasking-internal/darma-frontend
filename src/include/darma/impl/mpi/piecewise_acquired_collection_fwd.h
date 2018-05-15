@@ -45,7 +45,7 @@
 #ifndef DARMA_IMPL_PIECEWISE_ACQUIRED_COLLECTION_FWD_H
 #define DARMA_IMPL_PIECEWISE_ACQUIRED_COLLECTION_FWD_H
 
-namespace darma_runtime {
+namespace darma {
 
 template<
   typename ValueType,
@@ -53,6 +53,6 @@ template<
 >
 class PiecewiseCollectionHandle;
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_PIECEWISE_ACQUIRED_COLLECTION_FWD_H

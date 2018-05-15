@@ -51,7 +51,7 @@
 
 // TODO delete this file
 
-namespace darma_runtime {
+namespace darma {
 namespace abstract {
 namespace backend {
 
@@ -62,6 +62,6 @@ struct TaskCollectionContextHandle {
 
 } // end namespace backend
 } // end namespace abstract
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_INTERFACE_BACKEND_REGION_CONTEXT_HANDLE_H

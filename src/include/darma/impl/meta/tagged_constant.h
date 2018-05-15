@@ -47,7 +47,7 @@
 
 #include <cstdlib>
 
-namespace darma_runtime {
+namespace darma {
 
 namespace meta {
 
@@ -83,22 +83,22 @@ std::size_t _get_tagged_constant_value() {
 
 } // end namespace meta
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #define DARMA_CREATE_TAGGED_CONSTANT(constant, catagory) \
   namespace detail { \
     struct constant##_tag_t : catagory { \
       static ::std::size_t value_in_catagory() { \
-        return ::darma_runtime::meta::detail::_get_tagged_constant_value_for_catagory<constant##_tag_t, catagory>(); \
+        return ::darma::meta::detail::_get_tagged_constant_value_for_catagory<constant##_tag_t, catagory>(); \
       } \
       static ::std::size_t value() { \
-        return ::darma_runtime::meta::detail::_get_tagged_constant_value<constant##_tag_t>(); \
+        return ::darma::meta::detail::_get_tagged_constant_value<constant##_tag_t>(); \
       } \
     }; \
   } /* end namespace detail */ \
   static constexpr detail::constant##_tag_t constant = { }
 
 #define DARMA_CREATE_TAGGED_CONSTANT_CATAGORY(catagory) \
-  struct catagory : ::darma_runtime::meta::tagged_constant { }
+  struct catagory : ::darma::meta::tagged_constant { }
 
 #endif //DARMA_IMPL_META_TAGGED_CONSTANT_H

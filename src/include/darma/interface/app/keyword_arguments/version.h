@@ -51,7 +51,7 @@ DeclareDarmaTypeTransparentKeyword(publication, version);
 
 DeclareStandardDarmaKeywordArgumentAliases(publication, version);
 
-namespace darma_runtime {
+namespace darma {
 
 namespace keyword_arguments_for_read_access {
 AliasDarmaKeyword(publication, version);
@@ -65,7 +65,7 @@ namespace keyword_arguments_for_access_handle_publish {
 AliasDarmaKeyword(publication, version);
 } // end namespace keyword_arguments_for_read_access
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 
 // TODO deprecate these

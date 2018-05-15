@@ -73,7 +73,7 @@ class TestCreateWorkWhile
 
 };
 
-using namespace darma_runtime;
+using namespace darma;
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -81,7 +81,7 @@ TEST_F_WITH_PARAMS(TestCreateWorkWhile, basic_same_always_false,
   ::testing::Combine(::testing::Bool(), ::testing::Bool()),
   std::tuple<bool, bool>
 ) {
-  using namespace darma_runtime;
+  using namespace darma;
   using namespace ::testing;
   using namespace mock_backend;
 
@@ -174,7 +174,7 @@ TEST_F_WITH_PARAMS(TestCreateWorkWhile, basic_same_always_false,
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestCreateWorkWhile, two_same_always_false) {
-  using namespace darma_runtime;
+  using namespace darma;
   using namespace ::testing;
   using namespace mock_backend;
 
@@ -265,7 +265,7 @@ TEST_F_WITH_PARAMS(TestCreateWorkWhile, two_handles_one_iteration,
   ::testing::Combine(::testing::Bool(), ::testing::Bool()),
   std::tuple<bool, bool>
 ) {
-  using namespace darma_runtime;
+  using namespace darma;
   using namespace ::testing;
   using namespace mock_backend;
 
@@ -499,7 +499,7 @@ TEST_F_WITH_PARAMS(TestCreateWorkWhile, one_handle_four_iterations,
   ::testing::Combine(::testing::Bool(), ::testing::Bool()),
   std::tuple<bool, bool>
 ) {
-  using namespace darma_runtime;
+  using namespace darma;
   using namespace ::testing;
   using namespace mock_backend;
 
@@ -697,7 +697,7 @@ TEST_F_WITH_PARAMS(TestCreateWorkWhile, two_handles_one_iteration_two_in_while,
   ::testing::Combine(::testing::Bool(), ::testing::Bool()),
   std::tuple<bool, bool>
 ) {
-  using namespace darma_runtime;
+  using namespace darma;
   using namespace ::testing;
   using namespace mock_backend;
 
@@ -900,7 +900,7 @@ TEST_F_WITH_PARAMS(TestCreateWorkWhile, basic_same_one_iteration,
   ::testing::Combine(::testing::Bool(), ::testing::Bool()),
   std::tuple<bool, bool>
 ) {
-  using namespace darma_runtime;
+  using namespace darma;
   using namespace ::testing;
   using namespace mock_backend;
 
@@ -1056,7 +1056,7 @@ TEST_F_WITH_PARAMS(TestCreateWorkWhile, basic_same_one_iteration,
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestCreateWorkWhile, basic_different_always_false) {
-  using namespace darma_runtime;
+  using namespace darma;
   using namespace ::testing;
   using namespace mock_backend;
 
@@ -1132,7 +1132,7 @@ TEST_F_WITH_PARAMS(TestCreateWorkWhile, basic_same_four_iterations,
   ::testing::Combine(::testing::Bool(), ::testing::Bool()),
   std::tuple<bool, bool>
 ) {
-  using namespace darma_runtime;
+  using namespace darma;
   using namespace ::testing;
   using namespace mock_backend;
 
@@ -1321,10 +1321,10 @@ TEST_F_WITH_PARAMS(TestCreateWorkWhile, basic_same_four_iterations,
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestCreateWorkWhile, collection_one_iteration) {
-  using namespace darma_runtime;
+  using namespace darma;
   using namespace ::testing;
   using namespace mock_backend;
-  using namespace darma_runtime::keyword_arguments;
+  using namespace darma::keyword_arguments;
 
   mock_runtime->save_tasks = true;
 
@@ -1568,7 +1568,7 @@ TEST_F(TestCreateWorkWhile, collection_one_iteration) {
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestCreateWorkWhile, functor_same_always_false) {
-  using namespace darma_runtime;
+  using namespace darma;
   using namespace ::testing;
   using namespace mock_backend;
 
@@ -1630,7 +1630,7 @@ TEST_F(TestCreateWorkWhile, functor_same_always_false) {
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestCreateWorkWhile, while_nested_read) {
-  using namespace darma_runtime;
+  using namespace darma;
   using namespace ::testing;
   using namespace mock_backend;
 
@@ -1797,7 +1797,7 @@ TEST_F(TestCreateWorkWhile, while_nested_read) {
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestCreateWorkWhile, basic_same_one_iter_nested) {
-  using namespace darma_runtime;
+  using namespace darma;
   using namespace ::testing;
   using namespace mock_backend;
 
@@ -1924,10 +1924,10 @@ TEST_F(TestCreateWorkWhile, basic_same_one_iter_nested) {
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestCreateWorkWhile, basic_coll_one_iter_nested) {
-  using namespace darma_runtime;
+  using namespace darma;
   using namespace ::testing;
   using namespace mock_backend;
-  using namespace darma_runtime::keyword_arguments;
+  using namespace darma::keyword_arguments;
 
   mock_runtime->save_tasks = true;
 
@@ -2108,10 +2108,10 @@ TEST_F(TestCreateWorkWhile, basic_coll_one_iter_nested) {
 ////////////////////////////////////////////////////////////////////////////////
 
 //TEST_F(TestCreateWorkWhile, nested_in_call_two_iters) {
-//  using namespace darma_runtime;
+//  using namespace darma;
 //  using namespace ::testing;
 //  using namespace mock_backend;
-//  using namespace darma_runtime::keyword_arguments;
+//  using namespace darma::keyword_arguments;
 //
 //
 //

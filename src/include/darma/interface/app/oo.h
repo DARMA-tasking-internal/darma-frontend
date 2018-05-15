@@ -49,7 +49,7 @@
 
 #if _darma_has_feature(oo_interface)
 
-namespace darma_runtime {
+namespace darma {
 namespace oo {
 
 template <typename ClassName, typename... Args>
@@ -91,7 +91,7 @@ template <typename... Args>
 using modifies_values_ = modifies_value_<Args...>;
 
 } // end namespace oo
-} // end namespace darma_runtime
+} // end namespace darma
 
 #include <darma/impl/oo/class.h>
 #include <darma/impl/oo/method.h>

@@ -50,7 +50,7 @@
 
 #include "create_if_then_fwd.h"
 
-namespace darma_runtime {
+namespace darma {
 namespace detail {
 
 
@@ -351,6 +351,6 @@ struct _create_work_else_helper<
 //------------------------------------------------------------------------------
 
 } // end namespace detail
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMAFRONTEND_CREATE_WORK_IF_LAMBDA_H

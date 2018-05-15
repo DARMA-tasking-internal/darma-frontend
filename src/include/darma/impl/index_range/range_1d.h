@@ -55,7 +55,7 @@
 #include <darma/serialization/polymorphic/polymorphic_serialization_adapter.h>
 #include <darma/impl/meta/parse_properties.h>
 
-namespace darma_runtime {
+namespace darma {
 
 namespace indexing {
 
@@ -198,6 +198,6 @@ using index_1d = detail::basic_integer_index_1d<int64_t>;
 } // end namespace indexing
 
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_INDEX_RANGE_RANGE_1D_H

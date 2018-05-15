@@ -53,7 +53,7 @@
 #include <tinympl/vector.hpp>
 #include <tinympl/detection.hpp>
 
-namespace darma_runtime {
+namespace darma {
 namespace detail {
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -203,7 +203,7 @@ struct is_kwarg_expression_with_tag<
 ////////////////////////////////////////////////////////////////////////////////
 
 } // end namespace detail
-} // end namespace darma_runtime
+} // end namespace darma
 
 
 

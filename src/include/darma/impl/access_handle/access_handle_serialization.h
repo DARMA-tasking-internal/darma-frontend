@@ -57,7 +57,7 @@
 
 #include <darma/utility/compatibility.h>
 
-namespace darma_runtime {
+namespace darma {
 
 //==============================================================================
 // <editor-fold desc="Serialization"> {{{1
@@ -157,7 +157,7 @@ struct Serializer<AccessHandle<Args...>>
       std::enable_if_t<
         is_packable_with_archive<types::flow_t, ArchiveT>::value
         and is_packable_with_archive<types::anti_flow_t, ArchiveT>::value,
-        darma_runtime::utility::_not_a_type
+        darma::utility::_not_a_type
       > = { }
     ) {
       ar | val.var_handle_base_->get_key();
@@ -175,7 +175,7 @@ struct Serializer<AccessHandle<Args...>>
       std::enable_if_t<
         not is_packable_with_archive<types::flow_t, ConvertiblePackingArchive>::value
           or not is_packable_with_archive<types::anti_flow_t, ConvertiblePackingArchive>::value,
-        darma_runtime::utility::_not_a_type
+        darma::utility::_not_a_type
       > = { }
     )
     {
@@ -218,7 +218,7 @@ struct Serializer<AccessHandle<Args...>>
       std::enable_if_t<
         not is_unpackable_with_archive<types::flow_t, ConvertibleUnpackingArchive>::value
           or not is_unpackable_with_archive<types::anti_flow_t, ConvertibleUnpackingArchive>::value,
-        darma_runtime::utility::_not_a_type
+        darma::utility::_not_a_type
       > = { }
     )
     {
@@ -244,8 +244,8 @@ void
 AccessHandle<T, Traits>::unpack_from_archive(Archive& ar) {
 
   using serialization_handler_t =
-    darma_runtime::serialization::PointerReferenceSerializationHandler<
-      darma_runtime::serialization::SimpleSerializationHandler<std::allocator<char>>
+    darma::serialization::PointerReferenceSerializationHandler<
+      darma::serialization::SimpleSerializationHandler<std::allocator<char>>
     >;
 
   key_t k = ar.template unpack_next_item_as<key_t>();
@@ -266,6 +266,6 @@ AccessHandle<T, Traits>::unpack_from_archive(Archive& ar) {
 // </editor-fold> end Serialization }}}1
 //==============================================================================
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMAFRONTEND_IMPL_ACCESS_HANDLE_ACCESS_HANDLE_SERIALIZATION_H
