@@ -47,6 +47,7 @@
 
 #include <darma/utility/managed_swap_storage.h>
 #include <darma/impl/handle_use_base.h>
+#include <darma/interface/backend/mpi_interop_fwd.h>
 
 namespace darma_runtime {
 namespace detail {
@@ -55,7 +56,11 @@ class UseHolderBase {
   public:
 
     bool could_be_alias = false;
+    bool is_use_registered = true;
     HandleUseBase* use_base = nullptr;
+    types::runtime_context_token_t context = nullptr;
+    types::persistent_collection_token_t collection_token = nullptr;
+    types::piecewise_collection_token_t piecewise_token = nullptr;
 
     virtual ~UseHolderBase() = default;
 
@@ -113,7 +118,7 @@ class UseHolder : public UseHolderBase {
     UseHolder(UseHolder const&) = delete;
 
     ~UseHolder() override {
-      if(use_) {
+      if(use_ and is_use_registered) {
         release_use();
       }
     }
@@ -126,6 +131,18 @@ class UseHolder : public UseHolderBase {
         std::forward<UseCtorArgs>(args)...
       );
       abstract::backend::get_backend_runtime()->register_use(rv->use_base);
+      return rv;
+    }
+
+    // create a UseHolder but without registering it
+    template <typename... UseCtorArgs>
+    static std::shared_ptr<UseHolder>
+    create_with_unregistered_use(UseCtorArgs&&... args) {
+      auto rv = std::make_shared<UseHolder>(
+        private_ctor_tag,
+        std::forward<UseCtorArgs>(args)...
+      );
+      rv->is_use_registered = false;
       return rv;
     }
 
@@ -146,7 +163,16 @@ class UseHolder : public UseHolderBase {
     release_use() {
       assert(use_ || !"Can't release Use when UseHolder doesn't contain a registered Use!");
       use_->establishes_alias_ = could_be_alias;
-      abstract::backend::get_backend_runtime()->release_use(use_.get());
+      if(context == nullptr) {
+        abstract::backend::get_backend_runtime()->release_use(use_.get());
+      }
+      else if(collection_token != nullptr) {
+        darma_runtime::backend::release_persistent_collection(context, collection_token);
+      }
+      else {
+        assert(piecewise_token != nullptr);
+        darma_runtime::backend::release_piecewise_collection(context, piecewise_token);
+      }
       use_.reset();
     }
 
@@ -160,6 +186,15 @@ class UseHolder : public UseHolderBase {
           abstract::backend::get_backend_runtime()->release_use(&to_be_released);
         }
       );
+    }
+
+    void 
+    register_unregistered_use() {
+      if (!is_use_registered) {
+        assert(use_ || !"Can't register Use when UseHolder doesn't contain a registered Use!");
+        is_use_registered = true;
+        abstract::backend::get_backend_runtime()->register_use(this->use_base);      
+      }
     }
 
     template <

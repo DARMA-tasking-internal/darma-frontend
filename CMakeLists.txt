@@ -16,10 +16,14 @@ set (DARMA_FE_REPO_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR})
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${DARMA_FE_REPO_ROOT}/cmake-modules)
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${DARMA_FE_REPO_ROOT}/cmake-modules/coveralls/cmake)
 
 
 option (DARMA_FE_ENABLE_TESTS "Enable build of frontend tests" Off)
 option (DARMA_CT_ENABLE_TESTS "Enable compilation time tests" Off)
+option (DARMA_ENABLE_COVERALLS "Enable coveralls coverage suport" Off)
+option (DARMA_COVERALLS_UPLOAD "Upload coveralls results" Off)
+mark_as_advanced(DARMA_COVERALLS_UPLOAD)
 
 set (DARMA_TESTS False)
 if (DARMA_FE_ENABLE_TESTS OR DARMA_CT_ENABLE_TESTS)
@@ -46,25 +50,49 @@ endif()
 # indicate that CMAKE was used, so config-generated.h can be used
 set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DDARMA_CONFIG_GENERATED_H_AVAILABLE" )
 
-option (DARMA_GENERATE_OO_MACRO_FILES 
-    "Generate OO macro expansions for testing and debugging purposes in test_oo"
-    OFF
-)
 
-
-option(DARMA_COVERAGE "Whether to setup coverage targets for tests" Off)
-
-if (DARMA_COVERAGE)
-include(CodeCoverage)
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fprofile-arcs -ftest-coverage")
+if (DARMA_ENABLE_COVERALLS)
+  if (!DARMA_FE_ENABLE_TESTS)
+    message(FATAL_ERROR "Can't run coveralls coverage without tests enabled")
+  endif()
+  include(Coveralls)
+  coveralls_turn_on_coverage()
+  file(GLOB_RECURSE all_source_files RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" src/include/darma/*.h)
+  coveralls_setup(
+    "${all_source_files}"
+    ${DARMA_COVERALLS_UPLOAD}
+    "${PROJECT_SOURCE_DIR}/cmake-modules/coveralls/cmake"
+  )
 endif()
 
 include (CheckCXXCompilerFlag)
 include (CheckCXXSourceCompiles)
 
 if (NOT CMAKE_VERSION VERSION_LESS 3.4)
-CHECK_CXX_COMPILER_FLAG("-fconcepts" DARMA_HAS_CXX_CONCEPTS_FLAG)
+  CHECK_CXX_COMPILER_FLAG("-fconcepts" DARMA_HAS_CXX_CONCEPTS_FLAG)
 endif()
 
 add_subdirectory(src)
+
+add_library(darma_frontend INTERFACE)
+target_include_directories(darma_frontend INTERFACE
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
+  $<INSTALL_INTERFACE:include>
+)
+install(TARGETS darma_frontend EXPORT darma_frontend)
+install(EXPORT darma_frontend DESTINATION cmake)
+
+configure_file(
+  cmake/darma_frontendConfig.cmake.in
+  "${PROJECT_BINARY_DIR}/darma_frontendConfig.cmake" @ONLY
+)
+install(
+  FILES
+  "${PROJECT_BINARY_DIR}/darma_frontendConfig.cmake" 
+  DESTINATION cmake 
+)
+ 
+
+
+
 

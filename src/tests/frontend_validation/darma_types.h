@@ -254,6 +254,14 @@ struct MockRuntimeInstanceToken {
   std::string name;
   template <typename Archive>
   void serialize(Archive& ar) { ar | name; }
+  bool
+  operator==(MockRuntimeInstanceToken const& other) const {
+    return name == other.name;
+  }
+  bool
+  operator!=(MockRuntimeInstanceToken const& other) const {
+    return not operator==(other);
+  }
 };
 
 } // end namespace mock_backend
@@ -270,6 +278,117 @@ namespace darma_runtime { namespace types {
 
 #include <darma/key/SSO_key.h>
 
+namespace mock_backend {
+
+struct MockRuntimeContextToken {
+  MockRuntimeContextToken() : token_(0) { }
+  MockRuntimeContextToken(size_t token) : token_(token) { }
+  MockRuntimeContextToken(std::nullptr_t)
+    : token_(std::numeric_limits<size_t>::max())
+  { }
+  MockRuntimeContextToken(MockRuntimeContextToken const& other) = default;
+  MockRuntimeContextToken(MockRuntimeContextToken&& other) = default;
+  MockRuntimeContextToken& operator=(MockRuntimeContextToken const& other) = default;
+  MockRuntimeContextToken& operator=(MockRuntimeContextToken&& other) = default;
+  size_t token_;
+  template <typename Archive> 
+  void serialize(Archive& ar) { ar | token_;}
+  bool
+  operator==(MockRuntimeContextToken const& other) const {
+    return token_ == other.token_;
+  }
+  bool
+  operator!=(MockRuntimeContextToken const& other) const {
+    return not operator==(other);
+  }
+};
+
+} // end namespace mock_backend
+
+namespace darma_runtime { namespace types {
+  using runtime_context_token_t = mock_backend::MockRuntimeContextToken;
+}} // end namespace darma_runtime::types
+
+namespace mock_backend {
+
+struct MockRuntimePiecewiseCollectionToken {
+  MockRuntimePiecewiseCollectionToken() : token_(0) { }
+  MockRuntimePiecewiseCollectionToken(size_t token) : token_(token) { }
+  MockRuntimePiecewiseCollectionToken(std::nullptr_t)
+    : token_(std::numeric_limits<size_t>::max())
+  { }
+  MockRuntimePiecewiseCollectionToken(MockRuntimePiecewiseCollectionToken const& other) = default;
+  MockRuntimePiecewiseCollectionToken(MockRuntimePiecewiseCollectionToken&& other) = default;
+  MockRuntimePiecewiseCollectionToken& operator=(MockRuntimePiecewiseCollectionToken const& other) = default;
+  MockRuntimePiecewiseCollectionToken& operator=(MockRuntimePiecewiseCollectionToken&& other) = default;
+  size_t token_;
+  template <typename Archive>
+  void serialize(Archive& ar) { ar | token_; }
+  bool
+  operator==(MockRuntimePiecewiseCollectionToken const& other) const {
+    return token_ == other.token_;
+  }
+  bool
+  operator!=(MockRuntimePiecewiseCollectionToken const& other) const {
+    return not operator==(other);
+  }
+};
+
+} // end namespace mock_backend
+
+namespace darma_runtime { namespace types {
+using piecewise_collection_token_t = mock_backend::MockRuntimePiecewiseCollectionToken;
+}} // end namespace darma_runtime::types
+
+namespace mock_backend {
+
+struct MockRuntimePersistentCollectionToken {
+  MockRuntimePersistentCollectionToken() : token_(0) { }
+  MockRuntimePersistentCollectionToken(size_t token) : token_(token) { }
+  MockRuntimePersistentCollectionToken(std::nullptr_t)
+    : token_(std::numeric_limits<size_t>::max())
+  { }
+  MockRuntimePersistentCollectionToken(MockRuntimePersistentCollectionToken const& other) = default;
+  MockRuntimePersistentCollectionToken(MockRuntimePersistentCollectionToken&& other) = default;
+  MockRuntimePersistentCollectionToken& operator=(MockRuntimePersistentCollectionToken const& other) = default;
+  MockRuntimePersistentCollectionToken& operator=(MockRuntimePersistentCollectionToken&& other) = default;
+  size_t token_;
+  template <typename Archive>
+  void serialize(Archive& ar) { ar | token_; }
+  bool
+  operator==(MockRuntimePersistentCollectionToken const& other) const {
+    return token_ == other.token_;
+  }
+  bool
+  operator!=(MockRuntimePersistentCollectionToken const& other) const {
+    return not operator==(other);
+  }
+};
+
+} // end namespace mock_backend
+
+namespace darma_runtime {namespace types {
+using persistent_collection_token_t = mock_backend::MockRuntimePersistentCollectionToken;
+}} // end namespace darma_runtime::types
+
+namespace mock_backend {
+
+struct MockRuntimeMPIComm {
+  MockRuntimeMPIComm() : token_(0) { }
+  MockRuntimeMPIComm(MockRuntimeMPIComm const& other) = default;
+  MockRuntimeMPIComm(MockRuntimeMPIComm&& other) = default;
+  MockRuntimeMPIComm& operator=(MockRuntimeMPIComm const& other) = default;
+  MockRuntimeMPIComm& operator=(MockRuntimeMPIComm&& other) = default;
+  size_t token_;
+  template <typename Archive>
+  void serialize(Archive& ar) { ar | token_; }
+};
+
+} // end namespace mock_backend
+
+namespace darma_runtime { namespace types {
+using MPI_Comm = mock_backend::MockRuntimeMPIComm;
+}} // end namespace darma_runtime::types
 
 
 #endif /* SRC_TESTS_FRONTEND_VALIDATION_DARMA_TYPES_H_ */

@@ -349,6 +349,8 @@ class Runtime {
     ) =0;
 #endif // _darma_has_feature(anti_flows)
 #endif
+
+    virtual ~Runtime() = default;
 };
 
 

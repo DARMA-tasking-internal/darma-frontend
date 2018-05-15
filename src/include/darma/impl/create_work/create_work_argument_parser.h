@@ -53,12 +53,11 @@
 #include <darma/impl/task/task_base.h>
 
 #include <darma/interface/app/keyword_arguments/name.h>
+#include <darma/interface/app/keyword_arguments/allow_aliasing.h>
+#include <darma/interface/app/keyword_arguments/is_parallel.h>
 
 #include <darma/interface/backend/types.h>
 
-// TODO move this once it becomes part of the specified interface
-DeclareDarmaTypeTransparentKeyword(task_creation, allow_aliasing);
-DeclareDarmaTypeTransparentKeyword(task_creation, is_parallel);
 
 namespace darma_runtime {
 namespace detail {

@@ -77,6 +77,11 @@
 
 #include <darma/impl/collective/collective_fwd.h> // detail::op_not_given
 
+#if _darma_has_feature(mpi_interop)
+#include <darma/impl/mpi/piecewise_acquired_collection_fwd.h>
+#endif // _darma_has_feature(mpi_interop)
+
+
 namespace darma_runtime {
 
 //==============================================================================
@@ -411,6 +416,13 @@ class AccessHandleCollection
     template <typename>
     friend struct detail::CopyCapturedObject;
 
+#if _darma_has_feature(mpi_interop)
+    template <typename, typename>
+    friend struct PiecewiseCollectionHandle;
+    template <typename, typename>
+    friend struct PersistentCollectionHandle;
+#endif // _darma_has_feature(mpi_interop)
+
   // </editor-fold> end friends }}}1
   //============================================================================
 
@@ -518,7 +530,7 @@ class AccessHandleCollection
         ::darma_runtime::detail::VariableHandle<value_type>
       >(key);
 
-      auto use_base = abstract::frontend::PolymorphicSerializableObject<detail::HandleUseBase>
+      auto use_base = serialization::PolymorphicSerializableObject<detail::HandleUseBase>
         ::unpack(*reinterpret_cast<char const**>(&ar.data_pointer_reference()));
 
       this->set_current_use(

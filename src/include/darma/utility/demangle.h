@@ -53,6 +53,9 @@
 #include <cassert>
 #include <sstream>
 
+// This is a debugging facility in and of itself that is allowed to spuriously
+// fail; we certainly don't need to test it separately
+// LCOV_EXCL_START
 #ifdef DARMA_HAVE_CXXABI_H
 
 #include <cxxabi.h>
@@ -114,13 +117,14 @@ namespace utility {
 template <typename T>
 struct try_demangle {
   static std::string name() {
-    std::type_info const& info = typeid(T);
-    std::stringstream sstr;
-    sstr << "[failed demangling";
-    sstr << ": couldn't include file cxxabi.h.";
-    sstr << "  std::type_info::name() returned:" << info.name();
-    sstr << "]";
-    return sstr.str();
+    // std::type_info const& info = typeid(T);
+    // std::stringstream sstr;
+    // sstr << "[failed demangling";
+    // sstr << ": couldn't include file cxxabi.h.";
+    // sstr << "  std::type_info::name() returned:" << info.name();
+    // sstr << "]";
+    // return sstr.str();
+    return std::string{};
   }
 };
 
@@ -128,5 +132,6 @@ struct try_demangle {
 } // end namespace darma_runtime
 
 #endif
+// LCOV_EXCL_STOP
 
 #endif //DARMA_IMPL_UTIL_DEMANGLE_H

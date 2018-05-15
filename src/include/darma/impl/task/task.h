@@ -76,7 +76,6 @@
 #include <darma/impl/access_handle_base.h>
 
 #include <darma/impl/util.h>
-#include <darma/impl/runnable/runnable.h>
 #include <darma/impl/runtime.h>
 #include <darma/impl/handle_fwd.h>
 #include <darma/impl/capture/callable_traits.h>
@@ -100,7 +99,7 @@ namespace frontend {
 inline
 abstract::backend::runtime_t::task_unique_ptr
 unpack_task(void const* packed_data) {
-  return darma_runtime::abstract::frontend::PolymorphicSerializableObject<
+  return serialization::PolymorphicSerializableObject<
     abstract::frontend::Task
   >::unpack(*reinterpret_cast<char const**>(&packed_data));
 }

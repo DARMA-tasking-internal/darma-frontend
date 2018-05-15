@@ -45,7 +45,7 @@
 #ifndef TINYMPL_SWITCH_HPP
 #define TINYMPL_SWITCH_HPP
 
-#include "equal_to.hpp"
+#include <tinympl/equal_to.hpp>
 
 namespace tinympl {
 

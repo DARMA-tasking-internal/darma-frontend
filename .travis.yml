@@ -1,0 +1,57 @@
+sudo: true
+dist: trusty
+language: cpp
+matrix:
+  include:
+  - os: linux
+    addons:
+      apt:
+        sources:
+        - ubuntu-toolchain-r-test
+        packages:
+        - g++-5
+    env:
+    - MATRIX_EVAL="CC=gcc-5 && CXX=g++-5"
+  - os: linux
+    addons:
+      apt:
+        sources:
+        - ubuntu-toolchain-r-test
+        packages:
+        - g++-7
+    env:
+    - MATRIX_EVAL="CC=gcc-7 && CXX=g++-7 && COVERALLS_CMAKE_OPTIONS='-DDARMA_ENABLE_COVERALLS=On
+      -DDARMA_COVERALLS_UPLOAD=On -DCMAKE_BUILD_TYPE=Debug' && DO_COVERALLS=true"
+addons:
+  apt:
+    packages:
+    - lcov
+    - curl
+before_install:
+- eval "${MATRIX_EVAL}"
+- wget https://github.com/google/googletest/archive/release-1.8.0.tar.gz -O /tmp/gtest.tar.gz
+- tar -xvf /tmp/gtest.tar.gz
+- export GTEST=$PWD/googletest-release-1.8.0
+install:
+- cd $GTEST
+- mkdir build
+- cd build
+- cmake -DCMAKE_INSTALL_PREFIX=$GTEST/install -DCMAKE_CXX_COMPILER=$CXX ..
+- make
+- make install
+script:
+- export COVERALLS_SERVICE_NAME=travis-ci
+- cd $TRAVIS_BUILD_DIR
+- mkdir build
+- cd build
+- cmake -DDARMA_FE_ENABLE_TESTS=On -DCMAKE_CXX_COMPILER=$CXX -DGTEST_DIR=$GTEST/install
+  ${COVERALLS_CMAKE_OPTIONS} ..
+- make VERBOSE=1
+- make VERBOSE=1 test
+- if [ $DO_COVERALLS == true ]; then make coveralls; fi
+notifications:
+  slack:
+    secure: bMpQX03z3t2EKC3E7hi3gOTxE5y6V7Iuc6YKCR19Je8Yq2dWSXmVv0rbOOENs0FT0wnjvm1gbixzbM9sokIPP14SBvufcYm9n+C1nM8XncmDcvzESV7j0C9+C30uNFMRfNwkNx4ua3EgFiZiqeogE21yijRj2RE2i7IVZKbCwQR3d13knTC2hz6M/PTwYGqSmxbptUrQNzrkGIcr/NTCTO5BkuFiSNc1fAghs3kqlExUDhmpKDQPfIzfJz94a/GIBa58pjOvsZoL035IvWBIPa2GLbyeKPpS1hjjXT1bIgeJ3xT6A1+SvQWgr89EFQw/Vz0X7ZjYYX+ZJoLC62QVwCQBQLKYOZp9L/5qh32swDYVGohvJMQTi/1A2bwMkOzgVlU6w7Z7u23vYijY1kT1AG3YBSgQf1igcV6s7kqCokMS5pQR19eyRYV6kIUCR2jL2L5wvlVWFikxdfEHDsEKCw6pNsLDEqtBjgAmcNNkk7k/+8luwms32Irs/hFXugWjCDK36/QcWray6ZgNb3Gx+rZzz9u8Iyp/OYueDSR3eCLNFZe3BkOQvjQfrWXN3zB7LOeBFGPHxykKPnP+8apV/KbTzX/xBZQLOnldjUbyQT7bsuxOXQ5z3xohG0B887o0kig8pLwAFiRmTrVp//CPOuTI8IMt0/if4ncgBlmaDcM=
+env:
+  global:
+    secure: I1IiJLuGwX8+sswoGVuLXKvCMwKXxWChzrAm20Rd3Bvs4g3LF9y/vEEjxupq4UUd3gpQBOnLs3mdWq/0A7RKgzKifWNxqLkVlCA2RaYsd7N7fAbmhYRo3Mib+FfWLhfMb5YPOxqXBtFiGtec4IaFtHBuAuwlb4iUGUxR598FZtf7gSk2F0RLDngmfSDUcrLnwi+haADpVn66gocFRz+eNBNq5UNlBHJp72gH7xRZOKdXGWfkXPl7mX5TaQMehZZz1NI8gdLxsArMAkUtWE3SdtFCnLCAtT9VM1nAoMLh01csTK4rtz6uc5Q785F8tHuK2c9Tswf/wpSN4i7eMi0RNV6IzTm8v+kndXMNXFdnJJ/UZUkRlm+gTApFJfDgZpxC9VKZzIzggYYDEH+PU4/78YRJWP4ecVmz2yAv9JBL4vdBd/lLa+ZmsTWlEkkmBH/LZIn6orvCTKs4F/rk0hF8xIxD9VW1CgM/mU+TVqt+46Zf/Oo+f+IQ5Q+haHPFWtAThFxEv6PdrTBghLKBdOdqGB3aiwlUH/Qz6Aa8TF+yaOc4QkJrNNvmuTP8cQXFxHFvUOLot5AhLDCTiqI3T3OGxUA0a03RQr2CkNTG3V3TL/YW80IYbjpJQN7r0OPqP5xMn73n3+AjZ7aRk2pVWOFzMgtG/mGaKJtgnRxz0y1P58Y=

@@ -474,6 +474,10 @@ struct functor_call_traits {
           //std::integral_constant<bool, formal_arg_accepts_move and not is_access_handle>,
           //  /* => */ std::remove_cv_t<std::remove_reference_t<CallArg>>,
           //------------------------------------------------------------
+          // Special case for char const*: store it as a string
+          std::is_same<std::decay_t<CallArg>, char const*>,
+            /* => */ std::string,
+          //------------------------------------------------------------
           // For other cases, require non-reference
           std::true_type,
             /* => */ //std::remove_reference_t<CallArg>
