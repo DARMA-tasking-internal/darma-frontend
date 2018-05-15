@@ -59,7 +59,7 @@
 #include <cstring>
 #include <sstream>
 
-namespace darma_runtime {
+namespace darma {
 
 namespace detail {
 
@@ -558,6 +558,6 @@ using bytes_size_known_statically =
 
 } // end namespace detail
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_BYTES_CONVERT_H

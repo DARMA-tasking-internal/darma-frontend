@@ -49,8 +49,8 @@
 
 using std::cout;
 using std::endl;
-using namespace darma_runtime;
-using namespace darma_runtime::detail;
+using namespace darma;
+using namespace darma::detail;
 
 struct BlabberMouth {
   BlabberMouth(const std::string& str) : str_(str) { std::cout << "#!! String constructor: " << str_ << std::endl; }
@@ -75,7 +75,7 @@ DeclareDarmaKeyword(testing, move_only, MovableOnly);
 DeclareDarmaKeyword(testing, string_arg, std::string);
 DeclareDarmaTypeTransparentKeyword(testing, foobar);
 
-namespace kw = darma_runtime::keyword_tags_for_testing;
+namespace kw = darma::keyword_tags_for_testing;
 
 template <typename... Args>
 void print_string_arg(Args&&... args) {
@@ -188,7 +188,7 @@ void print_blabbermouth_positional(Args&&... args) {
 
 }
 
-using namespace darma_runtime::keyword_arguments_for_testing;
+using namespace darma::keyword_arguments_for_testing;
 
 
 

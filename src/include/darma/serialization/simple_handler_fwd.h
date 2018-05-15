@@ -47,13 +47,13 @@
 
 #include <memory>
 
-namespace darma_runtime {
+namespace darma {
 namespace serialization {
 
 template <typename Allocator=std::allocator<char>>
 struct SimpleSerializationHandler;
 
 } // end namespace serialization
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMAFRONTEND_SIMPLE_HANDLER_FWD_H

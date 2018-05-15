@@ -51,7 +51,7 @@
 
 #include <darma/impl/meta/detection.h>
 
-namespace darma_runtime {
+namespace darma {
 
 namespace meta {
 
@@ -86,6 +86,6 @@ using is_in_streamable = is_detected<
 
 } // end namespace meta
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IS_STREAMABLE_H

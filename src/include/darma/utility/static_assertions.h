@@ -155,7 +155,7 @@ struct static_assert_value_less_<T, v1, v2, std::enable_if_t<(v1 < v2)>> {
   };
 };
 
-namespace darma_runtime {
+namespace darma {
 namespace utility {
 namespace _impl {
 
@@ -167,12 +167,12 @@ typename std::common_type<T, U>::type _get_constant_type(T, U);
 
 } // end namespace _impl
 } // end namespace utility
-} // end namespace darma_runtime
+} // end namespace darma
 
 #define STATIC_ASSERT_VALUE_LESS(...) \
   static constexpr int DARMA_CONCAT_TOKEN_(_type_eq_check_on_line_, __LINE__) = \
     static_assert_value_less_< \
-      decltype(::darma_runtime::utility::_impl::_get_constant_type(__VA_ARGS__)), \
+      decltype(::darma::utility::_impl::_get_constant_type(__VA_ARGS__)), \
       __VA_ARGS__ \
     >::value
 
@@ -203,7 +203,7 @@ struct static_assert_value_equal_<T, v1, v2, std::enable_if_t<(v1 == v2)>> {
 #define STATIC_ASSERT_VALUE_EQUAL(...) \
   static constexpr int DARMA_CONCAT_TOKEN_(_type_eq_check_on_line_, __LINE__) = \
     static_assert_value_equal_< \
-      decltype(::darma_runtime::utility::_impl::_get_constant_type(__VA_ARGS__)), \
+      decltype(::darma::utility::_impl::_get_constant_type(__VA_ARGS__)), \
       __VA_ARGS__ \
     >::value
 
@@ -235,7 +235,7 @@ struct static_assert_value_less_equal_<T, v1, v2, std::enable_if_t<(v1 <= v2)>> 
 #define STATIC_ASSERT_VALUE_LESS_EQUAL(...) \
   static constexpr int DARMA_CONCAT_TOKEN_(_type_eq_check_on_line_, __LINE__) = \
     static_assert_value_less_equal_< \
-      decltype(::darma_runtime::utility::_impl::_get_constant_type(__VA_ARGS__)), \
+      decltype(::darma::utility::_impl::_get_constant_type(__VA_ARGS__)), \
       __VA_ARGS__ \
     >::value
 

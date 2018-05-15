@@ -63,7 +63,7 @@
 
 #include "backend_fwd.h"
 
-namespace darma_runtime {
+namespace darma {
 
 namespace abstract {
 
@@ -84,8 +84,8 @@ class Runtime {
     using destructible_use_t = frontend::DestructibleUse;
     using use_pending_release_t = frontend::UsePendingRelease;
     using use_collection_t = abstract::frontend::UseCollection;
-    using pub_details_t = darma_runtime::abstract::frontend::PublicationDetails;
-    using collective_details_t = darma_runtime::abstract::frontend::CollectiveDetails;
+    using pub_details_t = darma::abstract::frontend::PublicationDetails;
+    using collective_details_t = darma::abstract::frontend::CollectiveDetails;
     using memory_details_t = abstract::frontend::MemoryRequirementDetails;
     using task_collection_t = abstract::frontend::TaskCollection;
     using task_collection_unique_ptr = std::unique_ptr<task_collection_t>;
@@ -480,15 +480,15 @@ typedef Runtime runtime_t;
 
 } // end namespace abstract
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 
 /** @brief Calls the application-provided darma_main() and then deletes the
  *  backend runtime before returning.
  *
  *  Invokes darma_main() via a call to the function pointer returned by
- *  darma_runtime::detail::_darma__generate_main_function_ptr<>().  After
- *  returning from darma_main(), the darma_runtime::detail::backend_runtime
+ *  darma::detail::_darma__generate_main_function_ptr<>().  After
+ *  returning from darma_main(), the darma::detail::backend_runtime
  *  pointer must be deleted.  It is a debug-mode error for darma_main() to
  *  return without having invoked Runtime::finalize() if
  *  darma_backend_initialize() was also called.
@@ -500,12 +500,12 @@ void backend_santioned_exit(int const);
 
 #include <string>
 
-namespace darma_runtime {
+namespace darma {
 void
 abort(
   std::string const& abort_str = std::string{}
 );
-} // end darma_runtime
+} // end darma
 
 #include <darma/interface/backend/types.h>
 

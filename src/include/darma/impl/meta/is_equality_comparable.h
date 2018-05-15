@@ -48,7 +48,7 @@
 #include <type_traits>
 #include <cassert>
 
-namespace darma_runtime {
+namespace darma {
 
 namespace meta {
 
@@ -103,6 +103,6 @@ struct is_equality_comparable {
 
 } // end namespace meta
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_META_IS_EQUALITY_COMPARABLE_H

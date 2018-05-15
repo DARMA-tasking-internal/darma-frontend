@@ -52,7 +52,7 @@
 
 // TODO serialization of non-standard allocators
 
-namespace darma_runtime {
+namespace darma {
 namespace serialization {
 
 template <typename T, typename Archive>
@@ -104,6 +104,6 @@ struct Serializer<std::list<T>> {
 };
 
 } // end namespace serialization
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMAFRONTEND_SERIALIZATION_SERIALIZERS_STANDARD_LIBRARY_LIST_H

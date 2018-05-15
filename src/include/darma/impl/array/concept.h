@@ -50,7 +50,7 @@
 
 #include "indexable.h"
 
-namespace darma_runtime {
+namespace darma {
 namespace detail {
 
 template <typename T, typename ElementRangeT>
@@ -97,6 +97,6 @@ class ArrayConceptManagerForType
 
 
 } // end namespace detail
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_ARRAY_CONCEPT_H

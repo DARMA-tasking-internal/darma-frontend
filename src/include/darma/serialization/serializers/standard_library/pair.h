@@ -52,7 +52,7 @@
 
 #include <utility>
 
-namespace darma_runtime {
+namespace darma {
 namespace serialization {
 
 //==============================================================================
@@ -130,6 +130,6 @@ template <typename T, typename U>
 struct Serializer<std::pair<T, U const>> : Serializer<std::pair<T, U>> { };
 
 } // end namespace serialization
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMAFRONTEND_SERIALIZATION_SERIALIZERS_STANDARD_LIBRARY_PAIR_H

@@ -50,7 +50,7 @@
 
 #include <tuple>
 
-namespace darma_runtime {
+namespace darma {
 namespace serialization {
 
 //==============================================================================
@@ -158,6 +158,6 @@ struct Serializer_enabled_if<
 };
 
 } // end namespace serialization
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMAFRONTEND_SERIALIZATION_SERIALIZERS_STANDARD_LIBRARY_TUPLE_H

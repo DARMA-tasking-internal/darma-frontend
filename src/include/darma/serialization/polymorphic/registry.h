@@ -53,7 +53,7 @@
 #include <cstdint>
 #include <memory>
 
-namespace darma_runtime {
+namespace darma {
 namespace serialization {
 namespace detail {
 
@@ -278,6 +278,6 @@ get_abstract_type_index() {
 
 } // end namespace detail
 } // end namespace serialization
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMAFRONTEND_SERIALIZATION_POLYMORPHIC_REGISTRY_H

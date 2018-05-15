@@ -57,7 +57,7 @@
 
 #include <darma/impl/use.h> // HandleUse, CollectionManagingUse
 
-namespace darma_runtime {
+namespace darma {
 namespace detail {
 
 //==============================================================================
@@ -158,6 +158,6 @@ struct UnmappedHandleCollection {
 };
 
 } // end namespace detail
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_TASK_COLLECTION_MAPPED_HANDLE_COLLECTION_H

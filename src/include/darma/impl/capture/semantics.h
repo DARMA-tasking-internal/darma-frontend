@@ -61,7 +61,7 @@
  *  pattern inputs and the rest expressing the output of the pattern matching
  *  case.  (These macros are, in turn, implemented with a partial specialization
  *  of the class template
- *  `darma_runtime::detail::capture_semantics::CaptureCase` that uses SFINAE
+ *  `darma::detail::capture_semantics::CaptureCase` that uses SFINAE
  *  for pattern matching.)
  *
  *  Cases are also denoted with comments so that they can quickly be searched
@@ -83,7 +83,7 @@
 
 #include "semantics_helpers.h"
 
-namespace darma_runtime {
+namespace darma {
 namespace detail {
 namespace capture_semantics {
 
@@ -475,6 +475,6 @@ static int _force_instantiate_capture_cases = capture_semantics::apply_with_capt
 
 } // end namespace capture_semantics
 } // end namespace detail
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMAFRONTEND_SEMANTICS_H

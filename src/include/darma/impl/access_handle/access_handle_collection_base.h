@@ -49,13 +49,13 @@
 
 #include <darma/impl/access_handle_base.h>
 
-namespace darma_runtime {
+namespace darma {
 
 namespace serialization {
 
 // Forward declaration
 template <typename T, typename IndexRangeT, typename Traits>
-struct Serializer<darma_runtime::AccessHandleCollection<T, IndexRangeT, Traits>>;
+struct Serializer<darma::AccessHandleCollection<T, IndexRangeT, Traits>>;
 
 } // end namespace serialization
 
@@ -177,6 +177,6 @@ class BasicAccessHandleCollection
 
 
 } // end namespace detail
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMAFRONTEND_ACCESS_HANDLE_COLLECTION_BASE_H

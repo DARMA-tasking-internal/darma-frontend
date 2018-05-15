@@ -48,7 +48,7 @@
 #include <cassert>
 #include <iostream>
 
-namespace darma_runtime {
+namespace darma {
 
 namespace detail {
 
@@ -91,7 +91,7 @@ bool _check_contains(const Key& k, const Container& c) {
 
 } // end namespace detail
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 
 #ifndef DARMA_ASSERTION_BEGIN

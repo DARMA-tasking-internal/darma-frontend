@@ -56,7 +56,7 @@
 #  define DARMA_SERIALIZATION_STRING_UNPACK_STACK_ALLOCATION_MAX 1024
 #endif
 
-namespace darma_runtime {
+namespace darma {
 namespace serialization {
 
 // TODO strings with non-standard/non-empty allocators ?
@@ -118,6 +118,6 @@ struct Serializer<std::basic_string<CharT, Traits>> {
 //==============================================================================
 
 } // end namespace serialization
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMAFRONTEND_SERIALIZATION_SERIALIZERS_STANDARD_LIBRARY_STRING_H

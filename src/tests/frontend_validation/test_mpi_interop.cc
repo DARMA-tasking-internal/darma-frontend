@@ -81,8 +81,8 @@ class TestMPIInterop
 
 TEST_F(TestMPIInterop, baseline_test) {
   using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_mpi_context;
+  using namespace darma;
+  using namespace darma::keyword_arguments_for_mpi_context;
   using namespace mock_backend;
 
 /*
@@ -135,12 +135,12 @@ TEST_F(TestMPIInterop, baseline_test) {
     double gb3 = 6;
     auto p1 = context.piecewise_acquired_collection<double>("Giulio", index_range = Range1D<int>(4));
     auto p2 = context.piecewise_acquired_collection<double>("Giulio2", size = 10);
-    auto token3 = context.piecewise_acquired_collection<double>("Giulio3", index_range = Range1D<int>(5), darma_runtime::keyword_arguments_for_mpi_context::index = 2, data = gb);
-    auto token4 = context.piecewise_acquired_collection<double>("Giulio4", size = 10, darma_runtime::keyword_arguments_for_mpi_context::index = 2, data = gb);
+    auto token3 = context.piecewise_acquired_collection<double>("Giulio3", index_range = Range1D<int>(5), darma::keyword_arguments_for_mpi_context::index = 2, data = gb);
+    auto token4 = context.piecewise_acquired_collection<double>("Giulio4", size = 10, darma::keyword_arguments_for_mpi_context::index = 2, data = gb);
     auto token5 = context.piecewise_acquired_collection<double>("Giulio5", index_range = Range1D<int>(6), indices(1,2,3),data(gb1,gb2,gb3));
     auto token6 = context.piecewise_acquired_collection<double>("Giulio6", size = 10, indices(1,2,3),data(gb1,gb2,gb3));
 
-    p1.acquire_access(gb,darma_runtime::keyword_arguments_for_piecewise_handle::index = 2);
+    p1.acquire_access(gb,darma::keyword_arguments_for_piecewise_handle::index = 2);
     //conversion_to_ahc(gb,p1);
 
   } // handles deleted

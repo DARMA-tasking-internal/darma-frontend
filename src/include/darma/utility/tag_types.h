@@ -45,7 +45,7 @@
 #ifndef DARMAFRONTEND_TAG_TYPES_H
 #define DARMAFRONTEND_TAG_TYPES_H
 
-namespace darma_runtime {
+namespace darma {
 namespace utility {
 
 struct variadic_constructor_arg_t { };
@@ -54,6 +54,6 @@ using variadic_constructor_tag_t = variadic_constructor_arg_t;
 constexpr variadic_constructor_tag_t variadic_constructor_tag = variadic_constructor_arg;
 
 } // end namespace utility
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMAFRONTEND_TAG_TYPES_H

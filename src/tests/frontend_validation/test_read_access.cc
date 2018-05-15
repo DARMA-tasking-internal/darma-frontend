@@ -75,11 +75,11 @@ class TestReadAccess
 
 TEST_F(TestReadAccess, call_sequence) {
   using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace darma;
+  using namespace darma::keyword_arguments_for_publication;
   using namespace mock_backend;
 
-  auto my_version_tag = darma_runtime::make_key("my_version_tag");
+  auto my_version_tag = darma::make_key("my_version_tag");
   DECLARE_MOCK_FLOWS(f_in, f_out);
   use_t* use_read = nullptr;
 

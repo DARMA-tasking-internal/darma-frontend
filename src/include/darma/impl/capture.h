@@ -50,7 +50,7 @@
 #include "handle.h"
 #include "use.h"
 
-namespace darma_runtime {
+namespace darma {
 namespace detail {
 
 
@@ -68,11 +68,11 @@ make_captured_use_holder(
   UseMaker&& use_holder_maker
 ) {
 
-  using namespace darma_runtime::detail::flow_relationships;
+  using namespace darma::detail::flow_relationships;
 
-  using namespace darma_runtime::abstract::frontend;
-  using darma_runtime::frontend::Permissions;
-  using darma_runtime::frontend::CoherenceMode;
+  using namespace darma::abstract::frontend;
+  using darma::frontend::Permissions;
+  using darma::frontend::CoherenceMode;
 
   // source scheduling permissions shouldn't be None at this point
   DARMA_ASSERT_MESSAGE(
@@ -198,7 +198,7 @@ make_captured_use_holder(
     source_and_continuing_holder,
     /* Use holder maker */
     [](auto&&... args) {
-      using namespace darma_runtime::detail;
+      using namespace darma::detail;
       auto rv = std::decay_t<UseHolderT>::create(
         std::forward<decltype(args)>(args)...
       );
@@ -208,7 +208,7 @@ make_captured_use_holder(
 }
 
 } // end namespace detail
-} // end namespace darma_runtime
+} // end namespace darma
 
 // OLD CODE!!!
 //  switch(source_and_continuing_holder->use->coherence_mode_) {

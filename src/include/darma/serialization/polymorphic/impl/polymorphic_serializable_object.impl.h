@@ -53,7 +53,7 @@
 
 #include <memory> // unique_ptr
 
-namespace darma_runtime {
+namespace darma {
 namespace serialization {
 
 template <typename AbstractType>
@@ -61,13 +61,13 @@ std::unique_ptr<AbstractType>
 PolymorphicSerializableObject<AbstractType>::unpack(char const*& buffer) {
   // Get the abstract type index that we're looking for
   static const size_t abstract_type_index =
-    darma_runtime::serialization::detail::get_abstract_type_index<AbstractType>();
+    darma::serialization::detail::get_abstract_type_index<AbstractType>();
 
   // Get the header
   auto const& header = *reinterpret_cast<
-    darma_runtime::serialization::detail::SerializedPolymorphicObjectHeader const*
+    darma::serialization::detail::SerializedPolymorphicObjectHeader const*
   >(buffer);
-  buffer += sizeof(darma_runtime::serialization::detail::SerializedPolymorphicObjectHeader);
+  buffer += sizeof(darma::serialization::detail::SerializedPolymorphicObjectHeader);
 
   // Look through the abstract bases that this object is registered for until
   // we find the entry that corresponds to a callable that unpacks the object
@@ -76,7 +76,7 @@ PolymorphicSerializableObject<AbstractType>::unpack(char const*& buffer) {
   size_t concrete_index = std::numeric_limits<size_t>::max();
   for(; i_base < header.n_bases; ++i_base) {
     const auto& entry = *reinterpret_cast<
-      darma_runtime::serialization::detail::PolymorphicAbstractBasesTableEntry const*
+      darma::serialization::detail::PolymorphicAbstractBasesTableEntry const*
     >(buffer);
 
     if (abstract_type_index == entry.abstract_index) {
@@ -85,25 +85,25 @@ PolymorphicSerializableObject<AbstractType>::unpack(char const*& buffer) {
       break;
     }
 
-    buffer += sizeof(darma_runtime::serialization::detail::PolymorphicAbstractBasesTableEntry);
+    buffer += sizeof(darma::serialization::detail::PolymorphicAbstractBasesTableEntry);
   }
   DARMA_ASSERT_MESSAGE(
     concrete_index != std::numeric_limits<size_t>::max(),
     "No registered unpacker found to unpack a concrete type as abstract type "
-      << darma_runtime::utility::try_demangle<AbstractType>::name()
+      << darma::utility::try_demangle<AbstractType>::name()
   );
 
   // Make sure we advance the buffer over all of the other base class entries
-  buffer += sizeof(darma_runtime::serialization::detail::PolymorphicAbstractBasesTableEntry) * (header.n_bases - i_base);
+  buffer += sizeof(darma::serialization::detail::PolymorphicAbstractBasesTableEntry) * (header.n_bases - i_base);
 
   // get a reference to the static registry
-  auto& reg = darma_runtime::serialization::detail::get_polymorphic_unpack_registry<AbstractType>();
+  auto& reg = darma::serialization::detail::get_polymorphic_unpack_registry<AbstractType>();
 
   // execute the unpack callable on the buffer
   return reg[concrete_index](buffer);
 }
 
 } // end namespace serialization
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_POLYMORPHIC_SERIALIZATION_H

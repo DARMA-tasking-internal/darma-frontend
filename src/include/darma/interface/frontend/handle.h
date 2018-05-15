@@ -50,7 +50,7 @@
 #include <darma/interface/frontend/array_movement_manager.h>
 #include <darma_types.h>
 
-namespace darma_runtime {
+namespace darma {
 namespace abstract {
 namespace frontend {
 
@@ -140,6 +140,6 @@ class Handle {
 
 } // end namespace frontend
 } // end namespace abstract
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_INTERFACE_FRONTEND_HANDLE_H

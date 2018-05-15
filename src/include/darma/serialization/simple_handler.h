@@ -51,7 +51,7 @@
 #include "simple_handler_fwd.h"
 #include "pointer_reference_handler_fwd.h"
 
-namespace darma_runtime {
+namespace darma {
 namespace serialization {
 
 /// A simple, allocator-aware serialization handler that only works with stateless allocators
@@ -145,7 +145,7 @@ struct SimpleSerializationHandler {
     //  CompatibleSizingArchive&& ar,
     //  std::enable_if_t<
     //    std::is_rvalue_reference<CompatibleSizingArchive&&>::value,
-    //    darma_runtime::utility::_not_a_type
+    //    darma::utility::_not_a_type
     //  > = { }
     //) {
     //  auto size = SimpleSerializationHandler::get_size(ar);
@@ -166,7 +166,7 @@ struct SimpleSerializationHandler {
       // Enforce move semantics on a forwarding reference template
       std::enable_if_t<
         std::is_rvalue_reference<SerializationBuffer&&>::value,
-        darma_runtime::utility::_not_a_type
+        darma::utility::_not_a_type
       > = { }
     ) {
       return SimplePackingArchive<std::decay_t<SerializationBuffer>>(std::move(buffer));
@@ -194,7 +194,7 @@ struct SimpleSerializationHandler {
       // Enforce move semantics on a forwarding reference template
       std::enable_if_t<
         std::is_rvalue_reference<CompatiblePackingArchive&&>::value,
-        darma_runtime::utility::_not_a_type
+        darma::utility::_not_a_type
       > = { }
     ) {
       ar._data_spot() = nullptr;  // As part of expiring the Archive
@@ -264,6 +264,6 @@ struct SimpleSerializationHandler {
 
 
 } // end namespace serialization
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMAFRONTEND_SIMPLE_HANDLER_H

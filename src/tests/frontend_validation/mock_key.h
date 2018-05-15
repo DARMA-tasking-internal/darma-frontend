@@ -96,15 +96,15 @@ struct StreamKey  {
 
   public:
 
-    StreamKey() : StreamKey(darma_runtime::detail::variadic_constructor_arg) { }
+    StreamKey() : StreamKey(darma::detail::variadic_constructor_arg) { }
 
     template <typename... Types>
     explicit StreamKey(
-      const darma_runtime::detail::variadic_constructor_arg_t,
+      const darma::detail::variadic_constructor_arg_t,
       Types&&... data
     ) {
       std::stringstream sstr;
-      darma_runtime::meta::tuple_for_each(std::make_tuple(data...), [&sstr](const auto& val) {
+      darma::meta::tuple_for_each(std::make_tuple(data...), [&sstr](const auto& val) {
         sstr << val << std::endl;
       });
       val_ = sstr.str();
@@ -116,7 +116,7 @@ struct StreamKey  {
       std::tuple<Types...>&& data
     ) {
       std::stringstream sstr;
-      darma_runtime::meta::tuple_for_each(data, [&sstr](const auto& val) {
+      darma::meta::tuple_for_each(data, [&sstr](const auto& val) {
         sstr << val << std::endl;
       });
       val_ = sstr.str();
@@ -188,7 +188,7 @@ inline std::ostream& operator<<(std::ostream& o, StreamKey const& k) {
 } // end namespace mock_backend
 
 
-namespace darma_runtime {
+namespace darma {
 
 namespace detail {
 
@@ -225,7 +225,7 @@ struct key_traits<mock_backend::StreamKey>
 
 } // end namespace detail
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 namespace std {
 

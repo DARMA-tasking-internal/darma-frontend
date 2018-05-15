@@ -45,6 +45,3 @@ add_unit_test(test_lambda_migrate)
 add_executable(run_all_frontend_tests ${frontendtestfiles} gtest_main.cc)
 
 target_link_libraries(run_all_frontend_tests ${DARMA_BACKEND_LIBNAME} ${GMOCK_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
-if (DARMA_COVERAGE)
-setup_target_for_coverage(frontend_coverage run_all_frontend_tests coverage)
-endif()

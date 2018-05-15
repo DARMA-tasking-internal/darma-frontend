@@ -54,7 +54,7 @@
 
 #include "is_equality_comparable.h"
 
-namespace darma_runtime {
+namespace darma {
 namespace meta {
 
 
@@ -415,6 +415,6 @@ class iterator_traits
 { };
 
 } // end namespace meta
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_META_IS_ITERATOR_H

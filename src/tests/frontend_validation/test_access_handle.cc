@@ -73,7 +73,7 @@ class TestAccessHandle_publish_MM_Test;
 ////////////////////////////////////////////////////////////////////////////////
 
 // Static traits tests
-using namespace darma_runtime;
+using namespace darma;
 
 STATIC_ASSERT_TYPE_EQ(
   AccessHandle<int, detail::make_access_handle_traits_t<int,
@@ -128,7 +128,7 @@ class TestAccessHandle
 
 //////////////////////////////////////////////////////////////////////////////
 
-using namespace darma_runtime;
+using namespace darma;
 void my_test_function(AccessHandle<int>& h) { }
 
 TEST_F(TestAccessHandle, function_call) {
@@ -143,9 +143,9 @@ TEST_F(TestAccessHandle, function_call) {
 /*
 TEST_F(TestAccessHandle, get_reference) {
   using namespace ::testing;
-  using namespace darma_runtime;
+  using namespace darma;
   using namespace mock_backend;
-  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace darma::keyword_arguments_for_publication;
 
   mock_runtime->save_tasks = true;
 
@@ -208,9 +208,9 @@ TEST_F(TestAccessHandle, get_reference) {
 //
 //TEST_F(TestAccessHandle, set_value) {
 //  using namespace ::testing;
-//  using namespace darma_runtime;
+//  using namespace darma;
 //  using namespace mock_backend;
-//  using namespace darma_runtime::keyword_arguments_for_publication;
+//  using namespace darma::keyword_arguments_for_publication;
 //
 //  mock_runtime->save_tasks = true;
 //
@@ -253,9 +253,9 @@ TEST_F(TestAccessHandle, get_reference) {
 //
 //TEST_F(TestAccessHandle, publish_MN) {
 //  using namespace ::testing;
-//  using namespace darma_runtime;
+//  using namespace darma;
 //  using namespace mock_backend;
-//  using namespace darma_runtime::keyword_arguments_for_publication;
+//  using namespace darma::keyword_arguments_for_publication;
 //
 //  mock_runtime->save_tasks = false;
 //
@@ -298,9 +298,9 @@ TEST_F(TestAccessHandle, get_reference) {
 //
 //TEST_F(TestAccessHandle, publish_MM) {
 //  using namespace ::testing;
-//  using namespace darma_runtime;
+//  using namespace darma;
 //  using namespace mock_backend;
-//  using namespace darma_runtime::keyword_arguments_for_publication;
+//  using namespace darma::keyword_arguments_for_publication;
 //
 //  mock_runtime->save_tasks = true;
 //
@@ -365,9 +365,9 @@ TEST_F(TestAccessHandle, get_reference) {
 #if defined(DEBUG) || !defined(NDEBUG)
 TEST_F(TestAccessHandle, death_capture_released) {
   using namespace ::testing;
-  using namespace darma_runtime;
+  using namespace darma;
   using namespace mock_backend;
-  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace darma::keyword_arguments_for_publication;
 
   mock_runtime->save_tasks = true;
 
@@ -394,9 +394,9 @@ TEST_F(TestAccessHandle, death_capture_released) {
 #if defined(DEBUG) || !defined(NDEBUG)
 TEST_F(TestAccessHandle, death_publish_released) {
   using namespace ::testing;
-  using namespace darma_runtime;
+  using namespace darma;
   using namespace mock_backend;
-  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace darma::keyword_arguments_for_publication;
 
   mock_runtime->save_tasks = true;
 
@@ -420,9 +420,9 @@ TEST_F(TestAccessHandle, death_publish_released) {
 #if defined(DEBUG) || !defined(NDEBUG)
 TEST_F(TestAccessHandle, death_get_value) {
   using namespace ::testing;
-  using namespace darma_runtime;
+  using namespace darma;
   using namespace mock_backend;
-  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace darma::keyword_arguments_for_publication;
 
   mock_runtime->save_tasks = true;
 
@@ -442,9 +442,9 @@ TEST_F(TestAccessHandle, death_get_value) {
 #if defined(DEBUG) || !defined(NDEBUG)
 TEST_F(TestAccessHandle, death_set_value) {
   using namespace ::testing;
-  using namespace darma_runtime;
+  using namespace darma;
   using namespace mock_backend;
-  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace darma::keyword_arguments_for_publication;
 
   mock_runtime->save_tasks = true;
 
@@ -464,9 +464,9 @@ TEST_F(TestAccessHandle, death_set_value) {
 #if defined(DEBUG) || !defined(NDEBUG)
 TEST_F(TestAccessHandle, death_get_reference) {
   using namespace ::testing;
-  using namespace darma_runtime;
+  using namespace darma;
   using namespace mock_backend;
-  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace darma::keyword_arguments_for_publication;
 
   mock_runtime->save_tasks = true;
 
@@ -486,9 +486,9 @@ TEST_F(TestAccessHandle, death_get_reference) {
 #if defined(DEBUG) || !defined(NDEBUG)
 TEST_F(TestAccessHandle, death_set_value_2) {
   using namespace ::testing;
-  using namespace darma_runtime;
+  using namespace darma;
   using namespace mock_backend;
-  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace darma::keyword_arguments_for_publication;
 
   EXPECT_DEATH(
     {
@@ -512,9 +512,9 @@ TEST_F(TestAccessHandle, death_set_value_2) {
 #if defined(DEBUG) || !defined(NDEBUG)
 TEST_F(TestAccessHandle, death_get_value_after_release) {
   using namespace ::testing;
-  using namespace darma_runtime;
+  using namespace darma;
   using namespace mock_backend;
-  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace darma::keyword_arguments_for_publication;
 
   EXPECT_DEATH(
     {
@@ -540,9 +540,9 @@ TEST_F(TestAccessHandle, death_get_value_after_release) {
 #if defined(DEBUG) || !defined(NDEBUG)
 TEST_F(TestAccessHandle, death_emplace_value_after_release) {
   using namespace ::testing;
-  using namespace darma_runtime;
+  using namespace darma;
   using namespace mock_backend;
-  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace darma::keyword_arguments_for_publication;
 
   EXPECT_DEATH(
     {
@@ -568,9 +568,9 @@ TEST_F(TestAccessHandle, death_emplace_value_after_release) {
 #if defined(DEBUG) || !defined(NDEBUG)
 TEST_F(TestAccessHandle, death_dereference) {
   using namespace ::testing;
-  using namespace darma_runtime;
+  using namespace darma;
   using namespace mock_backend;
-  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace darma::keyword_arguments_for_publication;
 
   mock_runtime->save_tasks = true;
 
@@ -591,9 +591,9 @@ TEST_F(TestAccessHandle, death_dereference) {
 #if defined(DEBUG) || !defined(NDEBUG)
 TEST_F(TestAccessHandle, death_dereference_arrow) {
   using namespace ::testing;
-  using namespace darma_runtime;
+  using namespace darma;
   using namespace mock_backend;
-  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace darma::keyword_arguments_for_publication;
 
   mock_runtime->save_tasks = true;
 

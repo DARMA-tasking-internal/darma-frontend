@@ -247,7 +247,7 @@ the DARMA OO syntax.  Nothing else should go between the curly braces.
 
 The class templates |private_fields|, |public_fields|, and |public_methods|
 (along with most of the symbols in this section) are defined in the namespace
-|darma_runtime::oo|.  They can be given in any order and any number of times. 
+|darma::oo|.  They can be given in any order and any number of times.
 Multiple lists (for instance, multiple |public_fields|), given to the
 same |darma_class| template will be merged (though, of course, the same name
 still should not be given for more than one field or method).
@@ -467,7 +467,7 @@ could do something like:
 struct MyClassDARMA_constructors
   : darma_constructors<MyClassDARMA>
 {
-  void operator()(darma_runtime::types::key_t& key_part) {
+  void operator()(darma::types::key_t& key_part) {
     larry = initial_access<int>(key_part, "larry");
     curly = initial_access<double>(key_part, "curly");
     moe = initial_access<string>(key_part, "moe");

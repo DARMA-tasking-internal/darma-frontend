@@ -47,7 +47,7 @@
 
 #include <tuple>
 
-namespace darma_runtime {
+namespace darma {
 namespace detail {
 
 template <
@@ -77,6 +77,6 @@ struct IfLambdaThenLambdaTask;
 struct ParsedCaptureOptions;
 
 } // end namespace detail
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_CREATE_IF_THEN_FWD_H

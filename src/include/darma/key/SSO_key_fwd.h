@@ -50,7 +50,7 @@
 #include <cstdint>
 #include <cstdlib>
 
-namespace darma_runtime {
+namespace darma {
 namespace detail {
 
 namespace _impl {
@@ -79,6 +79,6 @@ template <
 class SSOKey;
 
 } // end namespace detail
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_KEY_SSO_KEY_FWD_H

@@ -48,7 +48,7 @@
 #include "concept.h"
 #include "element_range.h"
 
-namespace darma_runtime {
+namespace darma {
 namespace detail {
 
 template <typename T, typename ElementRangeT>
@@ -65,6 +65,6 @@ ArrayConceptManagerForType<T, ElementRangeT>::get_element_range(
 }
 
 } // end namespace detail
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_ARRAY_CONCEPT_IMPL_H

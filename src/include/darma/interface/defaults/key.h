@@ -55,7 +55,7 @@
 #include <darma/impl/util.h>
 #include <darma/key/key_concept.h>
 
-namespace darma_runtime {
+namespace darma {
 
 namespace stream_key {
 
@@ -100,15 +100,15 @@ struct StreamKey  {
 
   public:
 
-    StreamKey() : StreamKey(darma_runtime::detail::variadic_constructor_arg) { }
+    StreamKey() : StreamKey(darma::detail::variadic_constructor_arg) { }
 
     template <typename... Types>
     explicit StreamKey(
-      const darma_runtime::detail::variadic_constructor_arg_t,
+      const darma::detail::variadic_constructor_arg_t,
       Types&&... data
     ) {
       std::stringstream sstr;
-      darma_runtime::meta::tuple_for_each(std::make_tuple(data...), [&sstr](const auto& val) {
+      darma::meta::tuple_for_each(std::make_tuple(data...), [&sstr](const auto& val) {
         sstr << val << std::endl;
       });
       val_ = sstr.str();
@@ -120,7 +120,7 @@ struct StreamKey  {
       std::tuple<Types...>&& data
     ) {
       std::stringstream sstr;
-      darma_runtime::meta::tuple_for_each(data, [&sstr](const auto& val) {
+      darma::meta::tuple_for_each(data, [&sstr](const auto& val) {
         sstr << val << std::endl;
       });
       val_ = sstr.str();
@@ -194,14 +194,14 @@ inline std::ostream& operator<<(std::ostream& o, StreamKey const& k) {
 namespace detail {
 
 template <>
-struct key_traits<darma_runtime::stream_key::StreamKey>
+struct key_traits<darma::stream_key::StreamKey>
 {
   struct maker {
     constexpr maker() = default;
     template <typename... Args>
-    inline darma_runtime::stream_key::StreamKey
+    inline darma::stream_key::StreamKey
     operator()(Args&&... args) const {
-      return darma_runtime::stream_key::StreamKey(
+      return darma::stream_key::StreamKey(
         detail::variadic_constructor_arg,
         std::forward<Args>(args)...
       );
@@ -211,49 +211,49 @@ struct key_traits<darma_runtime::stream_key::StreamKey>
   struct maker_from_tuple {
     constexpr maker_from_tuple() = default;
     template <typename... Args>
-    inline darma_runtime::stream_key::StreamKey
+    inline darma::stream_key::StreamKey
     operator()(std::tuple<Args...>&& data) const {
-      return darma_runtime::stream_key::StreamKey(
+      return darma::stream_key::StreamKey(
         std::forward<std::tuple<Args...>>(data)
       );
     }
   };
 
-  typedef darma_runtime::stream_key::key_hash hasher;
-  typedef darma_runtime::stream_key::key_equal key_equal;
+  typedef darma::stream_key::key_hash hasher;
+  typedef darma::stream_key::key_equal key_equal;
 
 };
 
 } // end namespace detail
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 namespace std {
 
 template<>
-struct hash<darma_runtime::stream_key::StreamKey> {
+struct hash<darma::stream_key::StreamKey> {
   size_t
-  operator()(const darma_runtime::stream_key::StreamKey& a) const {
-    return darma_runtime::stream_key::key_hash()(a);
+  operator()(const darma::stream_key::StreamKey& a) const {
+    return darma::stream_key::key_hash()(a);
   }
 };
 
 } // end namespace std
 
-DARMA_STATIC_ASSERT_VALID_KEY_TYPE(darma_runtime::stream_key::StreamKey);
+DARMA_STATIC_ASSERT_VALID_KEY_TYPE(darma::stream_key::StreamKey);
 
-namespace darma_runtime {
+namespace darma {
 
 namespace defaults {
 
-typedef darma_runtime::stream_key::StreamKey Key;
+typedef darma::stream_key::StreamKey Key;
 
 } // end namespace defaults
 
-} // end namespace darma_runtime
+} // end namespace darma
 
-namespace darma_runtime { namespace types {
-  typedef darma_runtime::defaults::Key key_t;
-}} // end namespace darma_runtime::types
+namespace darma { namespace types {
+  typedef darma::defaults::Key key_t;
+}} // end namespace darma::types
 
 #endif /* DARMA_STREAM_KEY_H_ */

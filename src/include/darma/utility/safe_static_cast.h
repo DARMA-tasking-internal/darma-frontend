@@ -51,7 +51,7 @@
 #include <type_traits>
 #include <memory> // std::shared_ptr, std::static_pointer_cast, etc.
 
-namespace darma_runtime {
+namespace darma {
 namespace utility {
 
 //==============================================================================
@@ -174,6 +174,6 @@ try_dynamic_cast(FromType val)
 //==============================================================================
 
 } // end namespace utility
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_UTIL_SAFE_STATIC_CAST_H

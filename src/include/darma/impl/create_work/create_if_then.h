@@ -62,7 +62,7 @@
 
 // TODO Don't create a task (and generate a warning?) if there are no captures in the if clause
 
-namespace darma_runtime {
+namespace darma {
 
 namespace detail {
 
@@ -416,6 +416,6 @@ struct IfThenElseCaptureManager<
 
 } // end namespace detail
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_CREATE_IF_THEN_H

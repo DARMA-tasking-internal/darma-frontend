@@ -45,7 +45,7 @@
 #ifndef DARMA_INTERFACE_FRONTEND_FWD_H
 #define DARMA_INTERFACE_FRONTEND_FWD_H
 
-namespace darma_runtime {
+namespace darma {
 namespace abstract {
 namespace frontend {
 
@@ -83,6 +83,6 @@ class UniquelyOwnedUse;
 
 } // end namespace frontend
 } // end namespace abstract
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_INTERFACE_FRONTEND_FWD_H

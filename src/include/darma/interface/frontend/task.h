@@ -59,7 +59,7 @@
 
 #include <darma/utility/config.h>
 
-namespace darma_runtime {
+namespace darma {
 
 namespace abstract {
 
@@ -166,16 +166,16 @@ class Task
 
 #if _darma_has_feature(create_parallel_for_custom_cpu_set)
 
-    //virtual darma_runtime::types::resource_pack_t const& get_resource_pack() const =0;
+    //virtual darma::types::resource_pack_t const& get_resource_pack() const =0;
 
-    virtual void set_resource_pack(darma_runtime::types::resource_pack_t const&) =0;
+    virtual void set_resource_pack(darma::types::resource_pack_t const&) =0;
 
 #endif
 
     /** @brief Indicates whether the task represents a parallel_for loop
      *
      * @return True if and only if this task directly wraps a parallel_for created via
-     * darma_runtime::backend::execute_parallel_for()
+     * darma::backend::execute_parallel_for()
      */
     virtual bool is_parallel_for_task() const =0;
 
@@ -207,7 +207,7 @@ make_empty_running_task();
 
 } // end namespace frontend
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 
 

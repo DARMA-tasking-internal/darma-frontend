@@ -73,8 +73,8 @@ class TestCreateWorkIf
 
 };
 
-using namespace darma_runtime;
-using namespace darma_runtime::experimental;
+using namespace darma;
+using namespace darma::experimental;
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -84,9 +84,9 @@ using namespace darma_runtime::experimental;
 //{ };
 
 TEST_F(TestCreateWorkIf, basic_same_always_false) {
-  using namespace darma_runtime;
+  using namespace darma;
   using namespace ::testing;
-  using namespace darma_runtime::keyword_arguments_for_parallel_for;
+  using namespace darma::keyword_arguments_for_parallel_for;
   using namespace mock_backend;
 
   mock_runtime->save_tasks = true;
@@ -145,9 +145,9 @@ TEST_F(TestCreateWorkIf, basic_same_always_false) {
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestCreateWorkIf, basic_same_always_true) {
-  using namespace darma_runtime;
+  using namespace darma;
   using namespace ::testing;
-  using namespace darma_runtime::keyword_arguments_for_parallel_for;
+  using namespace darma::keyword_arguments_for_parallel_for;
   using namespace mock_backend;
 
   mock_runtime->save_tasks = true;
@@ -240,9 +240,9 @@ TEST_F(TestCreateWorkIf, basic_same_always_true) {
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestCreateWorkIf, basic_same_always_true_functor) {
-  using namespace darma_runtime;
+  using namespace darma;
   using namespace ::testing;
-  using namespace darma_runtime::keyword_arguments_for_parallel_for;
+  using namespace darma::keyword_arguments_for_parallel_for;
   using namespace mock_backend;
 
   mock_runtime->save_tasks = true;
@@ -340,9 +340,9 @@ TEST_F(TestCreateWorkIf, basic_same_always_true_functor) {
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestCreateWorkIf, basic_different_always_true) {
-  using namespace darma_runtime;
+  using namespace darma;
   using namespace ::testing;
-  using namespace darma_runtime::keyword_arguments_for_parallel_for;
+  using namespace darma::keyword_arguments_for_parallel_for;
   using namespace mock_backend;
 
   mock_runtime->save_tasks = true;
@@ -444,9 +444,9 @@ TEST_F(TestCreateWorkIf, basic_different_always_true) {
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestCreateWorkIf, if_else_same_different_always_true) {
-  using namespace darma_runtime;
+  using namespace darma;
   using namespace ::testing;
-  using namespace darma_runtime::keyword_arguments_for_parallel_for;
+  using namespace darma::keyword_arguments_for_parallel_for;
   using namespace mock_backend;
 
   mock_runtime->save_tasks = true;
@@ -556,9 +556,9 @@ TEST_F(TestCreateWorkIf, if_else_same_different_always_true) {
 
 // TODO make this and the next one into a parameterized test
 TEST_F(TestCreateWorkIf, if_else_same_same_always_true) {
-  using namespace darma_runtime;
+  using namespace darma;
   using namespace ::testing;
-  using namespace darma_runtime::keyword_arguments_for_parallel_for;
+  using namespace darma::keyword_arguments_for_parallel_for;
   using namespace mock_backend;
 
   mock_runtime->save_tasks = true;
@@ -646,9 +646,9 @@ TEST_F(TestCreateWorkIf, if_else_same_same_always_true) {
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestCreateWorkIf, if_else_same_same_always_false) {
-  using namespace darma_runtime;
+  using namespace darma;
   using namespace ::testing;
-  using namespace darma_runtime::keyword_arguments_for_parallel_for;
+  using namespace darma::keyword_arguments_for_parallel_for;
   using namespace mock_backend;
 
   mock_runtime->save_tasks = true;
@@ -730,9 +730,9 @@ TEST_F(TestCreateWorkIf, if_else_same_same_always_false) {
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestCreateWorkIf, basic_same_read_only) {
-  using namespace darma_runtime;
+  using namespace darma;
   using namespace ::testing;
-  using namespace darma_runtime::keyword_arguments_for_parallel_for;
+  using namespace darma::keyword_arguments_for_parallel_for;
   using namespace mock_backend;
 
   mock_runtime->save_tasks = true;
@@ -810,9 +810,9 @@ TEST_F(TestCreateWorkIf, basic_same_read_only) {
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestCreateWorkIf, basic_same_read_only_write_else) {
-  using namespace darma_runtime;
+  using namespace darma;
   using namespace ::testing;
-  using namespace darma_runtime::keyword_arguments_for_parallel_for;
+  using namespace darma::keyword_arguments_for_parallel_for;
   using namespace mock_backend;
 
   mock_runtime->save_tasks = true;
@@ -897,9 +897,9 @@ TEST_F(TestCreateWorkIf, basic_same_read_only_write_else) {
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestCreateWorkIf, basic_same_true_if_lambda_then_functor) {
-  using namespace darma_runtime;
+  using namespace darma;
   using namespace ::testing;
-  using namespace darma_runtime::keyword_arguments_for_parallel_for;
+  using namespace darma::keyword_arguments_for_parallel_for;
   using namespace mock_backend;
 
   mock_runtime->save_tasks = true;
@@ -989,9 +989,9 @@ TEST_F(TestCreateWorkIf, basic_same_true_if_lambda_then_functor) {
 
 
 TEST_F(TestCreateWorkIf, same_false_if_lambda_then_lambda_else_functor) {
-  using namespace darma_runtime;
+  using namespace darma;
   using namespace ::testing;
-  using namespace darma_runtime::keyword_arguments_for_parallel_for;
+  using namespace darma::keyword_arguments_for_parallel_for;
   using namespace mock_backend;
 
   mock_runtime->save_tasks = true;
@@ -1089,9 +1089,9 @@ struct TestFunctorLambdaTrueFalse
 { };
 
 TEST_P(TestFunctorLambdaTrueFalse, same_if_then_else) {
-  using namespace darma_runtime;
+  using namespace darma;
   using namespace ::testing;
-  using namespace darma_runtime::keyword_arguments_for_parallel_for;
+  using namespace darma::keyword_arguments_for_parallel_for;
   using namespace mock_backend;
 
   mock_runtime->save_tasks = true;
@@ -1255,9 +1255,9 @@ INSTANTIATE_TEST_CASE_P(
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestCreateWorkIf, multiple_different_always_true) {
-  using namespace darma_runtime;
+  using namespace darma;
   using namespace ::testing;
-  using namespace darma_runtime::keyword_arguments_for_parallel_for;
+  using namespace darma::keyword_arguments_for_parallel_for;
   using namespace mock_backend;
 
   mock_runtime->save_tasks = true;
@@ -1386,10 +1386,10 @@ TEST_F(TestCreateWorkIf, multiple_different_always_true) {
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(TestCreateWorkIf, collection_then_always_true) {
-  using namespace darma_runtime;
+  using namespace darma;
   using namespace ::testing;
   using namespace mock_backend;
-  using namespace darma_runtime::keyword_arguments;
+  using namespace darma::keyword_arguments;
 
   mock_runtime->save_tasks = true;
 

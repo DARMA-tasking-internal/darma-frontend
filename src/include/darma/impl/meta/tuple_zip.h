@@ -51,7 +51,7 @@
 #include <tinympl/tuple_as_sequence.hpp>
 #include <tinympl/min_element.hpp>
 
-namespace darma_runtime {
+namespace darma {
 
 namespace meta {
 
@@ -92,7 +92,7 @@ auto tuple_zip(Tuples&&... tuples) {
 
 } // end namespace meta
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 
 #endif //DARMA_IMPL_META_TUPLE_ZIP_H_

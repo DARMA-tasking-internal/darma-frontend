@@ -51,7 +51,7 @@
 
 #include <darma/key/SSO_key.h>
 
-namespace darma_runtime {
+namespace darma {
 
 // Key utility functions
 // TODO these should be somewhere else...
@@ -59,15 +59,15 @@ namespace darma_runtime {
 template <typename... Args>
 inline types::key_t
 make_key(Args&&... args) {
-  return darma_runtime::detail::key_traits<types::key_t>::maker()(std::forward<Args>(args)...);
+  return darma::detail::key_traits<types::key_t>::maker()(std::forward<Args>(args)...);
 }
 
 //template <typename TupleType>
 //inline types::key_t
 //make_key_from_tuple(TupleType&& tup) {
-//  return darma_runtime::detail::key_traits<types::key_t>::maker_from_tuple()(std::forward<TupleType>(tup));
+//  return darma::detail::key_traits<types::key_t>::maker_from_tuple()(std::forward<TupleType>(tup));
 //}
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif /* SRC_ABSTRACT_BACKEND_TYPES_H_ */

@@ -77,7 +77,7 @@ class TestSerialize
 ////////////////////////////////////////////////////////////////////////////////
 
 //TEST_F(TestSerialize, fundamental) {
-//  using darma_runtime::serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
+//  using darma::serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
 //
 //  {
 //    int value = 42;
@@ -93,7 +93,7 @@ class TestSerialize
 //////////////////////////////////////////////////////////////////////////////////
 //
 //TEST_F(TestSerialize, fundamental_chain) {
-//  using darma_runtime::serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
+//  using darma::serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
 //
 //  int value = 42;
 //  constexpr int n_reps = 10;
@@ -111,7 +111,7 @@ class TestSerialize
 //////////////////////////////////////////////////////////////////////////////////
 //
 //TEST_F(TestSerialize, vector_simple) {
-//  using darma_runtime::serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
+//  using darma::serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
 //  using namespace std;
 //  using namespace ::testing;
 //
@@ -165,7 +165,7 @@ class TestSerialize
 //);
 //
 //static_assert(meta::is_container<std::map<int, int>>::value, "map<int, int> must be a Container");
-//static_assert(darma_runtime::serialization::Serializer<std::map<int, int>>::is_insertable,
+//static_assert(darma::serialization::Serializer<std::map<int, int>>::is_insertable,
 //  "map<int, int> should be insertable"
 //);
 //using map_int_int = std::map<int, int>;
@@ -190,7 +190,7 @@ class TestSerialize
 //  T t;
 //};
 //
-//namespace darma_runtime {
+//namespace darma {
 //namespace serialization {
 //
 //template <typename T>
@@ -204,11 +204,11 @@ class TestSerialize
 //};
 //
 //} // end namespace serialization
-//} // end namespace darma_runtime
+//} // end namespace darma
 //
 //
-//static_assert(darma_runtime::serialization::detail::serializability_traits<Foo<int>>
-//    ::template has_nonintrusive_serialize<darma_runtime::serialization::SimplePackUnpackArchive
+//static_assert(darma::serialization::detail::serializability_traits<Foo<int>>
+//    ::template has_nonintrusive_serialize<darma::serialization::SimplePackUnpackArchive
 //  >::value,
 //  "Foo<int> should have a nonintrusive serialize"
 //);
@@ -223,9 +223,9 @@ class TestSerialize
 //  using namespace std;
 //  using namespace ::testing;
 //  using namespace mock_backend;
-//  using namespace darma_runtime;
-//  using namespace darma_runtime::serialization;
-//  using darma_runtime::serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
+//  using namespace darma;
+//  using namespace darma::serialization;
+//  using darma::serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
 //
 //  std::vector<int> value = { 3, 1, 4, 1, 5, 9, 2, 6 };
 //
@@ -365,12 +365,12 @@ class TestSerialize
 //TEST_F(TestSerializeWithMock, range) {
 //  using namespace std;
 //  using namespace ::testing;
-//  using namespace darma_runtime::serialization;
+//  using namespace darma::serialization;
 //
 //  int my_val[5] = {1, 2, 3, 4, 5};
 //  int* value = &(my_val[0]);
 //
-//  using darma_runtime::serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
+//  using darma::serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
 //  SimplePackUnpackArchive ar;
 //
 //  ArchiveAccess::start_sizing(ar);
@@ -397,12 +397,12 @@ class TestSerialize
 //TEST_F(TestSerializeWithMock, range_begin_end) {
 //  using namespace std;
 //  using namespace ::testing;
-//  using namespace darma_runtime::serialization;
+//  using namespace darma::serialization;
 //
 //  int my_val[5] = {1, 2, 3, 4, 5};
 //  int* value = &(my_val[0]);
 //
-//  using darma_runtime::serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
+//  using darma::serialization::detail::DependencyHandle_attorneys::ArchiveAccess;
 //  SimplePackUnpackArchive ar;
 //
 //  ArchiveAccess::start_sizing(ar);

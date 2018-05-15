@@ -34,7 +34,7 @@ implementations with a \inlinecode{friend} specification} |serialize| method
 in the user class.  The |serialize| method provided for this purpose should be
 non-|const| and should take a single argument, which in the simplest case will
 be an lvalue reference to a
-|darma_runtime::serialization::SimplePackUnpackArchive| object.  For instance,
+|darma::serialization::SimplePackUnpackArchive| object.  For instance,
 consider the following (somewhat contrived) user-defined class:
 %
 \begin{CppCodeNumb}
@@ -58,7 +58,7 @@ class MyClass {
 The simplest way to allow \gls{DARMA} to interact with |MyClass| is to provide
 a |serialize| method in the class definition:
 \begin{CppCodeNumb}
-using Archive = darma_runtime::serialization::SimplePackUnpackArchive;
+using Archive = darma::serialization::SimplePackUnpackArchive;
 class MyClass {
   public:
     /* ... */
@@ -232,7 +232,7 @@ performance-critical, inner-loop-like code.
 \subsection{Serializing Pointers and Ranges}
 
 \gls{DARMA} also provides a convenient way to serialize iterables of serializable
-objects using |darma_runtime::serialization::range|.  As a simple example:
+objects using |darma::serialization::range|.  As a simple example:
 \begin{CppCodeNumb}
 template <typename T>
 class MyData {
@@ -251,7 +251,7 @@ class MyData {
 If we restrict ourselves to only making |MyData<T>| instances that hold
 serializable types |T|, we can write the |serialize| method for this class as
 \begin{CppCodeNumb}
-using darma_runtime::serialization::range;
+using darma::serialization::range;
 template <typename T>
 class MyData {
   public:
@@ -268,10 +268,10 @@ class MyData {
 Classes for which the user cannot define an intrusive |serialize| method (or
 any of the other intrusive methods), for one reason or another, can still be
 made serializable by defining a specialization (partial or full) of the class
-|darma_runtime::serialization::Serializer<T>| for the type in
+|darma::serialization::Serializer<T>| for the type in
 question.\footnote{Generic implementations requiring partial specialization
   with an \inlinecode{enable_if} clause should use
-\inlinecode{darma_runtime::serialization::detail::Serializer_enabled_if<T, Enable>}.  Consult source code for more details.}  Like the intrusive interface,
+\inlinecode{darma::serialization::detail::Serializer_enabled_if<T, Enable>}.  Consult source code for more details.}  Like the intrusive interface,
 these classes can define a |serialize| method; individual |compute_size|,
 |pack|, and |unpack| methods; or some combination of these, with the specific
 versions having higher priority.  All of these methods must be |const| (the
@@ -295,7 +295,7 @@ class YourClass {
 Assuming |YourClass| is default constructible, a way to specify a serialization
 for |YourClass| non-intrusively is:
 \begin{CppCodeNumb}
-namespace darma_runtime { namespace serialization {
+namespace darma { namespace serialization {
 template <>
 struct Serializer<YourClass> {
   template <typename Archive>
@@ -316,13 +316,13 @@ struct Serializer<YourClass> {
     }
   }
 };
-}} // end namespace darma_runtime::serialization
+}} // end namespace darma::serialization
 \end{CppCodeNumb}
 As before, we can split this into |serialize| and |unpack| methods.  However,
 the |unpack| method requires a slightly different signature:
 \begin{CppCodeNumb}
 template <typename Archive>
-darma_runtime::serialization::Serializer<YourClass>::unpack(
+darma::serialization::Serializer<YourClass>::unpack(
   void* allocated, Archive& ar
 ) const;
 \end{CppCodeNumb}
@@ -336,7 +336,7 @@ little strange if you've never seen it before, but once you see it, its use is
 pretty straightforward.  The non-intrusive |Serializer| for |YourClass| can then
 be written as:
 \begin{CppCodeNumb}
-namespace darma_runtime { namespace serialization {
+namespace darma { namespace serialization {
 template <>
 struct Serializer<YourClass> {
   template <typename Archive>
@@ -360,18 +360,18 @@ struct Serializer<YourClass> {
     yc->set_label(label);
   }
 };
-}} // end namespace darma_runtime::serialization
+}} // end namespace darma::serialization
 \end{CppCodeNumb}
 The non-intrusive interface versions of |pack| and |compute_size| have similar
 signatures to that of |serialize|, except they take a |const| lvalue reference
 as their first argument:
 \begin{CppCodeNumb}
 template <typename Archive>
-darma_runtime::serialization::Serializer<YourClass>::compute_size(
+darma::serialization::Serializer<YourClass>::compute_size(
   YourClass const& val, Archive& ar
 ) const;
 template <typename Archive>
-darma_runtime::serialization::Serializer<YourClass>::pack(
+darma::serialization::Serializer<YourClass>::pack(
   YourClass const& val, Archive& ar
 ) const;
 \end{CppCodeNumb}
@@ -405,17 +405,17 @@ the current backend are with respect to a generic \gls{archive} type, but since
 the code is only tested with this \gls{archive} thus far.
 
 You can define a serialization for any bitwise copyable, \gls{POD} type simply by
-specializing |darma_runtime::serialization::serialize_as_pod<T>| to inherit from
+specializing |darma::serialization::serialize_as_pod<T>| to inherit from
 |std::true_type|:
 \begin{CppCodeNumb}
 class MyPlainOldData {
   int i, j, k;
   double x, y, z; 
 };
-namespace darma_runtime { namespace serialization {
+namespace darma { namespace serialization {
 template <>
 struct serialize_as_pod<MyPlainOldData> : std::true_type { };
-}} // end namespace darma_runtime::serialization
+}} // end namespace darma::serialization
 \end{CppCodeNumb}
 
 \subsection{Polymorphism}

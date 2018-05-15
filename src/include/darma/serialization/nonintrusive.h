@@ -47,7 +47,7 @@
 
 #include <darma/serialization/serialization_fwd.h>
 
-namespace darma_runtime {
+namespace darma {
 namespace serialization {
 
 template <typename T, typename Enable/*=void*/>
@@ -62,6 +62,6 @@ struct Serializer : Serializer_enabled_if<T, void> {
 
 
 } // end namespace serialization
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMAFRONTEND_SERIALIZATION_NONINTRUSIVE_H

@@ -55,7 +55,7 @@
 #include "darma/impl/task/task.h"
 #include "darma/impl/handle.h"
 
-namespace darma_runtime {
+namespace darma {
 
 namespace detail {
 
@@ -288,7 +288,7 @@ struct functor_call_traits {
       public:
 
         static constexpr auto is_access_handle =
-          darma_runtime::detail::is_access_handle<std::decay_t<CallArg>>::value;
+          darma::detail::is_access_handle<std::decay_t<CallArg>>::value;
 
         using formal_traits = typename functor_traits<Functor>::template formal_arg_traits<N>;
 
@@ -769,6 +769,6 @@ struct functor_closure_traits<
 
 
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_FUNCTOR_TRAITS_H

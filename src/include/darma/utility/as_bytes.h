@@ -49,7 +49,7 @@
 
 #include <cstdint>
 
-namespace darma_runtime {
+namespace darma {
 namespace detail {
 
 //   http://stackoverflow.com/questions/2590677/how-do-i-combine-hash-values-in-c0x
@@ -147,6 +147,6 @@ hash_as_bytes(const char* a, size_t a_size) {
 }
 
 } // end namespace detail
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMAFRONTEND_AS_BYTES_H

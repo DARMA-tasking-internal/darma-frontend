@@ -49,17 +49,17 @@
 
 #include <darma/serialization/direct_serialization.h>
 
-namespace darma_runtime {
+namespace darma {
 
 namespace serialization {
 
 template <>
-struct is_directly_serializable<darma_runtime::detail::bytes_type_metadata>
+struct is_directly_serializable<darma::detail::bytes_type_metadata>
   : std::true_type { };
 
 } // end namespace serialization
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 
 #endif //DARMAFRONTEND_BYTES_TYPE_METADATA_SERIALIZATION_H

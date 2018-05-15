@@ -45,7 +45,7 @@
 #ifndef DARMA_INTERFACE_BACKEND_FLOW_H
 #define DARMA_INTERFACE_BACKEND_FLOW_H
 
-namespace darma_runtime {
+namespace darma {
 namespace abstract {
 namespace backend {
 
@@ -153,6 +153,6 @@ class Flow { };
 
 } // end namespace backend
 } // end namespace abstract
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_INTERFACE_BACKEND_FLOW_H

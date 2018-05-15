@@ -7,7 +7,7 @@ stream}) in the \gls{DARMA} environment.
 
 \paragraph{Syntax}\mbox{}\\
 \begin{CppCode}
-/* unspecified */ darma_runtime::darma_spmd_size();
+/* unspecified */ darma::darma_spmd_size();
 \end{CppCode}
 
 \paragraph{Positional Arguments} \mbox{}\\
@@ -33,7 +33,7 @@ to invoke \codelink{darma_init}).
 #include <darma.h>
 int darma_main(int argc, char** argv)
 {
-  using namespace darma_runtime;
+  using namespace darma;
   darma_init(argc, argv);
 
   const size_t size = darma_spmd_size();

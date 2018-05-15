@@ -54,7 +54,7 @@
 #include <darma/impl/task_collection/access_handle_collection.h>
 
 
-namespace darma_runtime {
+namespace darma {
 
 template<
   typename ValueType,
@@ -106,8 +106,8 @@ class PersistentCollectionHandle {
     {
 
       // TODO: change flow relationships
-      using namespace darma_runtime::detail;
-      using namespace darma_runtime::detail::flow_relationships;
+      using namespace darma::detail;
+      using namespace darma::detail::flow_relationships;
 
       use_holder_ = detail::UseHolder<
         BasicCollectionManagingUse<IndexRangeT>
@@ -116,8 +116,8 @@ class PersistentCollectionHandle {
           std::forward<IndexRangeT>(range_)
         ),
         var_handle_,
-        darma_runtime::frontend::Permissions::Modify,
-        darma_runtime::frontend::Permissions::None,
+        darma::frontend::Permissions::Modify,
+        darma::frontend::Permissions::None,
         initial_flow().as_collection_relationship(),
         null_flow().as_collection_relationship(),
         insignificant_flow().as_collection_relationship(),
@@ -162,7 +162,7 @@ class PersistentCollectionHandle {
 
 };
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif // _darma_has_feature(mpi_interop)
 

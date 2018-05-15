@@ -48,7 +48,7 @@
 #include <type_traits>
 #include "darma/utility/not_a_type.h"
 
-namespace darma_runtime {
+namespace darma {
 namespace utility {
 
 namespace _impl {
@@ -133,6 +133,6 @@ darma_constexpr_if(
 };
 
 } // end namespace utility
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMAFRONTEND_IMPL_UTIL_CONSTEXPR_IF_H

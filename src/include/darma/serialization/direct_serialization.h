@@ -50,7 +50,7 @@
 
 #include <type_traits>
 
-namespace darma_runtime {
+namespace darma {
 namespace serialization {
 
 template <typename T>
@@ -75,6 +75,6 @@ struct Serializer_enabled_if<
 };
 
 } // end namespace serialization
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMAFRONTEND_DIRECT_SERIALIZATION_H

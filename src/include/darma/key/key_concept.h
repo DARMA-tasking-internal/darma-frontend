@@ -51,7 +51,7 @@
 
 #include <type_traits> // std::integral_constant
 
-namespace darma_runtime {
+namespace darma {
 namespace detail {
 
 template <typename key_type>
@@ -67,7 +67,7 @@ struct meets_key_concept {
     // Must specialize the key_traits class
     template <typename Key>
     //using specializes_key_traits_archetype = decltype( std::declval<key_traits<Key>>() );
-    using specializes_key_traits_archetype = darma_runtime::detail::key_traits<Key>;
+    using specializes_key_traits_archetype = darma::detail::key_traits<Key>;
 
     // This will be the type tinympl::nonesuch if the specialization doesn't exist
     // and key_traits<Key> if it does (see tinympl::detected_t)
@@ -242,31 +242,31 @@ operator<<(std::ostream& o, Key const& k) {
 
 
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 
 #define DARMA_STATIC_ASSERT_VALID_KEY_TYPE(K) \
-  static_assert(darma_runtime::detail::meets_key_concept<K>::has_traits_specialization, \
+  static_assert(darma::detail::meets_key_concept<K>::has_traits_specialization, \
     "key_traits not specialized for type" #K); \
-  static_assert(darma_runtime::detail::meets_key_concept<K>::has_key_equal, \
+  static_assert(darma::detail::meets_key_concept<K>::has_key_equal, \
     "key_traits<" #K "> specialization missing key_equal member type"); \
-  static_assert(darma_runtime::detail::meets_key_concept<K>::key_equal_works, \
+  static_assert(darma::detail::meets_key_concept<K>::key_equal_works, \
     "key_traits<" #K ">::key_equal does not work as expected"); \
-  static_assert(darma_runtime::detail::meets_key_concept<K>::has_hasher, \
+  static_assert(darma::detail::meets_key_concept<K>::has_hasher, \
     "key_traits<" #K "> specialization missing hasher member type"); \
-  static_assert(darma_runtime::detail::meets_key_concept<K>::hasher_works, \
+  static_assert(darma::detail::meets_key_concept<K>::hasher_works, \
     "key_traits<" #K ">::hasher does not work as expected"); \
-  static_assert(darma_runtime::detail::meets_key_concept<K>::has_maker, \
+  static_assert(darma::detail::meets_key_concept<K>::has_maker, \
     "key_traits<" #K "> specialization missing maker member type"); \
-  static_assert(darma_runtime::detail::meets_key_concept<K>::has_component_method, \
+  static_assert(darma::detail::meets_key_concept<K>::has_component_method, \
     #K " is missing template method component<N>()"); \
-  static_assert(darma_runtime::detail::meets_key_concept<K>::key_component_method_works, \
+  static_assert(darma::detail::meets_key_concept<K>::key_component_method_works, \
     "return value of component<N>() for " #K " does not have an as<>() method that returns the component as a type"); \
 
-//  static_assert(darma_runtime::detail::meets_key_concept<K>::has_maker_from_tuple, \
+//  static_assert(darma::detail::meets_key_concept<K>::has_maker_from_tuple, \
 //    "key_traits<" #K "> specialization missing maker_from_tuple member type"); \
 
-//static_assert(not darma_runtime::detail::meets_key_concept<int>::value,
+//static_assert(not darma::detail::meets_key_concept<int>::value,
 //  "oops, int shouldn't be a valid key");
 
 #endif /* FRONTEND_INCLUDE_DARMA_KEY_CONCEPT_H_ */

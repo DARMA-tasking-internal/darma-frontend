@@ -65,7 +65,7 @@
 // TODO extract arguments given as either positional or keyword
 // TODO switch to auto (or decltype(auto), or auto&&) return values
 
-namespace darma_runtime { namespace detail {
+namespace darma { namespace detail {
 
 namespace m = tinympl;
 namespace mv = tinympl::variadic;
@@ -569,7 +569,7 @@ struct n_positional_args
 
 ////////////////////////////////////////////////////////////////////////////////
 
-}} // end namespace darma_runtime::detail
+}} // end namespace darma::detail
 
 
 

@@ -47,12 +47,12 @@
 
 #include <darma/serialization/simple_handler_fwd.h>
 
-namespace darma_runtime {
+namespace darma {
 namespace serialization {
 
 template <typename FallbackHandler=SimpleSerializationHandler<std::allocator<char>>>
 struct PointerReferenceSerializationHandler;
 
-}} // end namespace darma_runtime::serialization
+}} // end namespace darma::serialization
 
 #endif //DARMAFRONTEND_POINTER_REFERENCE_HANDLER_FWD_H

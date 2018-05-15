@@ -74,7 +74,7 @@ class TestInitialAccess
 
 TEST_F(TestInitialAccess, call_sequence) {
   using namespace ::testing;
-  using namespace darma_runtime;
+  using namespace darma;
 
   DECLARE_MOCK_FLOWS(f_in_1, f_out_1);
   use_t* use_init = nullptr;
@@ -111,7 +111,7 @@ TEST_F(TestInitialAccess, call_sequence) {
 // Same as call_sequence, but uses helper to verify that other uses of helper should be valid
 TEST_F(TestInitialAccess, call_sequence_helper) {
   using namespace ::testing;
-  using namespace darma_runtime;
+  using namespace darma;
   using namespace mock_backend;
 
   DECLARE_MOCK_FLOWS(f_in, f_out);
@@ -141,7 +141,7 @@ TEST_F(TestInitialAccess, call_sequence_helper) {
 // Same as call_sequence, but with delayed assignment
 TEST_F(TestInitialAccess, call_sequence_helper_2) {
   using namespace ::testing;
-  using namespace darma_runtime;
+  using namespace darma;
   using namespace mock_backend;
 
   DECLARE_MOCK_FLOWS(f_in, f_out, f_in_2, f_out_2);
@@ -172,8 +172,8 @@ TEST_F(TestInitialAccess, call_sequence_helper_2) {
 
 TEST_F(TestInitialAccess, call_sequence_assign) {
   using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace darma;
+  using namespace darma::keyword_arguments_for_publication;
 
   DECLARE_MOCK_FLOWS(f_in_1, f_out_1, f_in_2, f_out_2);
   use_t* use_init1 = nullptr, *use_init2 = nullptr;
@@ -210,9 +210,9 @@ TEST_F(TestInitialAccess, call_sequence_assign) {
 
 TEST_F(TestInitialAccess, call_sequence_copy_assign) {
   using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace darma_runtime::detail;
-  using namespace darma_runtime::keyword_arguments_for_publication;
+  using namespace darma;
+  using namespace darma::detail;
+  using namespace darma::keyword_arguments_for_publication;
 
   DECLARE_MOCK_FLOWS(f_in_1, f_out_1, f_in_2, f_out_2);
   use_t* use1 = nullptr, *use2 = nullptr;

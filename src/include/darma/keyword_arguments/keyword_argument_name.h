@@ -50,7 +50,7 @@
 
 #include <tuple>
 
-namespace darma_runtime { namespace detail {
+namespace darma { namespace detail {
 
 template <typename T> struct extract_tag;
 
@@ -112,6 +112,6 @@ struct is_keyword_argument_name<
 > : public std::true_type
 { };
 
-}} // end namespace darma_runtime::detail
+}} // end namespace darma::detail
 
 #endif /* KEYWORD_ARGUMENTS_KEYWORD_ARGUMENT_NAME_H_ */

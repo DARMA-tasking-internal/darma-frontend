@@ -54,19 +54,19 @@ class TestSerialize
 
 #define STATIC_ASSERT_SIZABLE(archive, type...) \
 static_assert( \
-  not darma_runtime::serialization::impl::get_serializer_style< \
+  not darma::serialization::impl::get_serializer_style< \
     type, archive \
   >::uses_multiple_styles, \
   "Too many sizing interfaces detected for " #type " with " #archive \
 ); \
 static_assert( \
-  not darma_runtime::serialization::impl::get_serializer_style< \
+  not darma::serialization::impl::get_serializer_style< \
     type, archive \
   >::unserializable, \
   #type " detected as unserializable with " #archive \
 ); \
 static_assert( \
-  darma_runtime::serialization::is_sizable_with_archive< \
+  darma::serialization::is_sizable_with_archive< \
     type, archive \
   >::value, \
   #type " not marked as sizable with " #archive \
@@ -74,19 +74,19 @@ static_assert( \
 
 #define STATIC_ASSERT_PACKABLE(archive, type...) \
 static_assert( \
-  not darma_runtime::serialization::impl::get_serializer_style< \
+  not darma::serialization::impl::get_serializer_style< \
     type, archive \
   >::uses_multiple_styles, \
   "Too many packing interfaces detected for " #type " with " #archive \
 ); \
 static_assert( \
-  not darma_runtime::serialization::impl::get_serializer_style< \
+  not darma::serialization::impl::get_serializer_style< \
     type, archive \
   >::unserializable, \
   #type " detected as unserializable with " #archive \
 ); \
 static_assert( \
-  darma_runtime::serialization::is_packable_with_archive< \
+  darma::serialization::is_packable_with_archive< \
     type, archive \
   >::value, \
   #type " not marked as packable with " #archive \
@@ -94,19 +94,19 @@ static_assert( \
 
 #define STATIC_ASSERT_UNPACKABLE(archive, type...) \
 static_assert( \
-  not darma_runtime::serialization::impl::get_serializer_style< \
+  not darma::serialization::impl::get_serializer_style< \
     type, archive \
   >::uses_multiple_styles, \
   "Too many unpacking interfaces detected for " #type " with " #archive \
 ); \
 static_assert( \
-  not darma_runtime::serialization::impl::get_serializer_style< \
+  not darma::serialization::impl::get_serializer_style< \
     type, archive \
   >::unserializable, \
   #type " detected as unserializable with " #archive \
 ); \
 static_assert( \
-  darma_runtime::serialization::is_unpackable_with_archive< \
+  darma::serialization::is_unpackable_with_archive< \
     type, archive \
   >::value, \
   #type " not marked as unpackable with " #archive \
@@ -114,7 +114,7 @@ static_assert( \
 
 #define STATIC_ASSERT_DIRECTLY_SERIALIZABLE(type...) \
 static_assert( \
-  darma_runtime::serialization::is_directly_serializable< \
+  darma::serialization::is_directly_serializable< \
     type \
   >::value, \
   #type " not marked as directly serializable" \

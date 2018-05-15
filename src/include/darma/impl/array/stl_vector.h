@@ -50,9 +50,7 @@
 #include "index_decomposition.h"
 #include <darma/interface/app/vector_view.h>
 
-namespace darma = darma_runtime;
-
-namespace darma_runtime {
+namespace darma {
 
 
 namespace detail {
@@ -158,6 +156,6 @@ class IndexDecomposition<std::vector<T, Allocator> const>
 };
 
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_ARRAY_STL_VECTOR_H

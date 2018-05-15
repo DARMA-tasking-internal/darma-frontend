@@ -51,7 +51,7 @@
 #include <darma/serialization/polymorphic/polymorphic_serialization_adapter.h>
 #include <darma/interface/frontend/index_range.h>
 
-namespace darma_runtime {
+namespace darma {
 
 // TODO this could obviously be generalized substantially
 
@@ -177,6 +177,6 @@ Range2DDenseMapping<Integer> get_mapping_to_dense(
   return Range2DDenseMapping<Integer>();
 }
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_ARRAY_RANGE_2D_H

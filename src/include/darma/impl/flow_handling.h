@@ -51,12 +51,12 @@
 
 #include <darma/interface/backend/runtime.h>
 
-namespace darma_runtime {
+namespace darma {
 namespace detail {
 
 using flow_ptr = std::shared_ptr<types::flow_t>;
 
 } // end namespace detail
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_FLOW_HANDLING_H

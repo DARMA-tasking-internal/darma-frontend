@@ -60,7 +60,7 @@
 #  define DARMA_SERIALIZATION_SIMPLE_ARCHIVE_UNPACK_STACK_ALLOCATION_MAX 1024
 #endif
 
-namespace darma_runtime {
+namespace darma {
 namespace serialization {
 
 class SimpleSizingArchive {
@@ -166,7 +166,7 @@ class SimpleUnpackingArchive {
 
   protected:
 
-    darma_runtime::utility::compressed_pair<char const*, allocator_type> data_spot_;
+    darma::utility::compressed_pair<char const*, allocator_type> data_spot_;
 
     template <typename BufferT>
     explicit SimpleUnpackingArchive(
@@ -191,7 +191,7 @@ class SimpleUnpackingArchive {
       std::enable_if_t<
         not std::is_trivially_destructible<T>::value
           and not std::is_array<T>::value,
-        darma_runtime::utility::_not_a_type
+        darma::utility::_not_a_type
       > = { }
     ) & {
       // This seems slow (though the optimizer might get rid of it anyway,
@@ -210,7 +210,7 @@ class SimpleUnpackingArchive {
       T& obj,
       std::enable_if_t<
         std::is_trivially_destructible<T>::value,
-        darma_runtime::utility::_not_a_type
+        darma::utility::_not_a_type
       > = { }
     ) & {
       // This seems slow (though the optimizer might get rid of it anyway,
@@ -258,7 +258,7 @@ class SimpleUnpackingArchive {
     inline T unpack_next_item_as(
       std::enable_if_t<
         (sizeof(T) > DARMA_SERIALIZATION_SIMPLE_ARCHIVE_UNPACK_STACK_ALLOCATION_MAX),
-        darma_runtime::utility::_not_a_type_numbered<0>
+        darma::utility::_not_a_type_numbered<0>
       > = { }
     ) & {
       using allocator_t = typename std::allocator_traits<Allocator>::template rebind_alloc<T>;
@@ -276,7 +276,7 @@ class SimpleUnpackingArchive {
     inline T unpack_next_item_as(
       std::enable_if_t<
         (sizeof(T) <= DARMA_SERIALIZATION_SIMPLE_ARCHIVE_UNPACK_STACK_ALLOCATION_MAX),
-        darma_runtime::utility::_not_a_type_numbered<1>
+        darma::utility::_not_a_type_numbered<1>
       > = { }
     ) & {
       char on_stack_buffer[sizeof(T)];
@@ -315,6 +315,6 @@ class SimpleUnpackingArchive {
 };
 
 } // end namespace serialization
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMAFRONTEND_SIZING_ARCHIVE_H

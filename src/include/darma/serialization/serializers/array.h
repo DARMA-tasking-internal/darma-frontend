@@ -49,7 +49,7 @@
 #include <darma/serialization/serialization_traits.h>
 #include <cstdint>
 
-namespace darma_runtime {
+namespace darma {
 namespace serialization {
 
 template <typename T, size_t N>
@@ -110,6 +110,6 @@ struct Serializer_enabled_if<
 };
 
 } // end namespace serialization
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMAFRONTEND_SERIALIZATION_SERIALIZERS_ARRAY_H

@@ -52,7 +52,7 @@
 
 #include <darma/keyword_arguments/parse.h>
 
-namespace darma_runtime {
+namespace darma {
 
 // Constants...
 namespace constants_for_resource_count {
@@ -77,9 +77,9 @@ static constexpr auto HardwareThreads = HardwareThread;
 
 } // end namespace constants_for_resource_count
 
-} // end namespace darma_runtime
+} // end namespace darma
 
-namespace darma_runtime {
+namespace darma {
 
 namespace detail {
 
@@ -199,13 +199,13 @@ auto resource_count_impl(
 template <typename... Args>
 auto resource_count(Args&&... args) {
   using _check_kwargs_asserting_t = typename detail::only_allowed_kwargs_given<
-    darma_runtime::keyword_tags_for_resource_count::depth,
-    darma_runtime::keyword_tags_for_resource_count::per
+    darma::keyword_tags_for_resource_count::depth,
+    darma::keyword_tags_for_resource_count::per
   >::template static_assert_correct<Args...>::type;
   return detail::resource_count_impl(std::forward<Args>(args)...);
 }
 
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_INTERFACE_APP_RESOURCE_COUNT_H

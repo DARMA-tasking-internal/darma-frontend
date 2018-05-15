@@ -61,7 +61,7 @@ struct __________bad_index_mapping___ {
 
 } // end namespace _darma__errors
 
-namespace darma_runtime {
+namespace darma {
 
 namespace indexing {
 
@@ -69,7 +69,7 @@ template <typename T>
 struct mapping_traits {
 
   template <typename>
-  friend struct darma_runtime::indexing::mapping_traits;
+  friend struct darma::indexing::mapping_traits;
 
   //============================================================================
   // <editor-fold desc="Member type determination"> {{{1
@@ -77,7 +77,7 @@ struct mapping_traits {
   public:
 
     template <typename>
-    friend struct darma_runtime::indexing::mapping_traits;
+    friend struct darma::indexing::mapping_traits;
 
     template <typename U>
     using _is_index_mapping_archetype = typename U::is_index_mapping;
@@ -194,12 +194,12 @@ struct mapping_traits {
           optional_boolean_t
         >::value
         or std::is_convertible<
-          typename darma_runtime::indexing::mapping_traits<OtherMapping>
+          typename darma::indexing::mapping_traits<OtherMapping>
             ::template _mapping_is_same_return_t<OtherMapping, T>,
           optional_boolean_t
         >::value
         or std::is_convertible<
-          typename darma_runtime::indexing::mapping_traits<OtherMapping>
+          typename darma::indexing::mapping_traits<OtherMapping>
             ::template _mapping_is_same_return_t<OtherMapping, T>,
           bool
         >::value
@@ -250,7 +250,7 @@ struct mapping_traits {
             optional_boolean_t
           >::value
           and std::is_convertible<
-            typename darma_runtime::indexing::mapping_traits<OtherMapping>
+            typename darma::indexing::mapping_traits<OtherMapping>
               ::template _mapping_is_same_return_t<OtherMapping, T>,
             optional_boolean_t
           >::value,
@@ -274,12 +274,12 @@ struct mapping_traits {
             optional_boolean_t
           >::value
           and not std::is_convertible<
-            typename darma_runtime::indexing::mapping_traits<OtherMapping>
+            typename darma::indexing::mapping_traits<OtherMapping>
               ::template _mapping_is_same_return_t<OtherMapping, T>,
             optional_boolean_t
           >::value
           and std::is_convertible<
-            typename darma_runtime::indexing::mapping_traits<OtherMapping>
+            typename darma::indexing::mapping_traits<OtherMapping>
               ::template _mapping_is_same_return_t<OtherMapping, T>,
             bool
           >::value,
@@ -646,6 +646,6 @@ using mapping_type_from_arguments_t = typename
 
 
 } // end namespace indexing
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_INDEX_RANGE_MAPPING_TRAITS_H

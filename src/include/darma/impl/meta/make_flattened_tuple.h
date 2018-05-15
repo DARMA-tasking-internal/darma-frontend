@@ -47,7 +47,7 @@
 
 #include <tuple>
 
-namespace darma_runtime {
+namespace darma {
 namespace meta {
 
 namespace detail {
@@ -102,6 +102,6 @@ make_flattened_tuple(
 
 
 } // end namespace meta
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_META_MAKE_FLATTENED_TUPLE_H

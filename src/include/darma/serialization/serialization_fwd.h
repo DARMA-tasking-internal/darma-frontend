@@ -45,13 +45,13 @@
 #ifndef DARMAFRONTEND_SERIALIZATION_FWD_H
 #define DARMAFRONTEND_SERIALIZATION_FWD_H
 
-namespace darma_runtime {
+namespace darma {
 namespace serialization {
 
 template <typename T> struct Serializer;
 template <typename T, typename Enable=void> struct Serializer_enabled_if;
 
 } // end namespace serialization
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMAFRONTEND_SERIALIZATION_FWD_H

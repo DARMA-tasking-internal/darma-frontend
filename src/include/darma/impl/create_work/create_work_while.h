@@ -70,7 +70,7 @@
 
 // TODO Propagate task options and permissions downgrades
 
-namespace darma_runtime {
+namespace darma {
 
 namespace detail {
 
@@ -552,6 +552,6 @@ struct WhileDoCaptureManager<
 #if DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
 #endif
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_CREATE_WORK_WHILE_H

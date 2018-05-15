@@ -52,7 +52,7 @@
 #include <darma/impl/runtime.h>
 #include <darma/impl/task/lambda_task.h>
 
-namespace darma_runtime {
+namespace darma {
 namespace detail {
 
 //------------------------------------------------------------------------------
@@ -384,6 +384,6 @@ struct _create_work_while_helper<
 //------------------------------------------------------------------------------
 
 } // end namespace detail
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMAFRONTEND_CREATE_WORK_WHILE_LAMBDA_H

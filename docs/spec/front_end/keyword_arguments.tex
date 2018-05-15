@@ -57,18 +57,18 @@ More implementation details are given in Section~\ref{sec:kwargs}.
 %and frequently used keywords are aliased into more general namespaces. 
 %For instance, the keywords for \inlinecode{some_function}, above, would likely be 
 %defined in a namespace named using the following convention:
-%\inlinecode{darma_runtime::keyword_arguments_for_some_function}.
+%\inlinecode{darma::keyword_arguments_for_some_function}.
 %If \inlinecode{some_function} was a 
 %widely used construct, its more important keywords would also be defined 
-%in the namespace \inlinecode{darma_runtime::keyword_arguments}. 
+%in the namespace \inlinecode{darma::keyword_arguments}.
 %If \inlinecode{some_function} belonged to a broader category of 
 %constructs, certain of its keywords may also be aliased into a 
 %categorical namespace as well.  For instance, if \inlinecode{some_function} 
 %implemented some memory management functionality,
-%its keywords may be aliased into, for example, \inlinecode{darma_runtime::keyword_arguments_for_memory_management}.
+%its keywords may be aliased into, for example, \inlinecode{darma::keyword_arguments_for_memory_management}.
 %All of this is done so that the user can minimize verbosity without introducing
 %naming conflicts.  In certain contexts, it may be expedient for the user to simply
-%put \inlinecode{using darma_runtime::keyword_arguments} at the beginning of the calling context. 
+%put \inlinecode{using darma::keyword_arguments} at the beginning of the calling context.
 %In other, more complicated contexts, importing all DARMA keywords into the 
 %local context may lead to naming conflicts with local variables. 
 %You don't have to guess at which namespaces

@@ -48,7 +48,7 @@
 #include <tinympl/vector.hpp>
 #include <tinympl/identity.hpp>
 
-namespace darma_runtime {
+namespace darma {
 
 namespace utility {
 
@@ -73,7 +73,7 @@ struct largest_aligned_int
 
 } // end namespace utility
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 
 

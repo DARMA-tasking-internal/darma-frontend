@@ -49,7 +49,7 @@
 
 #include "test_simple_common.h"
 
-using namespace darma_runtime::serialization;
+using namespace darma::serialization;
 using namespace ::testing;
 
 STATIC_ASSERT_SIZABLE(SimpleSizingArchive, std::string);

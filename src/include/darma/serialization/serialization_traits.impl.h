@@ -57,7 +57,7 @@
 
 #include <type_traits>
 
-namespace darma_runtime {
+namespace darma {
 namespace serialization {
 
 namespace impl {
@@ -149,7 +149,7 @@ struct get_serializer_style {
 
   template <typename U, typename UArchive>
   using _nonintrusive_compute_size_archetype = decltype(
-    darma_runtime::serialization::Serializer<U>::compute_size(
+    darma::serialization::Serializer<U>::compute_size(
       std::declval<U const&>(), std::declval<UArchive&>()
     )
   );
@@ -162,7 +162,7 @@ struct get_serializer_style {
 
   template <typename U, typename UArchive>
   using _nonintrusive_pack_archetype = decltype(
-    darma_runtime::serialization::Serializer<U>::pack(
+    darma::serialization::Serializer<U>::pack(
       std::declval<U const&>(), std::declval<UArchive&>()
     )
   );
@@ -175,7 +175,7 @@ struct get_serializer_style {
 
   template <typename U, typename UArchive>
   using _nonintrusive_unpack_archetype = decltype(
-    darma_runtime::serialization::Serializer<U>::unpack(
+    darma::serialization::Serializer<U>::unpack(
       std::declval<void*>(), std::declval<UArchive&>()
     )
   );
@@ -228,7 +228,7 @@ struct get_serializer_style {
 
 template <typename T, typename SizingArchive>
 std::enable_if_t<
-  darma_runtime::serialization::is_sizable_with_archive<T, SizingArchive>::value
+  darma::serialization::is_sizable_with_archive<T, SizingArchive>::value
     and impl::get_serializer_style<T, SizingArchive>::uses_intrusive_serialize
 >
 compute_size_impl(T const& obj, SizingArchive& ar) {
@@ -238,7 +238,7 @@ compute_size_impl(T const& obj, SizingArchive& ar) {
 
 template <typename T, typename SizingArchive>
 std::enable_if_t<
-  darma_runtime::serialization::is_sizable_with_archive<T, SizingArchive>::value
+  darma::serialization::is_sizable_with_archive<T, SizingArchive>::value
     and impl::get_serializer_style<T, SizingArchive>::uses_intrusive_pack_unpack
 >
 compute_size_impl(T const& obj, SizingArchive& ar) {
@@ -247,16 +247,16 @@ compute_size_impl(T const& obj, SizingArchive& ar) {
 
 template <typename T, typename SizingArchive>
 std::enable_if_t<
-  darma_runtime::serialization::is_sizable_with_archive<T, SizingArchive>::value
+  darma::serialization::is_sizable_with_archive<T, SizingArchive>::value
     and impl::get_serializer_style<T, SizingArchive>::uses_nonintrusive
 >
 compute_size_impl(T const& obj, SizingArchive& ar) {
-  darma_runtime::serialization::Serializer<T>::compute_size(obj, ar);
+  darma::serialization::Serializer<T>::compute_size(obj, ar);
 };
 
 template <typename T, typename SizingArchive>
 std::enable_if_t<
-  not darma_runtime::serialization::is_sizable_with_archive<T, SizingArchive>::value
+  not darma::serialization::is_sizable_with_archive<T, SizingArchive>::value
     and impl::get_serializer_style<T, SizingArchive>::unserializable
 >
 compute_size_impl(T const& obj, SizingArchive& ar) {
@@ -274,7 +274,7 @@ compute_size_impl(T const& obj, SizingArchive& ar) {
 
 template <typename T, typename SizingArchive>
 std::enable_if_t<
-  not darma_runtime::serialization::is_sizable_with_archive<T, SizingArchive>::value
+  not darma::serialization::is_sizable_with_archive<T, SizingArchive>::value
     and impl::get_serializer_style<T, SizingArchive>::uses_multiple_styles
 >
 compute_size_impl(T const& obj, SizingArchive& ar) {
@@ -298,7 +298,7 @@ compute_size_impl(T const& obj, SizingArchive& ar) {
 
 template <typename T, typename PackingArchive>
 std::enable_if_t<
-  darma_runtime::serialization::is_packable_with_archive<T, PackingArchive>::value
+  darma::serialization::is_packable_with_archive<T, PackingArchive>::value
     and impl::get_serializer_style<T, PackingArchive>::uses_intrusive_serialize
     and not impl::get_serializer_style<T, PackingArchive>::uses_multiple_styles
 >
@@ -309,7 +309,7 @@ pack_impl(T const& obj, PackingArchive& ar) {
 
 template <typename T, typename PackingArchive>
 std::enable_if_t<
-  darma_runtime::serialization::is_packable_with_archive<T, PackingArchive>::value
+  darma::serialization::is_packable_with_archive<T, PackingArchive>::value
     and impl::get_serializer_style<T, PackingArchive>::uses_intrusive_pack_unpack
     and not impl::get_serializer_style<T, PackingArchive>::uses_multiple_styles
 >
@@ -319,17 +319,17 @@ pack_impl(T const& obj, PackingArchive& ar) {
 
 template <typename T, typename PackingArchive>
 std::enable_if_t<
-  darma_runtime::serialization::is_packable_with_archive<T, PackingArchive>::value
+  darma::serialization::is_packable_with_archive<T, PackingArchive>::value
     and impl::get_serializer_style<T, PackingArchive>::uses_nonintrusive
     and not impl::get_serializer_style<T, PackingArchive>::uses_multiple_styles
 >
 pack_impl(T const& obj, PackingArchive& ar) {
-  darma_runtime::serialization::Serializer<T>::pack(obj, ar);
+  darma::serialization::Serializer<T>::pack(obj, ar);
 };
 
 template <typename T, typename PackingArchive>
 std::enable_if_t<
-  not darma_runtime::serialization::is_packable_with_archive<T, PackingArchive>::value
+  not darma::serialization::is_packable_with_archive<T, PackingArchive>::value
 >
 pack_impl(T const& obj, PackingArchive& ar) {
   struct ___serialization_failed_because_type___ { };
@@ -350,7 +350,7 @@ pack_impl(T const& obj, PackingArchive& ar) {
 
 template <typename T, typename UnpackingArchive>
 std::enable_if_t<
-  darma_runtime::serialization::is_unpackable_with_archive<T, UnpackingArchive>::value
+  darma::serialization::is_unpackable_with_archive<T, UnpackingArchive>::value
     and impl::get_serializer_style<T, UnpackingArchive>::uses_intrusive_serialize
     and not impl::get_serializer_style<T, UnpackingArchive>::uses_multiple_styles
     and std::is_default_constructible<T>::value
@@ -362,7 +362,7 @@ unpack_impl(void* allocated, UnpackingArchive& ar) {
 
 template <typename T, typename UnpackingArchive>
 std::enable_if_t<
-  darma_runtime::serialization::is_unpackable_with_archive<T, UnpackingArchive>::value
+  darma::serialization::is_unpackable_with_archive<T, UnpackingArchive>::value
     and impl::get_serializer_style<T, UnpackingArchive>::uses_intrusive_pack_unpack
     //and not impl::get_serializer_style<T, UnpackingArchive>::uses_multiple_styles
 >
@@ -372,17 +372,17 @@ unpack_impl(void* allocated, UnpackingArchive& ar) {
 
 template <typename T, typename UnpackingArchive>
 std::enable_if_t<
-  darma_runtime::serialization::is_unpackable_with_archive<T, UnpackingArchive>::value
+  darma::serialization::is_unpackable_with_archive<T, UnpackingArchive>::value
     and impl::get_serializer_style<T, UnpackingArchive>::uses_nonintrusive
     //and not impl::get_serializer_style<T, UnpackingArchive>::uses_multiple_styles
 >
 unpack_impl(void* allocated, UnpackingArchive& ar) {
-  darma_runtime::serialization::Serializer<T>::unpack(allocated, ar);
+  darma::serialization::Serializer<T>::unpack(allocated, ar);
 }
 
 template <typename T, typename UnpackingArchive>
 std::enable_if_t<
-  darma_runtime::serialization::is_unpackable_with_archive<T, UnpackingArchive>::value
+  darma::serialization::is_unpackable_with_archive<T, UnpackingArchive>::value
     and impl::get_serializer_style<T, UnpackingArchive>::uses_intrusive_serialize
     and not impl::get_serializer_style<T, UnpackingArchive>::uses_multiple_styles
     and not std::is_default_constructible<T>::value
@@ -402,7 +402,7 @@ unpack_impl(void* allocated, UnpackingArchive& ar) {
 
 template <typename T, typename UnpackingArchive>
 std::enable_if_t<
-  not darma_runtime::serialization::is_unpackable_with_archive<T, UnpackingArchive>::value
+  not darma::serialization::is_unpackable_with_archive<T, UnpackingArchive>::value
     and impl::get_serializer_style<T, UnpackingArchive>::uses_multiple_styles
 >
 unpack_impl(void* allocated, UnpackingArchive& ar) {
@@ -421,7 +421,7 @@ unpack_impl(void* allocated, UnpackingArchive& ar) {
 
 template <typename T, typename UnpackingArchive>
 std::enable_if_t<
-  not darma_runtime::serialization::is_unpackable_with_archive<T, UnpackingArchive>::value
+  not darma::serialization::is_unpackable_with_archive<T, UnpackingArchive>::value
     and impl::get_serializer_style<T, UnpackingArchive>::unserializable
 >
 unpack_impl(void* allocated, UnpackingArchive& ar) {
@@ -439,7 +439,7 @@ unpack_impl(void* allocated, UnpackingArchive& ar) {
 
 template <typename T, typename UnpackingArchive>
 std::enable_if_t<
-  not darma_runtime::serialization::is_unpackable_with_archive<T, UnpackingArchive>::value
+  not darma::serialization::is_unpackable_with_archive<T, UnpackingArchive>::value
     and not impl::get_serializer_style<T, UnpackingArchive>::unserializable
 >
 unpack_impl(void* allocated, UnpackingArchive& ar) {
@@ -498,6 +498,6 @@ struct is_unpackable_with_archive_enabled_if<
 //==============================================================================
 
 } // end namespace serialization
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMAFRONTEND_SERIALIZATION_SERIALIZATION_TRAITS_IMPL_H

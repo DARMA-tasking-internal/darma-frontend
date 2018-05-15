@@ -53,14 +53,14 @@
 
 #include <execinfo.h>
 
-namespace darma_runtime {
+namespace darma {
 namespace detail {
 
 
 // TODO implement this
 
 } // end namespace detail
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif // _darma_has_feature(backtrace)
 

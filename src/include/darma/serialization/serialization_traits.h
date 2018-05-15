@@ -49,7 +49,7 @@
 
 #include <type_traits>
 
-namespace darma_runtime {
+namespace darma {
 namespace serialization {
 
 template <typename T, typename Enable=void>
@@ -103,11 +103,11 @@ struct is_unpackable_with_archive
 
 
 } // end namespace serialization
-} // end namespace darma_runtime
+} // end namespace darma
 
 #include <darma/serialization/serialization_traits.impl.h>
 
-namespace darma_runtime {
+namespace darma {
 namespace serialization {
 
 template <typename T, typename SizingArchive>
@@ -197,6 +197,6 @@ void darma_unpack(allocated_buffer_for<T> allocated, UnpackingArchive& ar) {
 };
 
 } // end namespace serialization
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMAFRONTEND_SERIALIZATION_TRAITS_H

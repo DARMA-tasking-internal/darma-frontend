@@ -47,11 +47,11 @@
 
 #include <darma/interface/frontend/publication_details.h>
 
-namespace darma_runtime {
+namespace darma {
 namespace detail {
 
 class PublicationDetails
-  : public darma_runtime::abstract::frontend::PublicationDetails
+  : public darma::abstract::frontend::PublicationDetails
 {
   public:
 
@@ -91,6 +91,6 @@ class PublicationDetails
 
 
 } // end namespace detail
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_PUBLICATION_DETAILS_H

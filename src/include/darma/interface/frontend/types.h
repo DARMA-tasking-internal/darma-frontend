@@ -56,7 +56,7 @@
 
 #ifndef DARMA_CUSTOM_HANDLE_CONTAINER
 #include <unordered_set>
-namespace darma_runtime {
+namespace darma {
 namespace types {
 
   // TODO this needs to be changed to something like use_iterable
@@ -64,7 +64,7 @@ namespace types {
   using handle_container_template = std::set<Ts...>;
 
 } // end namespace types
-} // end namespace darma_runtime
+} // end namespace darma
 #endif
 
 #include <darma/interface/frontend/types/concrete_task_t.h>

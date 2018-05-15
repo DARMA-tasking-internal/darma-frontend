@@ -45,7 +45,7 @@
 #ifndef SRC_KEYWORD_ARGUMENTS_KWARG_EXPRESSION_FWD_H_
 #define SRC_KEYWORD_ARGUMENTS_KWARG_EXPRESSION_FWD_H_
 
-namespace darma_runtime { namespace detail {
+namespace darma { namespace detail {
 
 template <typename T, typename KWArgName, bool in_rhs_is_lvalue>
 class kwarg_expression;
@@ -59,7 +59,7 @@ class multiarg_typeless_kwarg_expression;
 template <class T>
 struct is_kwarg_expression;
 
-}} // end namespace darma_runtime::detail
+}} // end namespace darma::detail
 
 
 

@@ -55,7 +55,7 @@
 #include "indexable.h"
 #include "concept.h"
 
-namespace darma_runtime {
+namespace darma {
 namespace detail {
 
 // Simple implies subset object is always the same type as parent
@@ -128,6 +128,6 @@ class SimpleElementRange
 };
 
 } // end namespace detail
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_ARRAY_ELEMENT_RANGE_H

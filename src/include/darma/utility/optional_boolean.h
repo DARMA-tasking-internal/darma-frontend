@@ -45,7 +45,7 @@
 #ifndef DARMA_IMPL_UTIL_OPTIONAL_BOOLEAN_H
 #define DARMA_IMPL_UTIL_OPTIONAL_BOOLEAN_H
 
-namespace darma_runtime {
+namespace darma {
 
 typedef enum struct OptionalBoolean {
   Unknown = -1,
@@ -53,6 +53,6 @@ typedef enum struct OptionalBoolean {
   KnownFalse = false
 } optional_boolean_t;
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_UTIL_OPTIONAL_BOOLEAN_H

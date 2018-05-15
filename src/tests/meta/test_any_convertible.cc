@@ -116,7 +116,7 @@ using nomove_const_lval_ref = decltype(nomove_const_lval_ref_);
 using nomove_rval_ref = decltype(nomove_rval_ref_);
 using nomove_const_rval_ref = decltype(nomove_const_rval_ref_);
 
-using namespace darma_runtime::meta;
+using namespace darma::meta;
 
 ////////////////////////////////////////////////////////////////////////////////
 // <editor-fold desc="any_arg">

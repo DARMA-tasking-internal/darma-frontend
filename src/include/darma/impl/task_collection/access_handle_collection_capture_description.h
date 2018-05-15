@@ -50,7 +50,7 @@
 #include <darma/impl/task_collection/access_handle_collection.h>
 
 
-namespace darma_runtime {
+namespace darma {
 namespace detail {
 
 template <typename SourceAccessHandleCollectionT, typename CapturedAccessHandleCollectionT>
@@ -148,7 +148,7 @@ AccessHandleCollection<T, IndexRangeT, Traits>::get_capture_description(
 }
 
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 
 #endif //DARMAFRONTEND_ACCESS_HANDLE_COLLECTION_CAPTURE_DESCRIPTION_H

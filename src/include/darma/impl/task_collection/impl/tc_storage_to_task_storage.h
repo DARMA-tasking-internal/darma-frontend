@@ -54,7 +54,7 @@
 #include <darma/impl/task_collection/access_handle_collection.h>
 #include <darma/impl/index_range/index_range_traits.h>
 
-namespace darma_runtime {
+namespace darma {
 namespace detail {
 namespace _task_collection_impl {
 
@@ -173,7 +173,7 @@ struct _get_task_stored_arg_helper<
   ) const
   {
     // We still need to create a new use for the task itself...
-    using namespace darma_runtime::detail::flow_relationships;
+    using namespace darma::detail::flow_relationships;
 
     auto new_use_holder = BasicAccessHandle::use_holder_t::create(
       arg.var_handle_base_,
@@ -306,6 +306,6 @@ struct _get_task_stored_arg_helper<
 
 } // end namespace _task_collection_impl
 } // end namespace detail
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_TASK_COLLECTION_IMPL_TC_STORAGE_TO_TASK_STORAGE_H

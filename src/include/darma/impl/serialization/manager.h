@@ -48,7 +48,7 @@
 #include <darma/interface/frontend/serialization_manager.h>
 #include <darma/serialization/simple_handler.h>
 
-namespace darma_runtime {
+namespace darma {
 namespace serialization {
 namespace detail {
 
@@ -114,7 +114,7 @@ class SerializationManagerForType
       );
       // call the customization point, allow ADL
       darma_unpack(
-        darma_runtime::serialization::allocated_buffer_for<T>(object_dest), ar
+        darma::serialization::allocated_buffer_for<T>(object_dest), ar
       );
     }
 
@@ -155,6 +155,6 @@ class SerializationManagerForType
 
 } // end namespace detail
 } // end namespace serialization
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_SERIALIZATION_MANAGER_H

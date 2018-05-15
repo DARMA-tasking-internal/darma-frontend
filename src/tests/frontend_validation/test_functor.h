@@ -54,7 +54,7 @@
 #include <darma/interface/app/create_work.h>
 #include <darma/interface/app/initial_access.h>
 
-using namespace darma_runtime;
+using namespace darma;
 
 ////////////////////////////////////////////////////////////////////////////////
 

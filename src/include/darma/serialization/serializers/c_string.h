@@ -45,7 +45,7 @@
 #ifndef DARMAFRONTEND_SERIALIZATION_SERIALIZERS_C_STRING_H
 #define DARMAFRONTEND_SERIALIZATION_SERIALIZERS_C_STRING_H
 
-namespace darma_runtime {
+namespace darma {
 namespace serialization {
 
 #include <darma/serialization/nonintrusive.h>
@@ -86,6 +86,6 @@ struct Serializer<char const*>
 };
 
 } // end namespace serialization
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMAFRONTEND_SERIALIZATION_SERIALIZERS_C_STRING_H

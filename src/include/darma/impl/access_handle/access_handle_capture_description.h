@@ -48,7 +48,7 @@
 #include <darma/impl/create_work/capture_permissions.h>
 #include <darma/interface/app/access_handle.h>
 
-namespace darma_runtime {
+namespace darma {
 namespace detail {
 
 template <typename SourceAccessHandleT, typename CapturedAccessHandleT>
@@ -171,6 +171,6 @@ AccessHandle<T, Traits>::get_capture_description(
 };
 
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMAFRONTEND_ACCESS_HANDLE_CAPTURE_DESCRIPTION_H

@@ -58,7 +58,7 @@
 
 DeclareDarmaTypeTransparentKeyword(parallel_for, n_workers);
 
-namespace darma_runtime {
+namespace darma {
 
 namespace detail {
 
@@ -155,7 +155,7 @@ struct _do_create_parallel_for<
 
     return parser()
       .with_default_generators(
-        darma_runtime::keyword_arguments_for_parallel_for::n_workers=[]{ return 1; }
+        darma::keyword_arguments_for_parallel_for::n_workers=[]{ return 1; }
       )
       .parse_args(std::forward<Args>(args)...)
       .invoke([&](
@@ -214,7 +214,7 @@ struct _do_create_parallel_for<
       // For some reason, this doesn't work with zero variadics, so we can give it a
       // random one since they're ignored anyway
       .with_default_generators(
-        darma_runtime::keyword_arguments_for_parallel_for::n_workers=[]{ return 1; }
+        darma::keyword_arguments_for_parallel_for::n_workers=[]{ return 1; }
       )
       .parse_args(std::forward<Args>(args)...)
       .invoke([&](
@@ -287,7 +287,7 @@ void create_parallel_for(
   );
 }
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif // _darma_has_feature(create_parallel_for)
 

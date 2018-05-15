@@ -49,21 +49,21 @@
 
 #include <darma/impl/collective/allreduce.h>
 
-namespace darma_runtime {
+namespace darma {
 
 #if _darma_has_feature(handle_collection_based_collectives)
 template <typename T, typename IndexRange, typename Traits>
 template <typename ReduceOp, typename... Args>
 auto
 AccessHandleCollection<T, IndexRange, Traits>::reduce(Args&& ... args) const {
-  using namespace darma_runtime::detail;
+  using namespace darma::detail;
   using parser = detail::kwarg_parser<
     overload_description<
       _keyword< /* required for now */
-        deduced_parameter, darma_runtime::keyword_tags_for_collectives::output
+        deduced_parameter, darma::keyword_tags_for_collectives::output
       >,
       _optional_keyword<
-        converted_parameter, darma_runtime::keyword_tags_for_collectives::tag
+        converted_parameter, darma::keyword_tags_for_collectives::tag
       >
     >
   >;
@@ -74,12 +74,12 @@ AccessHandleCollection<T, IndexRange, Traits>::reduce(Args&& ... args) const {
   return parser()
     .with_converters(
       [](auto&&... parts) {
-        return darma_runtime::make_key(std::forward<decltype(parts)>(parts)...);
+        return darma::make_key(std::forward<decltype(parts)>(parts)...);
       }
     )
     .with_default_generators(
-      darma_runtime::keyword_arguments_for_collectives::tag=[]{
-        return darma_runtime::make_key();
+      darma::keyword_arguments_for_collectives::tag=[]{
+        return darma::make_key();
       }
     )
     .parse_args(std::forward<Args>(args)...)
@@ -91,9 +91,9 @@ AccessHandleCollection<T, IndexRange, Traits>::reduce(Args&& ... args) const {
       auto cap_result_holder = detail::make_captured_use_holder(
         output_handle.var_handle_base_,
         /* requested_scheduling_permissions= */
-        darma_runtime::frontend::Permissions::None,
+        darma::frontend::Permissions::None,
         /* requested_immediate_permissions= */
-        darma_runtime::frontend::Permissions::Modify,
+        darma::frontend::Permissions::Modify,
         output_handle.get_current_use()
       );
 
@@ -203,7 +203,7 @@ AccessHandleCollection<T, IndexRange, Traits>::_setup_local_uses(
       map_dense, idx, idx_range
     );
 
-    using namespace darma_runtime::detail::flow_relationships;
+    using namespace darma::detail::flow_relationships;
 
     auto old_key = this->var_handle_base_->get_key();
     auto new_handle = std::make_shared<detail::VariableHandle<T>>(
@@ -269,6 +269,6 @@ AccessHandleCollection<T, IndexRange, Traits>::_setup_local_uses(
 
 //==============================================================================
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMAFRONTEND_ACCESS_HANDLE_COLLECTION_IMPL_H

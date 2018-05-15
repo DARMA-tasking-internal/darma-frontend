@@ -50,7 +50,7 @@
 #include <darma/utility/config.h>
 #include <darma/interface/app/create_work.h>
 
-namespace darma_runtime {
+namespace darma {
 
 #if DARMA_CREATE_WORK_RECORD_LINE_NUMBERS
 
@@ -103,6 +103,6 @@ struct _create_work_if_creation_context : _create_work_creation_context {
 #define create_work_if _create_work_if_creation_context(__FILE__, __LINE__, __func__)._darma_create_work_if_with_line_numbers
 #endif
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMAFRONTEND_RECORD_LINE_NUMBERS_H

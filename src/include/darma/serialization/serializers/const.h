@@ -48,7 +48,7 @@
 #include <darma/serialization/nonintrusive.h>
 #include <darma/serialization/serialization_traits.h>
 
-namespace darma_runtime {
+namespace darma {
 namespace serialization {
 
 template <typename T, typename Archive>
@@ -76,6 +76,6 @@ struct Serializer<T const>
 };
 
 } // end namespace serialization
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMAFRONTEND_CONST_H

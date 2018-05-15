@@ -42,8 +42,8 @@
 //@HEADER
 */
 
-#ifndef DARMA_RUNTIME_TASK_H_
-#define DARMA_RUNTIME_TASK_H_
+#ifndef darma_TASK_H_
+#define darma_TASK_H_
 
 #include <typeindex>
 #include <cstdlib>
@@ -88,7 +88,7 @@
 
 #include <darma/impl/task/task_base.h>
 
-namespace darma_runtime {
+namespace darma {
 
 // implementation of abstract::frontend::unpack_task
 // (for backwards compatibility; should usually just use PolymorphicSerializableObject directly)
@@ -107,10 +107,10 @@ unpack_task(void const* packed_data) {
 
 } // end namespace frontend
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 
 #include <darma/impl/task/task_do_capture.impl.h>
 
 
-#endif /* DARMA_RUNTIME_TASK_H_ */
+#endif /* darma_TASK_H_ */

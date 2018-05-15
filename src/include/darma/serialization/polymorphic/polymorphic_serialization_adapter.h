@@ -50,7 +50,7 @@
 
 #include <tinympl/variadic/find.hpp>
 
-namespace darma_runtime {
+namespace darma {
 namespace serialization {
 
 
@@ -134,8 +134,8 @@ struct _polymorphic_serialization_adapter_impl : BaseT {
 // Adapter for single abstract base
 template <typename ConcreteT, typename AbstractT, typename BaseT = AbstractT,
   typename SerializationHandler =
-    darma_runtime::serialization::PointerReferenceSerializationHandler<
-      darma_runtime::serialization::SimpleSerializationHandler<std::allocator<ConcreteT>>
+    darma::serialization::PointerReferenceSerializationHandler<
+      darma::serialization::SimpleSerializationHandler<std::allocator<ConcreteT>>
     >
 >
 struct PolymorphicSerializationAdapter
@@ -177,7 +177,7 @@ struct PolymorphicSerializationAdapter
 
       // call the customization point, allow ADL
       darma_unpack(
-        darma_runtime::serialization::allocated_buffer_for<ConcreteT>(allocated_spot), ar
+        darma::serialization::allocated_buffer_for<ConcreteT>(allocated_spot), ar
       );
 
       std::unique_ptr<ConcreteT> rv(reinterpret_cast<ConcreteT*>(allocated_spot));
@@ -189,20 +189,20 @@ struct PolymorphicSerializationAdapter
 // Adapter for multiple abstract bases
 template <typename ConcreteT, typename BaseT, typename... AbstractTypes>
 struct PolymorphicSerializationAdapter<ConcreteT, tinympl::vector<AbstractTypes...>, BaseT,
-  darma_runtime::serialization::PointerReferenceSerializationHandler<
-    darma_runtime::serialization::SimpleSerializationHandler<std::allocator<ConcreteT>>
+  darma::serialization::PointerReferenceSerializationHandler<
+    darma::serialization::SimpleSerializationHandler<std::allocator<ConcreteT>>
   >
 > : detail::_polymorphic_serialization_adapter_impl<
       typename detail::polymorphic_serialization_details<ConcreteT>::template with_abstract_bases<AbstractTypes...>,
       BaseT,
-      darma_runtime::serialization::PointerReferenceSerializationHandler<
-        darma_runtime::serialization::SimpleSerializationHandler<std::allocator<ConcreteT>>
+      darma::serialization::PointerReferenceSerializationHandler<
+        darma::serialization::SimpleSerializationHandler<std::allocator<ConcreteT>>
       >
     >
 {
   private:
-    using serialization_handler_t = darma_runtime::serialization::PointerReferenceSerializationHandler<
-      darma_runtime::serialization::SimpleSerializationHandler<std::allocator<ConcreteT>>
+    using serialization_handler_t = darma::serialization::PointerReferenceSerializationHandler<
+      darma::serialization::SimpleSerializationHandler<std::allocator<ConcreteT>>
     >;
     using impl_t = detail::_polymorphic_serialization_adapter_impl<
       typename detail::polymorphic_serialization_details<ConcreteT>::template with_abstract_bases<
@@ -240,7 +240,7 @@ struct PolymorphicSerializationAdapter<ConcreteT, tinympl::vector<AbstractTypes.
       auto ar = serialization_handler_t::make_unpacking_archive(buffer);
 
       darma_unpack(
-        darma_runtime::serialization::allocated_buffer_for<ConcreteT>(allocated_spot), ar
+        darma::serialization::allocated_buffer_for<ConcreteT>(allocated_spot), ar
       );
 
       std::unique_ptr<ConcreteT> rv(reinterpret_cast<ConcreteT*>(allocated_spot));
@@ -253,6 +253,6 @@ struct PolymorphicSerializationAdapter<ConcreteT, tinympl::vector<AbstractTypes.
 //==============================================================================
 
 } // end namespace serialization
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMAFRONTEND_POLYMORPHIC_SERIALIZATION_ADAPTER_H

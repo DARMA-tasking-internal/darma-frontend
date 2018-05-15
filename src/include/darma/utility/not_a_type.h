@@ -47,7 +47,7 @@
 
 #include <cstdlib> // size_t
 
-namespace darma_runtime {
+namespace darma {
 namespace utility {
 
 static constexpr struct _not_a_type_ctor_tag_t { } _not_a_type_ctor_tag { };
@@ -76,6 +76,6 @@ struct _not_a_type_typed {
 };
 
 } // end namespace detail
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_UTIL_NOT_A_TYPE_H

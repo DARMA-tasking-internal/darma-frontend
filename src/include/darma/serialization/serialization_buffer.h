@@ -52,7 +52,7 @@
 #  include <stdexcept>
 #endif
 
-namespace darma_runtime {
+namespace darma {
 namespace serialization {
 
 template <typename Allocator=std::allocator<char>>
@@ -117,7 +117,7 @@ struct DynamicSerializationBuffer {
 
   private:
     // end_ must be first so that the allocator can be used to initialize begin_;
-    darma_runtime::utility::compressed_pair<char*, Allocator> end_ = nullptr;
+    darma::utility::compressed_pair<char*, Allocator> end_ = nullptr;
     char* begin_ = nullptr;
 };
 
@@ -190,6 +190,6 @@ struct FixedSizeSerializationBuffer {
 };
 
 } // end namespace serialization
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMAFRONTEND_SERIALIZATION_BUFFER_H

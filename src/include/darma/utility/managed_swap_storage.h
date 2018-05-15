@@ -48,7 +48,7 @@
 #include <type_traits>
 #include <cassert>
 
-namespace darma_runtime {
+namespace darma {
 namespace utility {
 
 struct in_place_tag_t { };
@@ -391,6 +391,6 @@ struct managed_swap_storage {
 
 
 } // end namespace utility
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMAFRONTEND_MANAGED_SWAP_STORAGE_H

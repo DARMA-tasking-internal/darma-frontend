@@ -60,17 +60,17 @@ permissions_to_string(int i) {
   else return "<unknown/invalid permissions specification>";
 }
 
-namespace darma_runtime {
+namespace darma {
 namespace frontend {
 
 inline std::ostream&
-operator<<(std::ostream& o, darma_runtime::frontend::Permissions per) {
+operator<<(std::ostream& o, darma::frontend::Permissions per) {
   o << permissions_to_string(per);
   return o;
 }
 
 } // end namespace frontend
-} // end namespace darma_runtime
+} // end namespace darma
 
 
 

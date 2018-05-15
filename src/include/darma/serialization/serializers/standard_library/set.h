@@ -54,7 +54,7 @@
 
 // TODO stateful compare? stateful allocators?
 
-namespace darma_runtime {
+namespace darma {
 namespace serialization {
 
 //==============================================================================
@@ -117,6 +117,6 @@ struct Serializer<std::set<Key, Compare>> {
 };
 
 } // end namespace serialization
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMAFRONTEND_SERIALIZATION_SERIALIZERS_STANDARD_LIBRARY_SET_H

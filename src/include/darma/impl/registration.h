@@ -48,7 +48,7 @@
 #include <vector>
 #include <functional>
 
-namespace darma_runtime {
+namespace darma {
 namespace registration {
 
 template <typename ReturnType>
@@ -116,6 +116,6 @@ get_registration_index_for_stateless_callable(Callable&& callable) {
 
 
 } // end namespace registration
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMAFRONTEND_REGISTRATION_H

@@ -77,50 +77,50 @@ class TestResourceCount
 
 TEST_F(TestResourceCount, execution_resources_simple) {
   using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace darma_runtime::constants_for_resource_count;
-  using namespace darma_runtime::keyword_arguments;
+  using namespace darma;
+  using namespace darma::constants_for_resource_count;
+  using namespace darma::keyword_arguments;
 
   EXPECT_CALL(*mock_runtime, get_execution_resource_count(0)).Times(4);
-  darma_runtime::resource_count(Execution, Processes);
-  darma_runtime::resource_count(Execution, depth=0);
-  darma_runtime::resource_count(Execution, depth=Process);
-  darma_runtime::resource_count(Processes);
+  darma::resource_count(Execution, Processes);
+  darma::resource_count(Execution, depth=0);
+  darma::resource_count(Execution, depth=Process);
+  darma::resource_count(Processes);
 
   EXPECT_CALL(*mock_runtime, get_execution_resource_count(1)).Times(4);
-  darma_runtime::resource_count(Execution, Sockets);
-  darma_runtime::resource_count(Execution, depth=1);
-  darma_runtime::resource_count(Execution, depth=Socket);
-  darma_runtime::resource_count(Sockets);
+  darma::resource_count(Execution, Sockets);
+  darma::resource_count(Execution, depth=1);
+  darma::resource_count(Execution, depth=Socket);
+  darma::resource_count(Sockets);
 
   EXPECT_CALL(*mock_runtime, get_execution_resource_count(2)).Times(4);
-  darma_runtime::resource_count(Execution, Cores);
-  darma_runtime::resource_count(Execution, depth=2);
-  darma_runtime::resource_count(Execution, depth=Core);
-  darma_runtime::resource_count(Cores);
+  darma::resource_count(Execution, Cores);
+  darma::resource_count(Execution, depth=2);
+  darma::resource_count(Execution, depth=Core);
+  darma::resource_count(Cores);
 
   EXPECT_CALL(*mock_runtime, get_execution_resource_count(3)).Times(4);
-  darma_runtime::resource_count(Execution, HardwareThreads);
-  darma_runtime::resource_count(Execution, depth=3);
-  darma_runtime::resource_count(Execution, depth=HardwareThread);
-  darma_runtime::resource_count(HardwareThreads);
+  darma::resource_count(Execution, HardwareThreads);
+  darma::resource_count(Execution, depth=3);
+  darma::resource_count(Execution, depth=HardwareThread);
+  darma::resource_count(HardwareThreads);
 
 }
 
 TEST_F(TestResourceCount, execution_resources_per) {
   using namespace ::testing;
-  using namespace darma_runtime;
-  using namespace darma_runtime::constants_for_resource_count;
-  using namespace darma_runtime::keyword_arguments;
+  using namespace darma;
+  using namespace darma::constants_for_resource_count;
+  using namespace darma::keyword_arguments;
 
   EXPECT_CALL(*mock_runtime, get_execution_resource_count(0)).Times(3).WillRepeatedly(Return(10));
   EXPECT_CALL(*mock_runtime, get_execution_resource_count(2)).Times(3).WillRepeatedly(Return(50));
-  EXPECT_EQ(darma_runtime::resource_count(Execution, Cores, per=Process), 5);
-  EXPECT_EQ(darma_runtime::resource_count(Cores, per=Process), 5);
+  EXPECT_EQ(darma::resource_count(Execution, Cores, per=Process), 5);
+  EXPECT_EQ(darma::resource_count(Cores, per=Process), 5);
   // needs generalized keyword argument parsing, which isn't done yet
-  //EXPECT_EQ(darma_runtime::resource_count(per=Process, depth=2), 5);
-  //EXPECT_EQ(darma_runtime::resource_count(depth=2, per=Process), 5);
-  EXPECT_EQ(darma_runtime::resource_count(Execution, depth=2, per=Process), 5);
+  //EXPECT_EQ(darma::resource_count(per=Process, depth=2), 5);
+  //EXPECT_EQ(darma::resource_count(depth=2, per=Process), 5);
+  EXPECT_EQ(darma::resource_count(Execution, depth=2, per=Process), 5);
 
 
 }

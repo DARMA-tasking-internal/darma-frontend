@@ -58,7 +58,7 @@
 
 #include <darma/impl/create_work/record_line_numbers.h>
 
-namespace darma_runtime {
+namespace darma {
 namespace detail {
 
 //------------------------------------------------------------------------------
@@ -366,6 +366,6 @@ struct _create_work_while_helper<
 //------------------------------------------------------------------------------
 
 } // end namespace detail
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMAFRONTEND_CREATE_WORK_WHILE_FUNCTOR_H

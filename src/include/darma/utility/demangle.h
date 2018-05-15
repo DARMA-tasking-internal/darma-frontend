@@ -60,7 +60,7 @@
 
 #include <cxxabi.h>
 
-namespace darma_runtime {
+namespace darma {
 namespace utility {
 
 // Note that this should never be used in optimized code
@@ -107,11 +107,11 @@ struct try_demangle {
 };
 
 } // end namespace utility
-} // end namespace darma_runtime
+} // end namespace darma
 
 #else // not defined DARMA_HAVE_CXXABI_H
 
-namespace darma_runtime {
+namespace darma {
 namespace utility {
 
 template <typename T>
@@ -129,7 +129,7 @@ struct try_demangle {
 };
 
 } // end namespace utility
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif
 // LCOV_EXCL_STOP

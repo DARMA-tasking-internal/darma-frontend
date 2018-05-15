@@ -63,7 +63,7 @@
 #include "impl/argument_to_tc_storage.h"
 #include "impl/tc_storage_to_task_storage.h"
 
-namespace darma_runtime {
+namespace darma {
 
 namespace detail {
 
@@ -367,7 +367,7 @@ struct make_task_collection_impl_t {
 
 } // end namespace detail
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif // _darma_has_feature(create_concurrent_work)
 #endif //DARMA_IMPL_TASK_COLLECTION_TASK_COLLECTION_H

@@ -55,7 +55,7 @@
 #include <darma/serialization/simple_archive.h>
 #include <darma/serialization/simple_handler.h>
 
-namespace darma_runtime {
+namespace darma {
 namespace serialization {
 
 template <typename FallbackHandler /*=SimpleSerializationHandler<std::allocator<char>>*/>
@@ -112,6 +112,6 @@ struct PointerReferenceSerializationHandler
 };
 
 } // end namespace serialization
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMAFRONTEND_SERIALIZATION_POINTER_REFERENCE_HANDLER_H

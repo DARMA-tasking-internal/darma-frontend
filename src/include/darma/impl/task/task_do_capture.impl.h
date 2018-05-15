@@ -56,7 +56,7 @@
 #include "darma/impl/use.h"
 #include "darma/impl/capture.h"
 
-namespace darma_runtime {
+namespace darma {
 
 namespace detail {
 
@@ -124,12 +124,12 @@ TaskBase::do_capture(
 
 } // end namespace detail
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 
 #include <darma/impl/create_work/create_work_argument_parser.h>
 
-namespace darma_runtime {
+namespace darma {
 namespace detail {
 
 template <
@@ -141,10 +141,10 @@ TaskBase::TaskBase(
   setup_create_work_argument_parser()
     .parse_args(std::forward<RemainingArgs>(args)...)
     .invoke([&](
-        darma_runtime::types::key_t name_key,
+        darma::types::key_t name_key,
         auto&& allow_aliasing_desc,
         bool data_parallel,
-        darma_runtime::detail::variadic_arguments_begin_tag,
+        darma::detail::variadic_arguments_begin_tag,
         auto&&... deferred_permissions_modifications
       ) {
         this->allowed_aliasing = std::forward<decltype(allow_aliasing_desc)>(allow_aliasing_desc);
@@ -160,6 +160,6 @@ TaskBase::TaskBase(
 }
 
 } // end namespace detail
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_TASK_CAPTURE_IMPL_H_H

@@ -49,7 +49,7 @@
 
 #include <experimental/optional>
 
-namespace darma_runtime {
+namespace darma {
 namespace detail {
 
 using nullopt_t = std::experimental::nullopt_t;
@@ -79,6 +79,6 @@ optional<T> make_optional( std::initializer_list<U> il, Args&&... args ) {
 static constexpr auto in_place = std::experimental::in_place;
 
 } // end namespace detail
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMA_IMPL_UTIL_OPTIONAL_H

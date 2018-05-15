@@ -58,7 +58,7 @@
 #include <tuple>
 #include <cstdlib>
 
-namespace darma_runtime {
+namespace darma {
 
 namespace utility {
 
@@ -390,7 +390,7 @@ class compressed_pair
 
 } // end namespace utility
 
-} // end namespace darma_runtime
+} // end namespace darma
 
 
 #endif //DARMA_UTILITY_COMPRESSED_PAIR_H

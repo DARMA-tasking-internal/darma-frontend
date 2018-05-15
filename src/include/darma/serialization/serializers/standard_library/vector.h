@@ -50,7 +50,7 @@
 
 #include <vector>
 
-namespace darma_runtime {
+namespace darma {
 namespace serialization {
 
 // TODO vectors with non-standard/non-empty allocators ?
@@ -148,6 +148,6 @@ struct Serializer_enabled_if<
 //==============================================================================
 
 } // end namespace serialization
-} // end namespace darma_runtime
+} // end namespace darma
 
 #endif //DARMAFRONTEND_SERIALIZATION_STANDARD_LIBRARY_VECTOR_H
