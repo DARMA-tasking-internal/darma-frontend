@@ -44,7 +44,7 @@
 
 #include <gtest/gtest.h>
 
-#include <mock_backend.h>
+#include "mock_backend.h"
 #include "test_frontend.h"
 
 #include <darma/impl/top_level.h>
@@ -68,12 +68,12 @@ std::unique_ptr<mock_backend::MockRuntime> mock_runtime { nullptr };
 
 static int main_return_value = 0;
 
-int main(int argc, char **argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  ::testing::InitGoogleMock(&argc, argv);
-  main_return_value = RUN_ALL_TESTS();
-  return main_return_value;
-}
+//int main(int argc, char **argv) {
+//  ::testing::InitGoogleTest(&argc, argv);
+//  ::testing::InitGoogleMock(&argc, argv);
+//  main_return_value = RUN_ALL_TESTS();
+//  return main_return_value;
+//}
 
 void darma_top_level(std::vector<std::string>) {
   // do nothing in here for now

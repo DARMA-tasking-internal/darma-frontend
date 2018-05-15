@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 2.8)
+cmake_minimum_required (VERSION 3.4)
 
 # Silence an error about the version option to project
 # this will need to be changed if we ever bump the version to 3.0 and put the
@@ -10,7 +10,7 @@ endif()
 project (DarmaFrontend)
 # The version number.
 set (DarmaFrontend_VERSION_MAJOR 0)
-set (DarmaFrontend_VERSION_MINOR 4)
+set (DarmaFrontend_VERSION_MINOR 5)
 
 set (DARMA_FE_REPO_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 
@@ -30,16 +30,59 @@ if (DARMA_FE_ENABLE_TESTS OR DARMA_CT_ENABLE_TESTS)
 set (DARMA_TESTS True)
 endif()
 
+
+include (CheckCXXCompilerFlag)
+include (CheckCXXSourceCompiles)
+
+if (NOT CMAKE_VERSION VERSION_LESS 3.4)
+  CHECK_CXX_COMPILER_FLAG("-fconcepts" DARMA_HAS_CXX_CONCEPTS_FLAG)
+endif()
+
+add_subdirectory(src)
+
+add_library(darma_frontend INTERFACE)
+add_library(darma_frontend::darma_frontend ALIAS darma_frontend)
+
+
+target_include_directories(darma_frontend INTERFACE
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
+  $<INSTALL_INTERFACE:include>
+)
+find_package(DarmaSerialization REQUIRED)
+target_link_libraries(darma_frontend INTERFACE
+  darma_serialization::darma_serialization
+  darma_utility::darma_utility
+  tinympl::tinympl
+)
+# DarmaSerialization links to TinyMPL transitively, so we don't need it
+# find_package(TinyMPL)
+# DarmaSerialization links to DarmaUtility transitively, so we don't need it
+# find_package(DarmaUtility)
+
+install(TARGETS darma_frontend EXPORT darma_frontend)
+install(EXPORT darma_frontend DESTINATION cmake)
+
+configure_file(
+  cmake/darma_frontendConfig.cmake.in
+  "${PROJECT_BINARY_DIR}/darma_frontendConfig.cmake" @ONLY
+)
+install(
+  FILES
+  "${PROJECT_BINARY_DIR}/darma_frontendConfig.cmake" 
+  DESTINATION cmake 
+)
+
+
 if (DARMA_TESTS)
   if (DARMA_FE_ENABLE_TESTS)
-  message("DARMA frontend tests will be built.")
-  set(GTEST_ROOT ${GTEST_DIR})
-  set(GMOCK_ROOT ${GTEST_DIR})
-  find_package(GTest REQUIRED)
-  find_package(GMock REQUIRED)
+    message("DARMA frontend tests will be built.")
+    set(GTEST_ROOT ${GTEST_DIR})
+    set(GMOCK_ROOT ${GTEST_DIR})
+    find_package(GTest REQUIRED)
+    find_package(GMock REQUIRED)
   endif()
   if (DARMA_CT_ENABLE_TESTS)
-  message("DARMA compile time tests will be included.")
+    message("DARMA compile time tests will be included.")
   endif()
   include(CTest)
   enable_testing()
@@ -47,8 +90,6 @@ else()
   message("DARMA frontend tests will be skipped.")
 endif()
 
-# indicate that CMAKE was used, so config-generated.h can be used
-set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DDARMA_CONFIG_GENERATED_H_AVAILABLE" )
 
 
 if (DARMA_ENABLE_COVERALLS)
@@ -65,34 +106,7 @@ if (DARMA_ENABLE_COVERALLS)
   )
 endif()
 
-include (CheckCXXCompilerFlag)
-include (CheckCXXSourceCompiles)
 
-if (NOT CMAKE_VERSION VERSION_LESS 3.4)
-  CHECK_CXX_COMPILER_FLAG("-fconcepts" DARMA_HAS_CXX_CONCEPTS_FLAG)
+if (DARMA_TESTS)
+  add_subdirectory(src/tests)
 endif()
-
-add_subdirectory(src)
-
-add_library(darma_frontend INTERFACE)
-target_include_directories(darma_frontend INTERFACE
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
-  $<INSTALL_INTERFACE:include>
-)
-install(TARGETS darma_frontend EXPORT darma_frontend)
-install(EXPORT darma_frontend DESTINATION cmake)
-
-configure_file(
-  cmake/darma_frontendConfig.cmake.in
-  "${PROJECT_BINARY_DIR}/darma_frontendConfig.cmake" @ONLY
-)
-install(
-  FILES
-  "${PROJECT_BINARY_DIR}/darma_frontendConfig.cmake" 
-  DESTINATION cmake 
-)
- 
-
-
-
-
